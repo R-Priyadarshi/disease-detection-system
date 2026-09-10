@@ -39,7 +39,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const browseFolderBtn = document.getElementById('browse-folder-btn');
     const worklistFolderBtn = document.getElementById('worklist-folder-btn');
     const worklistFilesBtn = document.getElementById('worklist-files-btn');
-    const worklistClearBtn = document.getElementById('worklist-clear-btn');
+    const worklistSelectModeBtn = document.getElementById('worklist-select-mode-btn');
+    const worklistPurgeAllBtn = document.getElementById('worklist-purge-all-btn');
+    const triageBulkBar = document.getElementById('triage-bulk-bar');
+    const bulkSelectAll = document.getElementById('bulk-select-all');
+    const bulkSelectedLabel = document.getElementById('bulk-selected-label');
+    const bulkSelectedCount = document.getElementById('bulk-selected-count');
+    const bulkPurgeSelectedBtn = document.getElementById('bulk-purge-selected-btn');
+    const bulkCancelBtn = document.getElementById('bulk-cancel-btn');
     const clearStagedBtn = document.getElementById('clear-staged-btn');
     const analyzeBtn = document.getElementById('analyze-btn');
     const analyzeSpinner = document.getElementById('analyze-spinner');
@@ -132,6 +139,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let worklistStudies = [];
     let selectedStudyId = null;
     let activeFilter = 'all';
+    let selectedStudyIds = new Set();
+    let isSelectModeActive = false;
 
     let currentFile = null;
     let currentPrediction = null;
@@ -234,15 +243,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (filtered.length === 0) {
             studyQueueList.innerHTML = `
-                <div class="empty-queue-msg" style="padding: 24px 12px; text-align: center; color: var(--titanium-400); font-size: 0.8125rem;">
-                    <p>No studies match the active filter criteria.</p>
+                <div class="empty-queue-msg">
+                    <div class="empty-queue-icon">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline>
+                            <path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path>
+                        </svg>
+                    </div>
+                    <div class="empty-queue-title">Triage Queue Empty</div>
+                    <p class="empty-queue-desc">No studies match active filter or queue was purged. Ingest new cohorts or restore baseline cases.</p>
+                    <div class="empty-queue-btn-row">
+                        <button type="button" class="btn-quick-upload" id="empty-restore-baseline-btn" style="width: 100%; justify-content: center;">
+                            🔄 Restore Baseline Studies
+                        </button>
+                    </div>
                 </div>
             `;
+            const emptyRestoreBtn = document.getElementById('empty-restore-baseline-btn');
+            if (emptyRestoreBtn) {
+                emptyRestoreBtn.addEventListener('click', restoreBaselineStudies);
+            }
+            updateBulkSelectionBar();
             return;
         }
 
         studyQueueList.innerHTML = filtered.map(study => {
             const isSelected = study.study_id === selectedStudyId;
+            const isChecked = selectedStudyIds.has(study.study_id);
             const isStat = study.priority === 'STAT_CRITICAL';
             const isUrgent = study.priority === 'URGENT';
             const isSigned = study.status === 'SIGNED';
@@ -260,9 +287,14 @@ document.addEventListener('DOMContentLoaded', () => {
             const confBadgeClass = study.is_pneumonia ? 'pneu' : 'norm';
 
             return `
-                <div class="study-card ${isSelected ? 'active' : ''}" data-study-id="${study.study_id}" role="button" tabindex="0">
+                <div class="study-card ${isSelected ? 'active' : ''} ${isChecked ? 'selected-for-purge' : ''}" data-study-id="${study.study_id}" role="button" tabindex="0">
                     <div class="study-card-header">
-                        <div class="study-card-prio-wrap">${priorityBadge}</div>
+                        <div class="study-card-prio-wrap" style="display: flex; align-items: center; gap: 6px;">
+                            <div class="card-select-wrap">
+                                <input type="checkbox" class="study-card-checkbox" data-checkbox-id="${study.study_id}" ${isChecked ? 'checked' : ''} aria-label="Select study for purge">
+                            </div>
+                            ${priorityBadge}
+                        </div>
                         <div class="study-card-actions">
                             <button type="button" class="btn-card-dismiss" data-delete-id="${study.study_id}" title="Remove study from queue" aria-label="Remove study">
                                 <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2">
@@ -290,12 +322,33 @@ document.addEventListener('DOMContentLoaded', () => {
             `;
         }).join('');
 
-        // Attach click listeners to cards
+        // Attach click listeners to cards (avoiding clicks on checkbox or dismiss button)
         studyQueueList.querySelectorAll('.study-card').forEach(card => {
-            card.addEventListener('click', () => {
+            card.addEventListener('click', (e) => {
+                if (e.target.closest('.card-select-wrap') || e.target.closest('.btn-card-dismiss')) {
+                    return;
+                }
                 const id = card.dataset.studyId;
                 const study = worklistStudies.find(s => s.study_id === id);
                 if (study) loadWorklistStudy(study);
+            });
+        });
+
+        // Attach checkbox change listeners
+        studyQueueList.querySelectorAll('.study-card-checkbox').forEach(chk => {
+            chk.addEventListener('click', (e) => e.stopPropagation());
+            chk.addEventListener('change', (e) => {
+                e.stopPropagation();
+                const id = chk.dataset.checkboxId;
+                if (chk.checked) {
+                    selectedStudyIds.add(id);
+                    isSelectModeActive = true;
+                } else {
+                    selectedStudyIds.delete(id);
+                }
+                const card = chk.closest('.study-card');
+                if (card) card.classList.toggle('selected-for-purge', chk.checked);
+                updateBulkSelectionBar();
             });
         });
 
@@ -307,12 +360,70 @@ document.addEventListener('DOMContentLoaded', () => {
                 deleteStudy(id);
             });
         });
+
+        updateBulkSelectionBar();
+    }
+
+    function updateBulkSelectionBar() {
+        const visibleStudies = getFilteredStudies();
+        const totalVisible = visibleStudies.length;
+        const selectedCount = selectedStudyIds.size;
+
+        if (bulkSelectedCount) {
+            bulkSelectedCount.textContent = selectedCount;
+        }
+        if (bulkSelectedLabel) {
+            bulkSelectedLabel.textContent = `${selectedCount} Selected`;
+        }
+
+        if (bulkPurgeSelectedBtn) {
+            bulkPurgeSelectedBtn.disabled = selectedCount === 0;
+            bulkPurgeSelectedBtn.innerHTML = `🗑️ Purge Selected (${selectedCount})`;
+        }
+
+        if (bulkSelectAll) {
+            const allChecked = totalVisible > 0 && visibleStudies.every(s => selectedStudyIds.has(s.study_id));
+            const someChecked = !allChecked && visibleStudies.some(s => selectedStudyIds.has(s.study_id));
+            bulkSelectAll.checked = allChecked;
+            bulkSelectAll.indeterminate = someChecked;
+        }
+
+        if (triageBulkBar) {
+            if (isSelectModeActive || selectedCount > 0) {
+                triageBulkBar.style.display = 'flex';
+            } else {
+                triageBulkBar.style.display = 'none';
+            }
+        }
+
+        if (worklistSelectModeBtn) {
+            worklistSelectModeBtn.classList.toggle('active', isSelectModeActive || selectedCount > 0);
+        }
+    }
+
+    async function restoreBaselineStudies() {
+        showWorkstationToast('🔄 Restoring baseline calibration studies...');
+        try {
+            const res = await fetch('/api/v1/worklist/reset', { method: 'POST' });
+            if (res.ok) {
+                selectedStudyIds.clear();
+                isSelectModeActive = false;
+                await fetchWorklist();
+                showWorkstationToast('✓ 5 baseline triage studies restored.');
+            } else {
+                showWorkstationToast('Failed to reset baseline worklist.');
+            }
+        } catch (err) {
+            console.error('Error resetting worklist:', err);
+            showWorkstationToast('Network error restoring baseline studies.');
+        }
     }
 
     async function deleteStudy(studyId) {
         const studyIndex = worklistStudies.findIndex(s => s.study_id === studyId);
         if (studyIndex === -1) return;
         const removed = worklistStudies.splice(studyIndex, 1)[0];
+        selectedStudyIds.delete(studyId);
 
         // Background server cache sync
         fetch(`/api/v1/worklist/${encodeURIComponent(studyId)}`, { method: 'DELETE' }).catch(err => {
@@ -576,12 +687,17 @@ document.addEventListener('DOMContentLoaded', () => {
             navigateWorklist(-1);
         }
 
-        // Delete Currently Active Study: 'Delete' or 'Backspace'
+        // Delete Currently Active Study or Selected Studies: 'Delete' or 'Backspace'
         if (e.key === 'Delete' || e.key === 'Backspace') {
             const isEditing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
-            if (!isEditing && selectedStudyId) {
-                e.preventDefault();
-                deleteStudy(selectedStudyId);
+            if (!isEditing) {
+                if (selectedStudyIds.size > 0 && bulkPurgeSelectedBtn && !bulkPurgeSelectedBtn.disabled) {
+                    e.preventDefault();
+                    bulkPurgeSelectedBtn.click();
+                } else if (selectedStudyId) {
+                    e.preventDefault();
+                    deleteStudy(selectedStudyId);
+                }
             }
         }
 
@@ -839,34 +955,107 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    if (worklistClearBtn) {
-        worklistClearBtn.addEventListener('click', async () => {
+    if (worklistSelectModeBtn) {
+        worklistSelectModeBtn.addEventListener('click', () => {
+            isSelectModeActive = !isSelectModeActive;
+            if (!isSelectModeActive) {
+                selectedStudyIds.clear();
+            }
+            updateBulkSelectionBar();
+            renderWorklistQueue();
+        });
+    }
+
+    if (bulkSelectAll) {
+        bulkSelectAll.addEventListener('change', (e) => {
+            const visible = getFilteredStudies();
+            if (e.target.checked) {
+                visible.forEach(s => selectedStudyIds.add(s.study_id));
+                isSelectModeActive = true;
+            } else {
+                visible.forEach(s => selectedStudyIds.delete(s.study_id));
+            }
+            updateBulkSelectionBar();
+            renderWorklistQueue();
+        });
+    }
+
+    if (bulkCancelBtn) {
+        bulkCancelBtn.addEventListener('click', () => {
+            isSelectModeActive = false;
+            selectedStudyIds.clear();
+            updateBulkSelectionBar();
+            renderWorklistQueue();
+        });
+    }
+
+    if (bulkPurgeSelectedBtn) {
+        bulkPurgeSelectedBtn.addEventListener('click', async () => {
+            const idsToDelete = Array.from(selectedStudyIds);
+            if (idsToDelete.length === 0) return;
+
+            const count = idsToDelete.length;
+            const confirmed = window.confirm(`Purge ${count} selected study ${count === 1 ? 'record' : 'records'} from triage queue?`);
+            if (!confirmed) return;
+
+            try {
+                await fetch('/api/v1/worklist/batch-delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ study_ids: idsToDelete })
+                });
+            } catch (err) {
+                console.warn('Batch delete error:', err);
+            }
+
+            worklistStudies = worklistStudies.filter(s => !selectedStudyIds.has(s.study_id));
+            selectedStudyIds.clear();
+            isSelectModeActive = false;
+
+            updateWorklistCounters();
+            renderWorklistQueue();
+
+            if (selectedStudyId && idsToDelete.includes(selectedStudyId)) {
+                const remaining = getFilteredStudies();
+                if (remaining.length > 0) {
+                    loadWorklistStudy(remaining[0]);
+                } else if (worklistStudies.length > 0) {
+                    loadWorklistStudy(worklistStudies[0]);
+                } else {
+                    showEmptyViewportState();
+                }
+            }
+
+            showWorkstationToast(`🗑️ Purged ${count} selected studies.`);
+        });
+    }
+
+    if (worklistPurgeAllBtn) {
+        worklistPurgeAllBtn.addEventListener('click', async () => {
             if (worklistStudies.length === 0) {
                 showWorkstationToast('Queue is already empty.');
                 return;
             }
 
-            const batchCount = worklistStudies.filter(s => s.study_id.startsWith('ALV-BAT-')).length;
-            if (batchCount > 0) {
-                // Purge uploaded batch studies
-                worklistStudies = worklistStudies.filter(s => !s.study_id.startsWith('ALV-BAT-'));
-                fetch('/api/v1/worklist?uploaded_only=true', { method: 'DELETE' }).catch(() => {});
-                showWorkstationToast(`🗑️ Purged ${batchCount} uploaded cohort studies.`);
-            } else {
-                // If only baseline studies remain, clear all
-                worklistStudies = [];
-                fetch('/api/v1/worklist?uploaded_only=false', { method: 'DELETE' }).catch(() => {});
-                showWorkstationToast('🗑️ Cleared all studies from triage queue.');
+            const total = worklistStudies.length;
+            const confirmed = window.confirm(`Purge ALL ${total} studies from ER triage queue?`);
+            if (!confirmed) return;
+
+            try {
+                await fetch('/api/v1/worklist?uploaded_only=false', { method: 'DELETE' });
+            } catch (err) {
+                console.warn('Purge all error:', err);
             }
+
+            worklistStudies = [];
+            selectedStudyIds.clear();
+            isSelectModeActive = false;
 
             updateWorklistCounters();
             renderWorklistQueue();
+            showEmptyViewportState();
 
-            if (worklistStudies.length > 0) {
-                loadWorklistStudy(worklistStudies[0]);
-            } else {
-                showEmptyViewportState();
-            }
+            showWorkstationToast(`🗑️ Purged all ${total} studies from queue.`);
         });
     }
 

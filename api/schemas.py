@@ -145,3 +145,11 @@ class ErrorResponse(BaseModel):
     status: str = "error"
     message: str
     detail: Optional[Any] = None
+
+class BatchDeleteRequest(BaseModel):
+    study_ids: List[str]
+
+class BatchDeleteResponse(BaseModel):
+    status: str = "success"
+    deleted_count: int
+    remaining_count: int

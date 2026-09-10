@@ -1313,6 +1313,161 @@ input[type="range"]::-webkit-slider-thumb {
     color: #ffffff !important;
 }
 
+/* Multi-Select Bulk Action Toolbar */
+.triage-bulk-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #10141e;
+    border-bottom: 1px solid var(--border-focus);
+    animation: slideDown 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.bulk-bar-left {
+    display: flex;
+    align-items: center;
+}
+
+.pacs-checkbox-container {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--titanium-200);
+    user-select: none;
+}
+
+.pacs-check-input {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+    accent-color: #38bdf8;
+}
+
+.bulk-bar-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-bulk-danger {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid #ef4444;
+    color: #ffffff;
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-bulk-danger:hover:not(:disabled) {
+    background: #ef4444;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+}
+
+.btn-bulk-danger:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.btn-bulk-cancel {
+    background: transparent;
+    border: 1px solid var(--border-hairline);
+    color: var(--titanium-400);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-bulk-cancel:hover {
+    color: #ffffff;
+    border-color: var(--titanium-200);
+}
+
+/* Card Checkbox */
+.card-select-wrap {
+    display: flex;
+    align-items: center;
+    margin-right: 2px;
+}
+
+.study-card-checkbox {
+    width: 15px;
+    height: 15px;
+    cursor: pointer;
+    accent-color: #38bdf8;
+    margin: 0;
+}
+
+.study-card.selected-for-purge {
+    background: #141b2b;
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 1px rgba(56, 189, 248, 0.5);
+}
+
+/* Empty Queue View */
+.empty-queue-msg {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 36px 16px;
+    gap: 10px;
+    color: var(--titanium-400);
+}
+
+.empty-queue-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-hairline);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--titanium-300);
+    margin-bottom: 4px;
+}
+
+.empty-queue-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--titanium-100);
+    letter-spacing: 0.2px;
+}
+
+.empty-queue-desc {
+    font-size: 11px;
+    color: var(--titanium-400);
+    max-width: 240px;
+    line-height: 1.4;
+    margin: 0;
+}
+
+.empty-queue-btn-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    max-width: 200px;
+    margin-top: 8px;
+}
+
 .triage-worklist-container.dragover {
     outline: 2px dashed var(--titanium-200);
     outline-offset: -2px;

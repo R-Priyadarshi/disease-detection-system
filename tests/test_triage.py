@@ -217,4 +217,47 @@ def test_delete_worklist_study_and_purge(client):
     assert reset_res.status_code == 200
     assert reset_res.json()["status"] == "success"
 
+def test_batch_delete_and_purge_all(client):
+    """Test multi-select batch deletion and purge all capability."""
+    # 1. Reset baseline worklist
+    client.post("/api/v1/worklist/reset")
+    res = client.get("/api/v1/worklist")
+    assert res.status_code == 200
+    studies = res.json()["studies"]
+    assert len(studies) >= 3
+
+    # Pick 2 study IDs to delete in bulk
+    ids_to_delete = [studies[0]["study_id"], studies[1]["study_id"]]
+    batch_del_res = client.post(
+        "/api/v1/worklist/batch-delete",
+        json={"study_ids": ids_to_delete}
+    )
+    assert batch_del_res.status_code == 200
+    data = batch_del_res.json()
+    assert data["status"] == "success"
+    assert data["deleted_count"] == 2
+    assert data["remaining_count"] == len(studies) - 2
+
+    # Verify these studies no longer exist in worklist
+    res_after = client.get("/api/v1/worklist")
+    remaining_ids = {s["study_id"] for s in res_after.json()["studies"]}
+    assert ids_to_delete[0] not in remaining_ids
+    assert ids_to_delete[1] not in remaining_ids
+
+    # 2. Test Purge All
+    purge_all_res = client.delete("/api/v1/worklist?uploaded_only=false")
+    assert purge_all_res.status_code == 200
+    assert purge_all_res.json()["remaining_count"] == 0
+
+    empty_res = client.get("/api/v1/worklist")
+    # Even if empty, GET /worklist restores baseline if cache is None, but if cache is empty list [] it returns 0
+    assert empty_res.json()["total_cases"] == 0
+
+    # 3. Test Reset restores baseline
+    reset_res = client.post("/api/v1/worklist/reset")
+    assert reset_res.status_code == 200
+    refreshed = client.get("/api/v1/worklist")
+    assert refreshed.json()["total_cases"] >= 5
+
+
 

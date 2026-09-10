@@ -25,7 +25,9 @@ from api.schemas import (
     WorklistStudyItem,
     BatchTriageResponse,
     SignoffRequest,
-    SignoffResponse
+    SignoffResponse,
+    BatchDeleteRequest,
+    BatchDeleteResponse
 )
 
 from core.model import get_model, PneumoniaCNNModel
@@ -423,6 +425,26 @@ async def delete_worklist_study(study_id: str):
         "deleted_study_id": study_id,
         "remaining_count": len(_WORKLIST_CACHE)
     }
+
+@router.post("/api/v1/worklist/batch-delete", response_model=BatchDeleteResponse, tags=["Emergency Triage & Worklist"])
+async def batch_delete_worklist_studies(req: BatchDeleteRequest):
+    """
+    Deletes multiple selected studies from the triage worklist cache simultaneously.
+    """
+    global _WORKLIST_CACHE
+    if _WORKLIST_CACHE is None:
+        return BatchDeleteResponse(status="success", deleted_count=0, remaining_count=0)
+
+    to_delete = set(req.study_ids)
+    before_count = len(_WORKLIST_CACHE)
+    _WORKLIST_CACHE = [s for s in _WORKLIST_CACHE if s.study_id not in to_delete]
+    deleted_count = before_count - len(_WORKLIST_CACHE)
+
+    return BatchDeleteResponse(
+        status="success",
+        deleted_count=deleted_count,
+        remaining_count=len(_WORKLIST_CACHE)
+    )
 
 @router.delete("/api/v1/worklist", tags=["Emergency Triage & Worklist"])
 async def clear_worklist_cohort(uploaded_only: bool = True):
