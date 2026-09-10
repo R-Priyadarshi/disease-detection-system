@@ -39,6 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const browseFolderBtn = document.getElementById('browse-folder-btn');
     const worklistFolderBtn = document.getElementById('worklist-folder-btn');
     const worklistFilesBtn = document.getElementById('worklist-files-btn');
+    const worklistClearBtn = document.getElementById('worklist-clear-btn');
+    const clearStagedBtn = document.getElementById('clear-staged-btn');
     const analyzeBtn = document.getElementById('analyze-btn');
     const analyzeSpinner = document.getElementById('analyze-spinner');
     const analyzeBtnText = document.getElementById('analyze-btn-text');
@@ -261,7 +263,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 <div class="study-card ${isSelected ? 'active' : ''}" data-study-id="${study.study_id}" role="button" tabindex="0">
                     <div class="study-card-header">
                         <div class="study-card-prio-wrap">${priorityBadge}</div>
-                        <div class="study-card-meta">${statusBadge}</div>
+                        <div class="study-card-actions">
+                            <button type="button" class="btn-card-dismiss" data-delete-id="${study.study_id}" title="Remove study from queue" aria-label="Remove study">
+                                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.2">
+                                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                            </button>
+                            ${statusBadge}
+                        </div>
                     </div>
                     <div class="study-card-patient">
                         <div class="patient-name">${escapeHtml(study.patient_name)}</div>
@@ -288,6 +298,58 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (study) loadWorklistStudy(study);
             });
         });
+
+        // Attach delete dismiss click listeners
+        studyQueueList.querySelectorAll('.btn-card-dismiss').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.deleteId;
+                deleteStudy(id);
+            });
+        });
+    }
+
+    async function deleteStudy(studyId) {
+        const studyIndex = worklistStudies.findIndex(s => s.study_id === studyId);
+        if (studyIndex === -1) return;
+        const removed = worklistStudies.splice(studyIndex, 1)[0];
+
+        // Background server cache sync
+        fetch(`/api/v1/worklist/${encodeURIComponent(studyId)}`, { method: 'DELETE' }).catch(err => {
+            console.warn('Backend delete sync notice:', err);
+        });
+
+        updateWorklistCounters();
+        renderWorklistQueue();
+
+        // If the removed study was actively displayed in the viewport:
+        if (selectedStudyId === studyId) {
+            const filtered = getFilteredStudies();
+            if (filtered.length > 0) {
+                const nextIndex = Math.min(studyIndex, filtered.length - 1);
+                loadWorklistStudy(filtered[nextIndex]);
+            } else if (worklistStudies.length > 0) {
+                loadWorklistStudy(worklistStudies[0]);
+            } else {
+                showEmptyViewportState();
+            }
+        }
+
+        showWorkstationToast(`🗑️ Study removed: ${removed.patient_name || studyId}`);
+    }
+
+    function showEmptyViewportState() {
+        selectedStudyId = null;
+        currentPrediction = null;
+        currentFile = null;
+        if (emptyState) emptyState.hidden = false;
+        if (diagnosisContent) diagnosisContent.hidden = true;
+        if (loadingState) loadingState.hidden = true;
+        if (hudPatientId) hudPatientId.textContent = 'PATIENT: STANDBY';
+        if (hudPatientName) hudPatientName.textContent = 'NAME: STANDBY';
+        if (hudModality) hudModality.textContent = 'MODALITY: --';
+        if (hudStudyStatus) hudStudyStatus.textContent = 'STATUS: STANDBY';
+        if (btnSignoff) btnSignoff.disabled = true;
     }
 
     // Filter pill click handling
@@ -512,6 +574,15 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'ArrowUp' || e.key === 'k' || e.key === 'K') {
             e.preventDefault();
             navigateWorklist(-1);
+        }
+
+        // Delete Currently Active Study: 'Delete' or 'Backspace'
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+            const isEditing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+            if (!isEditing && selectedStudyId) {
+                e.preventDefault();
+                deleteStudy(selectedStudyId);
+            }
         }
 
         // Escape closes modals
@@ -742,11 +813,61 @@ document.addEventListener('DOMContentLoaded', () => {
     function handleFileSelected(file) {
         currentFile = file;
         if (analyzeBtn) analyzeBtn.disabled = false;
+        if (clearStagedBtn) clearStagedBtn.style.display = 'inline-flex';
         const pText = dropZone?.querySelector('.drop-text-primary');
         const sText = dropZone?.querySelector('.drop-text-secondary');
         if (pText) pText.textContent = `STUDY: ${file.name}`;
         if (sText) sText.textContent = `${(file.size / 1024).toFixed(1)} KB • Ingested into PACS Memory`;
         if (dropZone) dropZone.style.borderColor = 'var(--titanium-200)';
+    }
+
+    if (clearStagedBtn) {
+        clearStagedBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            currentFile = null;
+            if (fileInput) fileInput.value = '';
+            if (folderInput) folderInput.value = '';
+            if (analyzeBtn) analyzeBtn.disabled = true;
+            clearStagedBtn.style.display = 'none';
+
+            const pText = dropZone?.querySelector('.drop-text-primary');
+            const sText = dropZone?.querySelector('.drop-text-secondary');
+            if (pText) pText.textContent = 'Ingest Patient Cohort Folder or Studies';
+            if (sText) sText.textContent = 'Drag & Drop Folders or DICOM Files (.dcm, .jpg, .png) • Automatic ER Acuity Triage';
+            if (dropZone) dropZone.style.borderColor = '';
+            showWorkstationToast('Staged study file cleared from memory.');
+        });
+    }
+
+    if (worklistClearBtn) {
+        worklistClearBtn.addEventListener('click', async () => {
+            if (worklistStudies.length === 0) {
+                showWorkstationToast('Queue is already empty.');
+                return;
+            }
+
+            const batchCount = worklistStudies.filter(s => s.study_id.startsWith('ALV-BAT-')).length;
+            if (batchCount > 0) {
+                // Purge uploaded batch studies
+                worklistStudies = worklistStudies.filter(s => !s.study_id.startsWith('ALV-BAT-'));
+                fetch('/api/v1/worklist?uploaded_only=true', { method: 'DELETE' }).catch(() => {});
+                showWorkstationToast(`🗑️ Purged ${batchCount} uploaded cohort studies.`);
+            } else {
+                // If only baseline studies remain, clear all
+                worklistStudies = [];
+                fetch('/api/v1/worklist?uploaded_only=false', { method: 'DELETE' }).catch(() => {});
+                showWorkstationToast('🗑️ Cleared all studies from triage queue.');
+            }
+
+            updateWorklistCounters();
+            renderWorklistQueue();
+
+            if (worklistStudies.length > 0) {
+                loadWorklistStudy(worklistStudies[0]);
+            } else {
+                showEmptyViewportState();
+            }
+        });
     }
 
     async function handleBatchFiles(files) {

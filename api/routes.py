@@ -406,6 +406,54 @@ async def signoff_study(req: SignoffRequest):
         audit_hash=audit_hash
     )
 
+@router.delete("/api/v1/worklist/{study_id}", tags=["Emergency Triage & Worklist"])
+async def delete_worklist_study(study_id: str):
+    """
+    Deletes an individual study from the triage worklist cache.
+    """
+    global _WORKLIST_CACHE
+    if _WORKLIST_CACHE is None:
+        raise HTTPException(status_code=404, detail="Worklist is uninitialized or empty.")
+    initial_len = len(_WORKLIST_CACHE)
+    _WORKLIST_CACHE = [s for s in _WORKLIST_CACHE if s.study_id != study_id]
+    if len(_WORKLIST_CACHE) == initial_len:
+        raise HTTPException(status_code=404, detail=f"Study {study_id} not found in worklist.")
+    return {
+        "status": "success",
+        "deleted_study_id": study_id,
+        "remaining_count": len(_WORKLIST_CACHE)
+    }
+
+@router.delete("/api/v1/worklist", tags=["Emergency Triage & Worklist"])
+async def clear_worklist_cohort(uploaded_only: bool = True):
+    """
+    Removes uploaded cohort studies or purges the entire active worklist queue.
+    """
+    global _WORKLIST_CACHE
+    if _WORKLIST_CACHE is None:
+        _WORKLIST_CACHE = []
+        return {"status": "success", "remaining_count": 0}
+
+    if uploaded_only:
+        _WORKLIST_CACHE = [s for s in _WORKLIST_CACHE if not s.study_id.startswith("ALV-BAT-")]
+    else:
+        _WORKLIST_CACHE = []
+
+    return {
+        "status": "success",
+        "purged_uploaded_only": uploaded_only,
+        "remaining_count": len(_WORKLIST_CACHE)
+    }
+
+@router.post("/api/v1/worklist/reset", tags=["Emergency Triage & Worklist"])
+async def reset_worklist_to_baseline():
+    """
+    Resets the emergency triage worklist back to standard baseline calibration studies.
+    """
+    global _WORKLIST_CACHE
+    _WORKLIST_CACHE = None
+    return {"status": "success", "message": "Worklist reset to baseline calibration cohort."}
+
 @router.get("/api/v1/samples", response_model=SamplesListResponse, tags=["PACS Verification Samples"])
 async def get_sample_radiographs():
     """Serves calibrated verification radiographs and native DICOM files."""

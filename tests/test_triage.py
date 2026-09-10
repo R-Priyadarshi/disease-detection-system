@@ -180,3 +180,41 @@ def test_folder_cohort_ingestion_and_patient_name_derivation(client):
     ranks = [s["priority_rank"] for s in studies]
     assert ranks == sorted(ranks)
 
+def test_delete_worklist_study_and_purge(client):
+    """Test deleting an individual study and purging uploaded cohorts."""
+    # Ensure baseline is loaded
+    worklist_res = client.get("/api/v1/worklist")
+    assert worklist_res.status_code == 200
+    initial_cases = worklist_res.json()["studies"]
+    assert len(initial_cases) >= 1
+
+    # Ingest a batch study
+    img = Image.new("L", (100, 100), color=100)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    batch_res = client.post("/api/v1/batch/triage", files=[("files", ("temp_study.png", buf, "image/png"))])
+    assert batch_res.status_code == 200
+    temp_study_id = batch_res.json()["triaged_studies"][0]["study_id"]
+
+    # Delete the specific study
+    del_res = client.delete(f"/api/v1/worklist/{temp_study_id}")
+    assert del_res.status_code == 200
+    assert del_res.json()["status"] == "success"
+    assert del_res.json()["deleted_study_id"] == temp_study_id
+
+    # Verify 404 on deleting non-existent study
+    bad_del = client.delete("/api/v1/worklist/ALV-NON-EXISTENT")
+    assert bad_del.status_code == 404
+
+    # Test purge uploaded cohorts
+    purge_res = client.delete("/api/v1/worklist?uploaded_only=true")
+    assert purge_res.status_code == 200
+    assert purge_res.json()["status"] == "success"
+
+    # Test reset worklist to baseline
+    reset_res = client.post("/api/v1/worklist/reset")
+    assert reset_res.status_code == 200
+    assert reset_res.json()["status"] == "success"
+
+

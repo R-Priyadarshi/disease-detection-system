@@ -145,6 +145,13 @@
                             </svg>
                             + Ingest Files
                         </button>
+                        <button type="button" class="btn-quick-upload btn-danger-action" id="worklist-clear-btn" title="Purge uploaded cohort studies from queue memory">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                            Purge
+                        </button>
                     </div>
 
                     <!-- Dynamic Study Queue List -->
@@ -153,7 +160,8 @@
                     </div>
 
                     <div class="worklist-kbd-hint">
-                        <span>Navigate: <kbd>↑</kbd> <kbd>↓</kbd></span>
+                        <span>Nav: <kbd>↑</kbd> <kbd>↓</kbd></span>
+                        <span>Del: <kbd>Del</kbd></span>
                         <span>Tags: <kbd>D</kbd></span>
                         <span>Sign: <kbd>S</kbd></span>
                     </div>
@@ -173,9 +181,10 @@
                             </div>
                             <div class="drop-text-primary">Ingest Patient Cohort Folder or Studies</div>
                             <div class="drop-text-secondary">Drag & Drop Folders or DICOM Files (.dcm, .jpg, .png) • Automatic ER Acuity Triage</div>
-                            <div class="dropzone-actions-cluster" style="display: flex; gap: 8px; margin-top: 10px; justify-content: center;">
+                            <div class="dropzone-actions-cluster" style="display: flex; gap: 8px; margin-top: 10px; justify-content: center; flex-wrap: wrap;">
                                 <button type="button" class="btn-titanium" id="browse-btn">Browse Files</button>
                                 <button type="button" class="btn-titanium" id="browse-folder-btn">📁 Ingest Folder</button>
+                                <button type="button" class="btn-titanium btn-danger-subtle" id="clear-staged-btn" style="display: none;">✕ Clear File</button>
                             </div>
                         </div>
                     </div>

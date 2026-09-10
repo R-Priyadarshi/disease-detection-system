@@ -1289,6 +1289,30 @@ input[type="range"]::-webkit-slider-thumb {
     box-shadow: 0 0 12px rgba(255, 255, 255, 0.08);
 }
 
+.btn-quick-upload.btn-danger-action {
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.25);
+    flex: 0 0 auto;
+}
+
+.btn-quick-upload.btn-danger-action:hover {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: #ef4444;
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.25);
+}
+
+.btn-danger-subtle {
+    border-color: rgba(239, 68, 68, 0.3) !important;
+    color: #f87171 !important;
+}
+
+.btn-danger-subtle:hover {
+    background: rgba(239, 68, 68, 0.15) !important;
+    border-color: #ef4444 !important;
+    color: #ffffff !important;
+}
+
 .triage-worklist-container.dragover {
     outline: 2px dashed var(--titanium-200);
     outline-offset: -2px;
@@ -1335,6 +1359,36 @@ input[type="range"]::-webkit-slider-thumb {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 6px;
+}
+
+.study-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.btn-card-dismiss {
+    background: transparent;
+    border: none;
+    color: var(--titanium-500);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+    opacity: 0.5;
+}
+
+.study-card:hover .btn-card-dismiss {
+    opacity: 1;
+}
+
+.btn-card-dismiss:hover {
+    color: #ffffff;
+    background: rgba(239, 68, 68, 0.85);
 }
 
 .study-card-prio-wrap {
