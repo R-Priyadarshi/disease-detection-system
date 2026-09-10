@@ -1265,128 +1265,172 @@ input[type="range"]::-webkit-slider-thumb {
     gap: 8px;
 }
 
-.study-queue-card {
-    background: var(--bg-surface);
-    border: 1px solid var(--border-hairline);
+.study-card {
+    background: #0b0e14;
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: var(--radius-sm);
     padding: 10px 12px;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
     display: flex;
     flex-direction: column;
     gap: 6px;
+    position: relative;
+    user-select: none;
 }
 
-.study-queue-card:hover {
-    background: var(--bg-surface-elevated);
-    border-color: var(--border-focus);
+.study-card:hover {
+    background: #111520;
+    border-color: rgba(255, 255, 255, 0.22);
     transform: translateY(-1px);
-}
-
-.study-queue-card.active {
-    background: var(--bg-surface-elevated);
-    border-color: #ffffff;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
 }
 
-.card-top-row {
+.study-card.active {
+    background: #131926;
+    border-color: #38bdf8;
+    box-shadow: 0 0 0 1px #38bdf8, 0 6px 18px rgba(0, 0, 0, 0.6);
+}
+
+.study-card-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
 }
 
-.card-badge-cluster {
+.study-card-prio-wrap {
     display: flex;
     align-items: center;
-    gap: 6px;
 }
 
-.card-prio-badge {
+.study-card-priority {
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.5px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.study-card-priority.stat {
+    background: rgba(225, 29, 72, 0.2);
+    color: #f43f5e;
+    border: 1px solid rgba(225, 29, 72, 0.45);
+}
+
+.study-card-priority.urgent {
+    background: rgba(245, 158, 11, 0.2);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.45);
+}
+
+.study-card-priority.routine {
+    background: rgba(16, 185, 129, 0.2);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.45);
+}
+
+.study-card-meta {
+    display: flex;
+    align-items: center;
+}
+
+.study-card-status {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
     padding: 2px 6px;
     border-radius: 3px;
     text-transform: uppercase;
 }
 
-.card-prio-badge.stat {
-    background: rgba(225, 29, 72, 0.2);
-    color: #f43f5e;
-    border: 1px solid rgba(225, 29, 72, 0.4);
+.study-card-status.pending {
+    color: var(--titanium-400);
+    background: rgba(255, 255, 255, 0.05);
 }
 
-.card-prio-badge.urgent {
-    background: rgba(245, 158, 11, 0.2);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.4);
-}
-
-.card-prio-badge.routine {
-    background: rgba(5, 150, 105, 0.2);
-    color: #34d399;
-    border: 1px solid rgba(5, 150, 105, 0.4);
-}
-
-.card-status-badge {
-    font-family: var(--font-mono);
-    font-size: 9px;
-    color: var(--titanium-500);
-}
-
-.card-status-badge.signed {
-    color: var(--pathology-clear);
+.study-card-status.signed {
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.16);
+    border: 1px solid rgba(16, 185, 129, 0.35);
     font-weight: 700;
 }
 
-.card-time {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--titanium-400);
-}
-
-.card-main-row {
+.study-card-patient {
     display: flex;
-    justify-content: space-between;
-    align-items: baseline;
+    flex-direction: column;
+    gap: 2px;
 }
 
-.card-patient-name {
+.study-card-patient .patient-name {
     font-family: var(--font-display);
     font-size: 13px;
     font-weight: 700;
-    color: #ffffff;
-    letter-spacing: 0.2px;
+    color: #f8fafc;
+    letter-spacing: 0.3px;
 }
 
-.card-patient-mrn {
+.study-card-patient .patient-sub {
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--titanium-400);
 }
 
-.card-footer-row {
+.study-card-finding {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    margin-top: 1px;
+}
+
+.finding-tag {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 3px;
+    text-transform: uppercase;
+}
+
+.finding-tag.pneu {
+    background: rgba(225, 29, 72, 0.25);
+    color: #fca5a5;
+    border: 1px solid rgba(225, 29, 72, 0.5);
+}
+
+.finding-tag.norm {
+    background: rgba(16, 185, 129, 0.25);
+    color: #6ee7b7;
+    border: 1px solid rgba(16, 185, 129, 0.5);
+}
+
+.conf-text {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: #ffffff;
+}
+
+.zone-text {
+    font-family: var(--font-sans);
+    color: var(--titanium-400);
+    font-size: 11px;
+}
+
+.study-card-footer {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 11px;
-    color: var(--titanium-400);
-    border-top: 1px solid rgba(255, 255, 255, 0.04);
-    padding-top: 5px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--titanium-500);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    padding-top: 6px;
     margin-top: 2px;
-}
-
-.card-finding-val {
-    font-weight: 700;
-}
-
-.card-finding-val.pneumonia {
-    color: var(--pathology-critical);
-}
-
-.card-finding-val.normal {
-    color: var(--pathology-clear);
 }
 
 .worklist-kbd-hint {
@@ -1460,6 +1504,11 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 /* DICOM Tag Inspector Modal */
+#dicom-tags-dialog.alveon-modal {
+    max-width: 960px;
+    width: 95%;
+}
+
 .dicom-inspector-shell {
     background: #0d0f14;
     color: #f8fafc;
@@ -1492,45 +1541,56 @@ input[type="range"]::-webkit-slider-thumb {
     width: 100%;
     border-collapse: collapse;
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12.5px;
+    line-height: 1.5;
 }
 
 .dicom-tag-table th {
     text-align: left;
-    padding: 8px 12px;
+    padding: 10px 14px;
     background: #0d0f14;
     color: var(--titanium-400);
     border-bottom: 1px solid var(--border-hairline);
     font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
 }
 
 .dicom-tag-table td {
-    padding: 7px 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    padding: 9px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     color: var(--titanium-300);
 }
 
 .dicom-tag-table tr:hover td {
-    background: rgba(255, 255, 255, 0.03);
+    background: rgba(56, 189, 248, 0.04);
 }
 
-.tag-hex {
-    color: #93c5fd;
-    font-weight: 600;
+.tag-code, .tag-hex {
+    color: #38bdf8;
+    font-weight: 700;
 }
 
 .tag-vr {
     color: #fbbf24;
+    font-weight: 700;
+}
+
+.tag-name {
+    color: #f1f5f9;
+    font-weight: 600;
 }
 
 .tag-val {
     color: #34d399;
+    font-weight: 500;
     word-break: break-all;
 }
 
 .dicom-audit-footer {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 12px;
     color: var(--titanium-400);
 }
 
