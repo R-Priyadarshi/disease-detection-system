@@ -18,3 +18,7 @@ __pycache__/
 # Operating system artifacts
 .DS_Store
 Thumbs.db
+
+# PACS Ingest Storage (ignore ingested files, keep folder)
+data/dicom_storage/*
+!data/dicom_storage/.gitkeep

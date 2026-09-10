@@ -1,19 +1,25 @@
 version: '3.8'
 
 services:
-  pneumoscan-api:
+  alveon-pacs:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: pneumoscan_diagnostic_service
+    container_name: alveon_pacs_platform
     restart: unless-stopped
     ports:
       - "8000:8000"
+      - "11112:11112"
+    volumes:
+      - ./data/dicom_storage:/app/data/dicom_storage
     environment:
       - PYTHONUNBUFFERED=1
       - TF_ENABLE_ONEDNN_OPTS=0
+      - DICOM_SCP_PORT=11112
+      - DICOM_SCP_AET=ALVEON_PACS
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+

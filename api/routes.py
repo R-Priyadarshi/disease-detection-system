@@ -1,4 +1,7 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Body
+from fastapi.responses import StreamingResponse
+from core.pdf_generator import generate_clinical_report_pdf
+from core.dicom_listener import get_dicom_scp
 from pathlib import Path
 import numpy as np
 import tensorflow as tf
@@ -475,6 +478,83 @@ async def reset_worklist_to_baseline():
     global _WORKLIST_CACHE
     _WORKLIST_CACHE = None
     return {"status": "success", "message": "Worklist reset to baseline calibration cohort."}
+
+@router.post("/api/v1/report/pdf", tags=["Clinical Consultation & Export"])
+async def export_consultation_pdf(report: Dict[str, Any] = Body(...)):
+    """
+    Generates and streams a certified hospital radiologic consultation PDF document.
+    """
+    try:
+        pdf_buffer = generate_clinical_report_pdf(report)
+        study_id = report.get("study_id", "ALVEON-REPORT")
+        filename = f"ALVEON_Consultation_{study_id}_{datetime.datetime.now().strftime('%Y%m%d_%H%M')}.pdf"
+        return StreamingResponse(
+            pdf_buffer,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF Generation failed: {str(e)}")
+
+@router.get("/api/v1/worklist/{study_id}/pdf", tags=["Clinical Consultation & Export"])
+async def export_study_pdf_by_id(study_id: str):
+    """
+    Generates a certified clinical consultation PDF for a specific study ID in active triage queue.
+    """
+    global _WORKLIST_CACHE
+    if not _WORKLIST_CACHE:
+        # Load baseline if empty
+        await get_emergency_worklist()
+    study = next((s for s in _WORKLIST_CACHE if s.study_id == study_id), None)
+    if not study:
+        raise HTTPException(status_code=404, detail=f"Study {study_id} not found.")
+
+    report_data = {
+        "study_id": study.study_id,
+        "patient_name": study.patient_name,
+        "patient_mrn": study.patient_mrn,
+        "patient_age_sex": study.patient_age_sex,
+        "study_time": study.study_time,
+        "modality": study.modality,
+        "priority": study.priority,
+        "diagnosis": study.diagnosis,
+        "is_pneumonia": study.is_pneumonia,
+        "confidence_percentage": study.confidence_percentage,
+        "dominant_zone": study.dominant_zone,
+        "zonation": study.zonation.model_dump() if hasattr(study.zonation, 'model_dump') else study.zonation,
+        "original_image_b64": study.image_b64,
+        "gradcam_overlay_b64": study.gradcam_overlay_b64,
+        "status": study.status
+    }
+    pdf_buffer = generate_clinical_report_pdf(report_data)
+    filename = f"ALVEON_Report_{study.study_id}.pdf"
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+@router.get("/api/v1/dicom/status", tags=["DICOM Storage SCP Node"])
+async def get_dicom_node_status():
+    """
+    Returns active state and diagnostic telemetry for the ALVEON DICOM Storage SCP node.
+    """
+    scp = get_dicom_scp()
+    return scp.get_status()
+
+@router.post("/api/v1/dicom/echo", tags=["DICOM Storage SCP Node"])
+async def trigger_dicom_echo():
+    """
+    Executes a loopback C-ECHO verification against the local DICOM listener node.
+    """
+    scp = get_dicom_scp()
+    if not scp.is_running:
+        return {
+            "status": "offline",
+            "message": f"DICOM SCP listener is not active on port {scp.port}. Start service or verify network permissions."
+        }
+    res = scp.send_echo(host="127.0.0.1")
+    return res
 
 @router.get("/api/v1/samples", response_model=SamplesListResponse, tags=["PACS Verification Samples"])
 async def get_sample_radiographs():

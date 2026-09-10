@@ -7,7 +7,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 class Settings:
     PROJECT_NAME: str = "ALVEON"
     PROJECT_FULL_TITLE: str = "ALVEON — Thoracic Diagnostic Intelligence & Clinical PACS"
-    PROJECT_VERSION: str = "2.5.0"
+    PROJECT_VERSION: str = "3.0.0"
+    BASE_DIR: Path = BASE_DIR
     
     # Model parameters
     MODEL_WEIGHTS_PATH: Path = BASE_DIR / "TESTCNN.hdf5"

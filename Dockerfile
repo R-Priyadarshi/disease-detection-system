@@ -1,6 +1,6 @@
 # ==============================================================================
-# PneumoScan AI - Production Docker Container
-# Multi-stage lightweight deployment container with OpenCV runtime libraries
+# ALVEON PACS - Production Diagnostic Medical Imaging Platform v3.0
+# Multi-stage lightweight deployment container with OpenCV runtime & DICOM SCP
 # ==============================================================================
 
 FROM python:3.12-slim as base
@@ -30,14 +30,16 @@ COPY web/ /app/web/
 COPY test.py /app/test.py
 COPY TESTCNN.hdf5 /app/TESTCNN.hdf5
 
-# Pre-generate sample radiograph assets
-RUN python -m core.sample_generator
+# Pre-generate sample radiograph assets and DICOM storage folder
+RUN python -m core.sample_generator && \
+    mkdir -p /app/data/dicom_storage
 
-# Create non-root medical app user for security
+# Create non-root medical app user for HIPAA security compliance
 RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /app
 USER appuser
 
-EXPOSE 8000
+# HTTP API & PACS Webstation (8000), DICOM Storage SCP (11112)
+EXPOSE 8000 11112
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1

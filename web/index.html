@@ -344,6 +344,39 @@
                         </div>
                     </div>
 
+                    <!-- Diagnostic PACS Caliper & Annotation Toolbar -->
+                    <div class="pacs-measure-toolbar" id="pacs-measure-toolbar">
+                        <div class="measure-tools-group">
+                            <span class="measure-group-label">CALIPERS / TOOLS:</span>
+                            <button type="button" class="measure-tool-btn active" data-tool="pointer" id="tool-pointer" title="Pointer / Split Swipe (V)">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 3 10 21 13 14 20 11 3 3"/></svg>
+                                <span>Pointer</span>
+                            </button>
+                            <button type="button" class="measure-tool-btn" data-tool="ruler" id="tool-ruler" title="Linear Caliper in mm (R)">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.3 8.7 8.7 21.3a2.1 2.1 0 0 1-3 0l-3-3a2.1 2.1 0 0 1 0-3L15.3 2.7a2.1 2.1 0 0 1 3 0l3 3a2.1 2.1 0 0 1 0 3z"/><line x1="7.5" y1="10.5" x2="9.5" y2="12.5"/><line x1="10.5" y1="7.5" x2="12.5" y2="9.5"/><line x1="13.5" y1="4.5" x2="15.5" y2="6.5"/></svg>
+                                <span>📏 Caliper (mm)</span>
+                            </button>
+                            <button type="button" class="measure-tool-btn" data-tool="ctr" id="tool-ctr" title="Cardiothoracic Ratio (C)">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                                <span>🫀 CTR Index</span>
+                            </button>
+                            <button type="button" class="measure-tool-btn" data-tool="roi" id="tool-roi" title="Elliptical ROI Density (O)">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>
+                                <span>⭕ Elliptical ROI</span>
+                            </button>
+                            <button type="button" class="measure-tool-btn" data-tool="arrow" id="tool-arrow" title="Diagnostic Arrow Callout (A)">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>
+                                <span>↗️ Arrow</span>
+                            </button>
+                        </div>
+                        <div class="measure-actions-group">
+                            <button type="button" class="measure-clear-btn" id="btn-clear-measurements" title="Clear Calipers & Annotations">
+                                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                <span>Clear Markups</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- PACS Image Canvas Viewport with DICOM HUD -->
                     <div class="dicom-viewport" id="dicom-viewport">
                         <!-- 4-Corner DICOM HUD Markers -->
@@ -361,7 +394,7 @@
                             <div id="hud-loupe-display">LOUPE: OFF</div>
                         </div>
                         <div class="hud-corner bottom-right">
-                            <div>ALVEON PACS v2.5</div>
+                            <div>ALVEON PACS v3.0</div>
                             <div id="hud-study-status">STATUS: PENDING</div>
                         </div>
 
@@ -398,6 +431,9 @@
                         <div class="loupe-lens" id="loupe-lens" hidden>
                             <div class="loupe-crosshair"></div>
                         </div>
+
+                        <!-- Diagnostic Caliper & Annotation Canvas Overlay -->
+                        <canvas id="pacs-annotation-canvas" class="pacs-annotation-canvas"></canvas>
                     </div>
 
                     <!-- Anatomical Pulmonary Quadrant Zonation Module -->
@@ -460,7 +496,16 @@
                                 <line x1="16" y1="13" x2="8" y2="13"/>
                                 <line x1="16" y1="17" x2="8" y2="17"/>
                             </svg>
-                            Generate Formal Consultation Report
+                            Generate Consultation Report
+                        </button>
+                        <button type="button" class="btn-titanium" id="download-pdf-btn">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                <polyline points="14 2 14 8 20 8"/>
+                                <line x1="12" y1="18" x2="12" y2="12"/>
+                                <polyline points="9 15 12 18 15 15"/>
+                            </svg>
+                            Download Certified PDF
                         </button>
                         <button type="button" class="btn-titanium" id="download-overlay-btn">
                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
@@ -468,7 +513,7 @@
                                 <polyline points="7 10 12 15 17 10"/>
                                 <line x1="12" y1="15" x2="12" y2="3"/>
                             </svg>
-                            Export Radiographic Plate
+                            Export Plate
                         </button>
                     </div>
                 </div>
@@ -485,13 +530,22 @@
                 <div class="modal-scroll" id="modal-report-container"></div>
                 <div class="modal-bottom">
                     <button type="button" class="btn-titanium" id="modal-cancel-btn">Dismiss</button>
+                    <button type="button" class="btn-master" id="modal-pdf-btn" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, #0284c7, #2563eb); border-color: #38bdf8;">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="12" y1="18" x2="12" y2="12"/>
+                            <polyline points="9 15 12 18 15 15"/>
+                        </svg>
+                        📥 Download Certified PDF
+                    </button>
                     <button type="button" class="btn-master" id="modal-print-btn" style="width: auto; padding: 10px 20px;">
                         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 6 2 18 2 18 9"/>
                             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
                             <rect x="6" y="14" width="12" height="8"/>
                         </svg>
-                        Print / Export Official Consultation Note
+                        Print / Export Consultation Note
                     </button>
                 </div>
             </div>

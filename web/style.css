@@ -2097,4 +2097,131 @@ input[type="range"]::-webkit-slider-thumb {
     transform: translateY(0);
 }
 
+/* ==========================================================================
+   Diagnostic PACS Viewport Calipers & Measurement Toolbar
+   ========================================================================== */
+.pacs-measure-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 7px 12px;
+    background: linear-gradient(180deg, rgba(20, 24, 33, 0.92) 0%, rgba(13, 17, 23, 0.95) 100%);
+    border: 1px solid var(--border-hairline);
+    border-bottom: none;
+    border-radius: var(--radius-xs) var(--radius-xs) 0 0;
+    backdrop-filter: blur(12px);
+    z-index: 22;
+    flex-wrap: wrap;
+}
+
+.measure-tools-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.measure-group-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.8px;
+    color: var(--titanium-500);
+    margin-right: 4px;
+    user-select: none;
+}
+
+.measure-tool-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 9px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-xs);
+    color: var(--titanium-400);
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+    user-select: none;
+}
+
+.measure-tool-btn:hover {
+    color: var(--titanium-100);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.measure-tool-btn.active {
+    color: #38bdf8;
+    background: rgba(14, 165, 233, 0.12);
+    border-color: #38bdf8;
+    box-shadow: 0 0 12px rgba(14, 165, 233, 0.25), inset 0 0 8px rgba(14, 165, 233, 0.1);
+}
+
+.measure-tool-btn svg {
+    flex-shrink: 0;
+}
+
+.measure-actions-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.measure-clear-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 4px 8px;
+    background: transparent;
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-xs);
+    color: var(--titanium-500);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.measure-clear-btn:hover {
+    color: #f87171;
+    border-color: rgba(239, 68, 68, 0.35);
+    background: rgba(239, 68, 68, 0.08);
+}
+
+.measure-badge-hint {
+    display: inline-block;
+    padding: 1px 4px;
+    font-size: 9px;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.08);
+    color: var(--titanium-400);
+    margin-left: 2px;
+}
+
+/* PACS Interactive Canvas Overlay */
+.pacs-annotation-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 18;
+    pointer-events: none;
+    display: block;
+}
+
+.dicom-viewport.measuring .pacs-annotation-canvas {
+    pointer-events: auto;
+    cursor: crosshair;
+}
+
+.dicom-viewport.measuring .split-divider {
+    pointer-events: none;
+}
+
 

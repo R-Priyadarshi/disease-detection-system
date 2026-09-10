@@ -12,10 +12,12 @@ from core.sample_generator import ensure_sample_assets
 def client():
     ensure_sample_assets()
     with TestClient(app) as c:
+        c.post("/api/v1/worklist/reset")
         yield c
 
 def test_emergency_triage_worklist(client):
     """Test the ER STAT Triage Worklist returns prioritized studies."""
+    client.post("/api/v1/worklist/reset")
     response = client.get("/api/v1/worklist")
     assert response.status_code == 200
     data = response.json()

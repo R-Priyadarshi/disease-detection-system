@@ -4,8 +4,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
+from contextlib import asynccontextmanager
 from core.config import settings
 from api.routes import router
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manages application lifecycle including the background DICOM Storage SCP node."""
+    from core.dicom_listener import get_dicom_scp
+    scp = get_dicom_scp()
+    scp.start()
+    yield
+    scp.stop()
 
 def create_app() -> FastAPI:
     """Application factory for Chest X-Ray AI Diagnostics."""
@@ -14,7 +24,8 @@ def create_app() -> FastAPI:
         version=settings.PROJECT_VERSION,
         description="Clinical-grade Deep Learning Diagnostic Engine & Explainable AI for Chest Radiograph Pneumonia Detection.",
         docs_url="/docs",
-        redoc_url="/redoc"
+        redoc_url="/redoc",
+        lifespan=lifespan
     )
 
     # CORS configuration

@@ -117,14 +117,21 @@ document.addEventListener('DOMContentLoaded', () => {
     const zoneLllFill = document.getElementById('zone-lll-fill');
     const dominantZoneChip = document.getElementById('dominant-zone-chip');
 
-    // Modals
+    // Modals & PDF
     const openReportBtn = document.getElementById('open-report-btn');
+    const downloadPdfBtn = document.getElementById('download-pdf-btn');
     const downloadOverlayBtn = document.getElementById('download-overlay-btn');
     const reportDialog = document.getElementById('report-dialog');
     const closeModalBtn = document.getElementById('close-modal-btn');
     const modalCancelBtn = document.getElementById('modal-cancel-btn');
     const modalPrintBtn = document.getElementById('modal-print-btn');
+    const modalPdfBtn = document.getElementById('modal-pdf-btn');
     const modalReportContainer = document.getElementById('modal-report-container');
+
+    // Calipers & Annotation Canvas
+    const pacsMeasureToolbar = document.getElementById('pacs-measure-toolbar');
+    const pacsCanvas = document.getElementById('pacs-annotation-canvas');
+    const btnClearMeasurements = document.getElementById('btn-clear-measurements');
 
     const dicomTagsDialog = document.getElementById('dicom-tags-dialog');
     const closeDicomModalBtn = document.getElementById('close-dicom-modal-btn');
@@ -814,8 +821,43 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Escape closes modals
+        // Caliper & Measurement Hotkeys
+        if (e.key === 'r' || e.key === 'R') {
+            if (typeof setActiveMeasureTool === 'function') {
+                setActiveMeasureTool('ruler');
+                showWorkstationToast('📏 Linear Caliper Active (Click & Drag in mm)');
+            }
+        }
+        if (e.key === 'c' || e.key === 'C') {
+            if (typeof setActiveMeasureTool === 'function') {
+                setActiveMeasureTool('ctr');
+                showWorkstationToast('🫀 CTR Caliper Active (Draw cardiac line, then thorax)');
+            }
+        }
+        if (e.key === 'o' || e.key === 'O') {
+            if (typeof setActiveMeasureTool === 'function') {
+                setActiveMeasureTool('roi');
+                showWorkstationToast('⭕ Elliptical ROI Active (Drag over lesion)');
+            }
+        }
+        if (e.key === 'a' || e.key === 'A') {
+            if (typeof setActiveMeasureTool === 'function') {
+                setActiveMeasureTool('arrow');
+                showWorkstationToast('↗️ Diagnostic Arrow Callout Active');
+            }
+        }
+        if (e.key === 'v' || e.key === 'V') {
+            if (typeof setActiveMeasureTool === 'function') {
+                setActiveMeasureTool('pointer');
+                showWorkstationToast('Pointer / Split Wipe Mode Active');
+            }
+        }
+
+        // Escape closes modals and resets calipers
         if (e.key === 'Escape') {
+            if (typeof activeMeasureTool !== 'undefined' && activeMeasureTool !== 'pointer') {
+                setActiveMeasureTool('pointer');
+            }
             const pacsConfirmDialog = document.getElementById('pacs-confirm-dialog');
             if (pacsConfirmDialog && pacsConfirmDialog.open) pacsConfirmDialog.close();
             if (dicomTagsDialog && dicomTagsDialog.open) dicomTagsDialog.close();
@@ -1522,6 +1564,9 @@ document.addEventListener('DOMContentLoaded', () => {
         resetSplitSlider();
         applyViewMode(currentViewMode);
         updateVisualFilters();
+        if (typeof resetMeasurementsForNewStudy === 'function') {
+            resetMeasurementsForNewStudy();
+        }
     }
 
     // ---------------------------------------------------------
@@ -1536,7 +1581,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function onPointerDown(e) {
-        if (isLoupeActive) return;
+        if (isLoupeActive || (typeof activeMeasureTool !== 'undefined' && activeMeasureTool !== 'pointer')) return;
         isDraggingSlider = true;
         updateSliderFromEvent(e);
     }
@@ -1681,6 +1726,462 @@ document.addEventListener('DOMContentLoaded', () => {
             a.download = `ALVEON_${currentPrediction.diagnosis.toUpperCase()}_DICOM_PLATE.jpg`;
             a.click();
         });
+    }
+
+    // ---------------------------------------------------------
+    // 17B. CERTIFIED CLINICAL PDF REPORT EXPORT
+    // ---------------------------------------------------------
+    async function triggerCertifiedPdfDownload() {
+        if (!currentPrediction) {
+            showWorkstationToast('Please select a patient study before exporting PDF.');
+            return;
+        }
+
+        showWorkstationToast('Compiling Certified Hospital PDF Report...');
+        try {
+            let res = null;
+            if (selectedStudyId) {
+                res = await fetch(`/api/v1/worklist/${selectedStudyId}/pdf`);
+            }
+            if (!res || !res.ok) {
+                const reportPayload = {
+                    patient_id: currentPrediction.dicom_metadata?.patient_id || currentPrediction.study_id || "ALV-2026-X84",
+                    patient_name: currentPrediction.dicom_metadata?.patient_name || "Patient Anonymous",
+                    diagnosis: currentPrediction.diagnosis,
+                    confidence_percentage: currentPrediction.confidence_percentage,
+                    risk_tier: currentPrediction.risk_tier,
+                    clinical_recommendation: currentPrediction.clinical_recommendation,
+                    zonation: currentPrediction.zonation,
+                    original_image_b64: currentPrediction.original_image_b64,
+                    gradcam_overlay_b64: currentPrediction.gradcam_overlay_b64
+                };
+                res = await fetch('/api/v1/report/pdf', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(reportPayload)
+                });
+            }
+
+            if (res && res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const fileName = `ALVEON_CERTIFIED_CONSULTATION_${currentPrediction.study_id || 'STUDY'}.pdf`;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+                showWorkstationToast(`Downloaded: ${fileName}`);
+            } else {
+                showWorkstationToast('Failed to export certified PDF report.');
+            }
+        } catch (err) {
+            console.error('PDF export error:', err);
+            showWorkstationToast('Network error during PDF compilation.');
+        }
+    }
+
+    if (downloadPdfBtn) downloadPdfBtn.addEventListener('click', triggerCertifiedPdfDownload);
+    if (modalPdfBtn) modalPdfBtn.addEventListener('click', triggerCertifiedPdfDownload);
+
+    // ---------------------------------------------------------
+    // 17C. DIAGNOSTIC PACS VIEWPORT CALIPERS & MARKUPS ENGINE
+    // ---------------------------------------------------------
+    let activeMeasureTool = 'pointer'; // 'pointer', 'ruler', 'ctr', 'roi', 'arrow'
+    let measurements = [];
+    let currentDrawing = null;
+    let ctrPendingCardiac = null;
+
+    function resetMeasurementsForNewStudy() {
+        measurements = [];
+        currentDrawing = null;
+        ctrPendingCardiac = null;
+        setTimeout(resizeAnnotationCanvas, 60);
+    }
+
+    function setActiveMeasureTool(tool) {
+        activeMeasureTool = tool;
+        document.querySelectorAll('.measure-tool-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.tool === tool);
+        });
+
+        const dicomViewportElem = document.getElementById('dicom-viewport');
+        if (dicomViewportElem) {
+            if (tool !== 'pointer') {
+                dicomViewportElem.classList.add('measuring');
+            } else {
+                dicomViewportElem.classList.remove('measuring');
+            }
+        }
+
+        if (tool !== 'ctr') {
+            ctrPendingCardiac = null;
+        }
+        currentDrawing = null;
+        renderAllMeasurements();
+    }
+
+    document.querySelectorAll('.measure-tool-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            setActiveMeasureTool(btn.dataset.tool);
+        });
+    });
+
+    if (btnClearMeasurements) {
+        btnClearMeasurements.addEventListener('click', () => {
+            measurements = [];
+            currentDrawing = null;
+            ctrPendingCardiac = null;
+            renderAllMeasurements();
+            showWorkstationToast('All viewport calipers and markups cleared.');
+        });
+    }
+
+    function resizeAnnotationCanvas() {
+        if (!pacsCanvas) return;
+        const dicomViewportElem = document.getElementById('dicom-viewport');
+        if (!dicomViewportElem) return;
+
+        const rect = dicomViewportElem.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) return;
+
+        const dpr = window.devicePixelRatio || 1;
+        pacsCanvas.width = Math.round(rect.width * dpr);
+        pacsCanvas.height = Math.round(rect.height * dpr);
+        pacsCanvas.style.width = `${rect.width}px`;
+        pacsCanvas.style.height = `${rect.height}px`;
+
+        const ctx = pacsCanvas.getContext('2d');
+        ctx.resetTransform();
+        ctx.scale(dpr, dpr);
+        renderAllMeasurements();
+    }
+
+    window.addEventListener('resize', resizeAnnotationCanvas);
+
+    function getCanvasCoords(e) {
+        if (!pacsCanvas) return { x: 0, y: 0 };
+        const rect = pacsCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        return {
+            x: Math.max(0, Math.min(rect.width, clientX - rect.left)),
+            y: Math.max(0, Math.min(rect.height, clientY - rect.top))
+        };
+    }
+
+    function getMmPerPixel() {
+        if (!pacsCanvas) return 0.70;
+        const rect = pacsCanvas.getBoundingClientRect();
+        // Estimated standard adult thoracic field width: ~350 mm
+        return 350.0 / Math.max(rect.width, 1);
+    }
+
+    function drawBadge(ctx, text, x, y, accentColor = '#38bdf8', bgColor = 'rgba(10, 15, 26, 0.88)') {
+        ctx.save();
+        ctx.font = '600 11px "JetBrains Mono", monospace';
+        const metrics = ctx.measureText(text);
+        const paddingX = 7;
+        const paddingY = 4;
+        const h = 20;
+        const w = metrics.width + paddingX * 2;
+        const bx = x - w / 2;
+        const by = y - h / 2;
+
+        // Background pill
+        ctx.fillStyle = bgColor;
+        ctx.strokeStyle = accentColor;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        if (ctx.roundRect) {
+            ctx.roundRect(bx, by, w, h, 4);
+        } else {
+            ctx.rect(bx, by, w, h);
+        }
+        ctx.fill();
+        ctx.stroke();
+
+        // Text
+        ctx.fillStyle = '#ffffff';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(text, x, y + 0.5);
+        ctx.restore();
+    }
+
+    function drawRulerLine(ctx, x1, y1, x2, y2, mm, isLive = false, color = '#38bdf8') {
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        if (isLive) {
+            ctx.setLineDash([4, 4]);
+        } else {
+            ctx.setLineDash([]);
+        }
+
+        // Main line
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        // Orthogonal tick caps
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const len = Math.hypot(dx, dy);
+        if (len > 4) {
+            const nx = -dy / len;
+            const ny = dx / len;
+            const tickLen = 6;
+
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(x1 - nx * tickLen, y1 - ny * tickLen);
+            ctx.lineTo(x1 + nx * tickLen, y1 + ny * tickLen);
+            ctx.moveTo(x2 - nx * tickLen, y2 - ny * tickLen);
+            ctx.lineTo(x2 + nx * tickLen, y2 + ny * tickLen);
+            ctx.stroke();
+        }
+
+        // Distance Tag
+        const midX = (x1 + x2) / 2;
+        const midY = (y1 + y2) / 2;
+        drawBadge(ctx, `${mm.toFixed(1)} mm`, midX, midY - 14, color);
+        ctx.restore();
+    }
+
+    function drawArrow(ctx, x1, y1, x2, y2, label = 'Pathology Focus', isLive = false) {
+        ctx.save();
+        ctx.strokeStyle = '#f43f5e';
+        ctx.fillStyle = '#f43f5e';
+        ctx.lineWidth = 2;
+        if (isLive) ctx.setLineDash([3, 3]);
+
+        // Shaft
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+
+        // Arrow head
+        const angle = Math.atan2(y2 - y1, x2 - x1);
+        const headLen = 12;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(x2, y2);
+        ctx.lineTo(x2 - headLen * Math.cos(angle - Math.PI / 6), y2 - headLen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(x2 - headLen * Math.cos(angle + Math.PI / 6), y2 - headLen * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fill();
+
+        // Label near tail
+        drawBadge(ctx, label, x1, y1 - 12, '#f43f5e', 'rgba(244, 63, 94, 0.25)');
+        ctx.restore();
+    }
+
+    function drawRoi(ctx, cx, cy, rx, ry, areaCm2, isLive = false) {
+        ctx.save();
+        ctx.strokeStyle = '#22d3ee';
+        ctx.fillStyle = 'rgba(34, 211, 238, 0.12)';
+        ctx.lineWidth = 1.75;
+        if (isLive) {
+            ctx.setLineDash([4, 4]);
+        } else {
+            ctx.setLineDash([6, 3]);
+        }
+
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, Math.max(1, rx), Math.max(1, ry), 0, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.stroke();
+
+        // Cardinal anchor handles
+        if (!isLive) {
+            ctx.setLineDash([]);
+            ctx.fillStyle = '#22d3ee';
+            [[cx - rx, cy], [cx + rx, cy], [cx, cy - ry], [cx, cy + ry]].forEach(([ax, ay]) => {
+                ctx.beginPath();
+                ctx.arc(ax, ay, 3, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+        }
+
+        // Tag
+        drawBadge(ctx, `ROI: ${areaCm2.toFixed(1)} cm²`, cx, cy - ry - 14, '#22d3ee');
+        ctx.restore();
+    }
+
+    function renderAllMeasurements() {
+        if (!pacsCanvas) return;
+        const rect = pacsCanvas.getBoundingClientRect();
+        const ctx = pacsCanvas.getContext('2d');
+        ctx.clearRect(0, 0, rect.width, rect.height);
+
+        // 1. Render all saved measurements
+        measurements.forEach(m => {
+            if (m.type === 'ruler') {
+                drawRulerLine(ctx, m.x1, m.y1, m.x2, m.y2, m.mm, false, '#38bdf8');
+            } else if (m.type === 'ctr') {
+                // Cardiac diameter
+                drawRulerLine(ctx, m.cardiac.x1, m.cardiac.y1, m.cardiac.x2, m.cardiac.y2, m.cardiac.mm, false, '#38bdf8');
+                // Thoracic diameter
+                drawRulerLine(ctx, m.thoracic.x1, m.thoracic.y1, m.thoracic.x2, m.thoracic.y2, m.thoracic.mm, false, '#f59e0b');
+                // CTR badge
+                const badgeColor = m.ratio > 0.50 ? '#ef4444' : '#10b981';
+                const label = `CTR: ${m.ratio.toFixed(2)} (${m.ratio > 0.50 ? 'CARDIOMEGALY' : 'NORMAL'})`;
+                const bx = (m.thoracic.x1 + m.thoracic.x2) / 2;
+                const by = Math.max(m.cardiac.y1, m.thoracic.y1) + 24;
+                drawBadge(ctx, label, bx, by, badgeColor, m.ratio > 0.50 ? 'rgba(239, 68, 68, 0.35)' : 'rgba(16, 185, 129, 0.35)');
+            } else if (m.type === 'roi') {
+                drawRoi(ctx, m.cx, m.cy, m.rx, m.ry, m.areaCm2, false);
+            } else if (m.type === 'arrow') {
+                drawArrow(ctx, m.x1, m.y1, m.x2, m.y2, m.label, false);
+            }
+        });
+
+        // 2. Render pending CTR step 1 (cardiac width)
+        if (ctrPendingCardiac) {
+            drawRulerLine(ctx, ctrPendingCardiac.x1, ctrPendingCardiac.y1, ctrPendingCardiac.x2, ctrPendingCardiac.y2, ctrPendingCardiac.mm, false, '#38bdf8');
+            drawBadge(ctx, 'Cardiac Width Set', (ctrPendingCardiac.x1 + ctrPendingCardiac.x2) / 2, (ctrPendingCardiac.y1 + ctrPendingCardiac.y2) / 2 + 16, '#38bdf8');
+        }
+
+        // 3. Render current interactive drawing
+        if (currentDrawing) {
+            const mmPerPx = getMmPerPixel();
+            const dx = currentDrawing.currentX - currentDrawing.startX;
+            const dy = currentDrawing.currentY - currentDrawing.startY;
+            const dist = Math.hypot(dx, dy);
+
+            if (currentDrawing.tool === 'ruler') {
+                drawRulerLine(ctx, currentDrawing.startX, currentDrawing.startY, currentDrawing.currentX, currentDrawing.currentY, dist * mmPerPx, true, '#38bdf8');
+            } else if (currentDrawing.tool === 'ctr') {
+                const color = ctrPendingCardiac ? '#f59e0b' : '#38bdf8';
+                drawRulerLine(ctx, currentDrawing.startX, currentDrawing.startY, currentDrawing.currentX, currentDrawing.currentY, dist * mmPerPx, true, color);
+            } else if (currentDrawing.tool === 'roi') {
+                const cx = (currentDrawing.startX + currentDrawing.currentX) / 2;
+                const cy = (currentDrawing.startY + currentDrawing.currentY) / 2;
+                const rx = Math.abs(currentDrawing.currentX - currentDrawing.startX) / 2;
+                const ry = Math.abs(currentDrawing.currentY - currentDrawing.startY) / 2;
+                const areaMm2 = Math.PI * (rx * mmPerPx) * (ry * mmPerPx);
+                drawRoi(ctx, cx, cy, rx, ry, areaMm2 / 100.0, true);
+            } else if (currentDrawing.tool === 'arrow') {
+                drawArrow(ctx, currentDrawing.startX, currentDrawing.startY, currentDrawing.currentX, currentDrawing.currentY, 'Target Lesion', true);
+            }
+        }
+    }
+
+    // Canvas Mouse & Touch Event Handlers
+    if (pacsCanvas) {
+        function handleStart(e) {
+            if (activeMeasureTool === 'pointer') return;
+            e.preventDefault();
+            const coords = getCanvasCoords(e);
+            currentDrawing = {
+                tool: activeMeasureTool,
+                startX: coords.x,
+                startY: coords.y,
+                currentX: coords.x,
+                currentY: coords.y
+            };
+            renderAllMeasurements();
+        }
+
+        function handleMove(e) {
+            if (!currentDrawing) return;
+            e.preventDefault();
+            const coords = getCanvasCoords(e);
+            currentDrawing.currentX = coords.x;
+            currentDrawing.currentY = coords.y;
+            renderAllMeasurements();
+        }
+
+        function handleEnd(e) {
+            if (!currentDrawing) return;
+            e.preventDefault();
+            const coords = getCanvasCoords(e);
+            currentDrawing.currentX = coords.x;
+            currentDrawing.currentY = coords.y;
+
+            const dx = currentDrawing.currentX - currentDrawing.startX;
+            const dy = currentDrawing.currentY - currentDrawing.startY;
+            const dist = Math.hypot(dx, dy);
+
+            // Minimum length check (6px) to avoid accidental taps
+            if (dist >= 6) {
+                const mmPerPx = getMmPerPixel();
+                if (currentDrawing.tool === 'ruler') {
+                    measurements.push({
+                        type: 'ruler',
+                        x1: currentDrawing.startX,
+                        y1: currentDrawing.startY,
+                        x2: currentDrawing.currentX,
+                        y2: currentDrawing.currentY,
+                        mm: dist * mmPerPx
+                    });
+                } else if (currentDrawing.tool === 'ctr') {
+                    if (!ctrPendingCardiac) {
+                        ctrPendingCardiac = {
+                            x1: currentDrawing.startX,
+                            y1: currentDrawing.startY,
+                            x2: currentDrawing.currentX,
+                            y2: currentDrawing.currentY,
+                            mm: dist * mmPerPx
+                        };
+                        showWorkstationToast('Cardiac width set. Now draw internal thoracic diameter.');
+                    } else {
+                        const thoracic = {
+                            x1: currentDrawing.startX,
+                            y1: currentDrawing.startY,
+                            x2: currentDrawing.currentX,
+                            y2: currentDrawing.currentY,
+                            mm: dist * mmPerPx
+                        };
+                        const ratio = ctrPendingCardiac.mm / Math.max(thoracic.mm, 0.1);
+                        measurements.push({
+                            type: 'ctr',
+                            cardiac: ctrPendingCardiac,
+                            thoracic: thoracic,
+                            ratio: ratio
+                        });
+                        ctrPendingCardiac = null;
+                        showWorkstationToast(`CTR Computed: ${ratio.toFixed(2)} (${ratio > 0.50 ? 'Cardiomegaly' : 'Normal'})`);
+                    }
+                } else if (currentDrawing.tool === 'roi') {
+                    const cx = (currentDrawing.startX + currentDrawing.currentX) / 2;
+                    const cy = (currentDrawing.startY + currentDrawing.currentY) / 2;
+                    const rx = Math.abs(currentDrawing.currentX - currentDrawing.startX) / 2;
+                    const ry = Math.abs(currentDrawing.currentY - currentDrawing.startY) / 2;
+                    const areaMm2 = Math.PI * (rx * mmPerPx) * (ry * mmPerPx);
+                    measurements.push({
+                        type: 'roi',
+                        cx, cy, rx, ry,
+                        areaCm2: areaMm2 / 100.0
+                    });
+                } else if (currentDrawing.tool === 'arrow') {
+                    measurements.push({
+                        type: 'arrow',
+                        x1: currentDrawing.startX,
+                        y1: currentDrawing.startY,
+                        x2: currentDrawing.currentX,
+                        y2: currentDrawing.currentY,
+                        label: 'Pathology Focus'
+                    });
+                }
+            }
+
+            currentDrawing = null;
+            renderAllMeasurements();
+        }
+
+        pacsCanvas.addEventListener('mousedown', handleStart);
+        window.addEventListener('mousemove', handleMove);
+        window.addEventListener('mouseup', handleEnd);
+
+        pacsCanvas.addEventListener('touchstart', handleStart, { passive: false });
+        window.addEventListener('touchmove', handleMove, { passive: false });
+        window.addEventListener('touchend', handleEnd, { passive: false });
     }
 
     // ---------------------------------------------------------
