@@ -1,0 +1,19 @@
+[Unit]
+Description=ALVEON Production Enterprise Thoracic PACS & AI Diagnostic Engine
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/rishikesh/.gemini/antigravity-ide/scratch/disease-detection-system/deploy
+ExecStartPre=/usr/bin/bash generate_ssl_certs.sh
+ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml up --build
+ExecStop=/usr/bin/docker compose -f docker-compose.prod.yml down
+Restart=always
+RestartSec=10s
+LimitNOFILE=65536
+TimeoutStartSec=120s
+
+[Install]
+WantedBy=multi-user.target

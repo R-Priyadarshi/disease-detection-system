@@ -300,3 +300,45 @@ class SimulateModalityResponse(BaseModel):
     network_latency_ms: float
     sop_instance_uid: str
     timestamp: str
+
+# =========================================================================
+# v4.1 Enterprise Schemas: Voice Dictation, RADLEX, Orthanc, Probes
+# =========================================================================
+
+class VoiceDictationRequest(BaseModel):
+    transcript: str
+    study_id: Optional[str] = None
+    current_report: Optional[Dict[str, Any]] = None
+
+class VoiceDictationResponse(BaseModel):
+    status: str = "success"
+    command_detected: Optional[str] = None
+    target_field: Optional[str] = None
+    transcribed_text: str
+    action_executed: str
+    structured_report: Dict[str, Any]
+
+class StructuredReportRequest(BaseModel):
+    study_id: Optional[str] = None
+    patient_name: Optional[str] = "Anonymous Patient"
+    patient_mrn: Optional[str] = "MRN-UNKNOWN"
+    diagnosis: Optional[str] = "NORMAL"
+    confidence_percentage: Optional[float] = 95.0
+    all_findings: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
+    zonation: Optional[Dict[str, Any]] = Field(default_factory=dict)
+    structured_report: Optional[Dict[str, Any]] = None
+
+class StructuredReportResponse(BaseModel):
+    status: str = "success"
+    structured_report: Dict[str, Any]
+
+class OrthancStatusResponse(BaseModel):
+    status: str = "success"
+    orthanc: Dict[str, Any]
+
+class HealthProbeResponse(BaseModel):
+    status: str = "healthy"
+    timestamp: str
+    version: str = "4.1.0"
+    components: Dict[str, str] = Field(default_factory=dict)
+

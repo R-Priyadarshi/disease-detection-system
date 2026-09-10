@@ -365,7 +365,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="study-card-footer">
                         <span>${escapeHtml(study.study_time)}</span>
-                        <span>${escapeHtml(study.modality)}</span>
+                        <div style="display: flex; align-items: center; gap: 6px;">
+                            <a href="/viewer?study=${encodeURIComponent(study.study_id)}" target="_blank" class="btn-card-ohif" title="Launch in OHIF Diagnostic Viewer" onclick="event.stopPropagation()">OHIF ↗</a>
+                            <span>${escapeHtml(study.modality)}</span>
+                        </div>
                     </div>
                 </div>
             `;
@@ -1899,6 +1902,30 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (res.ok) {
                     const data = await res.json();
                     if (modalReportContainer) modalReportContainer.innerHTML = data.summary_html;
+                    
+                    // Pre-synthesize and populate ACR / RADLEX fields
+                    try {
+                        const srRes = await fetch('/api/v1/report/structured', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                study_id: selectedStudyId || currentPrediction.study_id,
+                                patient_name: reportPayload.patient_name,
+                                patient_mrn: reportPayload.patient_id,
+                                diagnosis: currentPrediction.diagnosis,
+                                confidence_percentage: currentPrediction.confidence_percentage,
+                                all_findings: currentPrediction.multi_label_findings || [],
+                                zonation: currentPrediction.zonation || {}
+                            })
+                        });
+                        if (srRes.ok) {
+                            const srData = await srRes.json();
+                            populateRadlexFields(srData.structured_report);
+                        }
+                    } catch (e) {
+                        console.warn('RADLEX pre-synthesis notice:', e);
+                    }
+
                     if (reportDialog) reportDialog.showModal();
                 }
             } catch (err) {
@@ -1935,28 +1962,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showWorkstationToast('Compiling Certified Hospital PDF Report...');
         try {
-            let res = null;
-            if (selectedStudyId) {
-                res = await fetch(`/api/v1/worklist/${selectedStudyId}/pdf`);
-            }
-            if (!res || !res.ok) {
-                const reportPayload = {
-                    patient_id: currentPrediction.dicom_metadata?.patient_id || currentPrediction.study_id || "ALV-2026-X84",
-                    patient_name: currentPrediction.dicom_metadata?.patient_name || "Patient Anonymous",
-                    diagnosis: currentPrediction.diagnosis,
-                    confidence_percentage: currentPrediction.confidence_percentage,
-                    risk_tier: currentPrediction.risk_tier,
-                    clinical_recommendation: currentPrediction.clinical_recommendation,
-                    zonation: currentPrediction.zonation,
-                    original_image_b64: currentPrediction.original_image_b64,
-                    gradcam_overlay_b64: currentPrediction.gradcam_overlay_b64
-                };
-                res = await fetch('/api/v1/report/pdf', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(reportPayload)
-                });
-            }
+            const structuredData = getRadlexFormData();
+            const reportPayload = {
+                study_id: currentPrediction.study_id || selectedStudyId || "ALV-STUDY",
+                patient_id: currentPrediction.dicom_metadata?.patient_id || currentPrediction.study_id || "ALV-2026-X84",
+                patient_name: currentPrediction.dicom_metadata?.patient_name || "Patient Anonymous",
+                diagnosis: currentPrediction.diagnosis,
+                confidence_percentage: currentPrediction.confidence_percentage,
+                risk_tier: currentPrediction.risk_tier,
+                clinical_recommendation: currentPrediction.clinical_recommendation,
+                zonation: currentPrediction.zonation,
+                original_image_b64: currentPrediction.original_image_b64,
+                gradcam_overlay_b64: currentPrediction.gradcam_overlay_b64,
+                multilabel_findings: currentPrediction.multi_label_findings || [],
+                structured_report: structuredData
+            };
+
+            const res = await fetch('/api/v1/report/pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(reportPayload)
+            });
 
             if (res && res.ok) {
                 const blob = await res.blob();
@@ -3140,6 +3166,257 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---------------------------------------------------------
+    // 22. v4.1 RADLEX VOICE DICTATION & SPEECH-TO-REPORT ENGINE
+    // ---------------------------------------------------------
+    let speechRecognition = null;
+    let isDictating = false;
+
+    function getRadlexFormData() {
+        const srTech = document.getElementById('sr-technique');
+        const srInd = document.getElementById('sr-indication');
+        const srLungs = document.getElementById('sr-lungs');
+        const srPleura = document.getElementById('sr-pleura');
+        const srHeart = document.getElementById('sr-heart');
+        const srBones = document.getElementById('sr-bones');
+        const srImp = document.getElementById('sr-impression');
+        const srAcr = document.getElementById('radlex-acr-badge');
+        const voiceBadge = document.getElementById('radlex-voice-indicator');
+
+        return {
+            examination_technique: srTech ? srTech.value : '',
+            clinical_indication: srInd ? srInd.value : '',
+            findings_lungs: srLungs ? srLungs.value : '',
+            findings_pleura: srPleura ? srPleura.value : '',
+            findings_cardiomediastinum: srHeart ? srHeart.value : '',
+            findings_bones_soft_tissues: srBones ? srBones.value : '',
+            impression: srImp ? srImp.value : '',
+            acr_actionable_code: srAcr ? srAcr.textContent : 'ACR Category 3',
+            attesting_physician: (typeof currentUserSession !== 'undefined' && currentUserSession && currentUserSession.full_name)
+                ? `${currentUserSession.full_name} (${currentUserSession.role ? currentUserSession.role.replace('_', ' ') : 'Attending'})`
+                : 'Dr. Eleanor Vance, MD (Attending Radiologist)'
+        };
+    }
+
+    function populateRadlexFields(report) {
+        if (!report) return;
+        const srTech = document.getElementById('sr-technique');
+        const srInd = document.getElementById('sr-indication');
+        const srLungs = document.getElementById('sr-lungs');
+        const srPleura = document.getElementById('sr-pleura');
+        const srHeart = document.getElementById('sr-heart');
+        const srBones = document.getElementById('sr-bones');
+        const srImp = document.getElementById('sr-impression');
+        const srAcr = document.getElementById('radlex-acr-badge');
+        const voiceBadge = document.getElementById('radlex-voice-indicator');
+
+        if (srTech && report.examination_technique) srTech.value = report.examination_technique;
+        if (srInd && report.clinical_indication) srInd.value = report.clinical_indication;
+        if (srLungs && report.findings_lungs) srLungs.value = report.findings_lungs;
+        if (srPleura && report.findings_pleura) srPleura.value = report.findings_pleura;
+        if (srHeart && report.findings_cardiomediastinum) srHeart.value = report.findings_cardiomediastinum;
+        if (srBones && report.findings_bones_soft_tissues) srBones.value = report.findings_bones_soft_tissues;
+        if (srImp && report.impression) srImp.value = report.impression;
+        if (srAcr && report.acr_actionable_code) srAcr.textContent = report.acr_actionable_code;
+        if (voiceBadge) {
+            voiceBadge.style.display = report.dictated_voice ? 'inline-flex' : 'none';
+        }
+    }
+
+    async function processVoiceTranscript(transcript) {
+        if (!transcript || !transcript.trim()) return;
+        const preview = document.getElementById('voice-transcript-preview');
+        if (preview) preview.textContent = `"${transcript}"`;
+
+        try {
+            const currentReport = getRadlexFormData();
+            const res = await fetch('/api/v1/voice/parse-dictation', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    transcript: transcript.trim(),
+                    study_id: selectedStudyId || (currentPrediction ? currentPrediction.study_id : null),
+                    current_report: currentReport
+                })
+            });
+
+            if (res.ok) {
+                const data = await res.json();
+                populateRadlexFields(data.structured_report);
+                const voiceBadge = document.getElementById('radlex-voice-indicator');
+                if (voiceBadge) voiceBadge.style.display = 'inline-flex';
+
+                showWorkstationToast(`🎙️ ${data.action_executed}`);
+
+                // If voice commanded signoff
+                if (data.command_detected === 'ATTEST_SIGNOFF') {
+                    const signBtn = document.getElementById('btn-sign-report');
+                    if (signBtn) signBtn.click();
+                }
+            }
+        } catch (err) {
+            console.error('Voice dictation error:', err);
+            showWorkstationToast('Voice processing error.');
+        }
+    }
+
+    function initVoiceDictationAndRADLEX() {
+        const btnRecord = document.getElementById('btn-voice-record');
+        const waveform = document.getElementById('voice-waveform');
+        const statusBadge = document.getElementById('voice-status-badge');
+        const label = document.getElementById('voice-btn-label');
+
+        // Check Web Speech API support
+        const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (SpeechRec) {
+            speechRecognition = new SpeechRec();
+            speechRecognition.continuous = false;
+            speechRecognition.interimResults = false;
+            speechRecognition.lang = 'en-US';
+
+            speechRecognition.onstart = () => {
+                isDictating = true;
+                if (btnRecord) btnRecord.classList.add('recording');
+                if (waveform) waveform.style.display = 'flex';
+                if (statusBadge) {
+                    statusBadge.className = 'voice-status-badge listening';
+                    statusBadge.textContent = 'LISTENING...';
+                }
+                if (label) label.textContent = 'Stop Dictation';
+            };
+
+            speechRecognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                processVoiceTranscript(transcript);
+            };
+
+            speechRecognition.onerror = (e) => {
+                console.warn('Speech recognition notice:', e.error);
+                stopDictating();
+            };
+
+            speechRecognition.onend = () => {
+                stopDictating();
+            };
+        }
+
+        function stopDictating() {
+            isDictating = false;
+            if (btnRecord) btnRecord.classList.remove('recording');
+            if (waveform) waveform.style.display = 'none';
+            if (statusBadge) {
+                statusBadge.className = 'voice-status-badge ready';
+                statusBadge.textContent = 'READY';
+            }
+            if (label) label.textContent = 'Dictate (Voice)';
+        }
+
+        if (btnRecord) {
+            btnRecord.addEventListener('click', () => {
+                if (isDictating) {
+                    if (speechRecognition) speechRecognition.stop();
+                    stopDictating();
+                } else {
+                    if (speechRecognition) {
+                        try {
+                            speechRecognition.start();
+                        } catch (e) {
+                            promptSimulatedDictation();
+                        }
+                    } else {
+                        promptSimulatedDictation();
+                    }
+                }
+            });
+        }
+
+        function promptSimulatedDictation() {
+            const sample = prompt('Clinical Speech-to-Report Dictation:\nEnter voice command or dictation text:\n(e.g. "insert normal template", "dictate lungs dense opacity", "attest report")', 'computer insert normal chest radiograph template');
+            if (sample) {
+                processVoiceTranscript(sample);
+            }
+        }
+
+        // Voice Macro Chips
+        document.querySelectorAll('.voice-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const macro = chip.dataset.macro;
+                if (macro) {
+                    processVoiceTranscript(macro);
+                }
+            });
+        });
+    }
+
+    // ---------------------------------------------------------
+    // 23. v4.1 ORTHANC HOSPITAL PACS INTEGRATION ENGINE
+    // ---------------------------------------------------------
+    function initOrthancIntegration() {
+        const btnPing = document.getElementById('btn-ping-orthanc');
+        const btnSync = document.getElementById('btn-sync-orthanc');
+        const consoleLog = document.getElementById('orthanc-console-log');
+        const statusPill = document.getElementById('orthanc-status-pill');
+        const statusVal = document.getElementById('orthanc-metric-status');
+        const studiesVal = document.getElementById('orthanc-metric-studies');
+        const sizeVal = document.getElementById('orthanc-metric-size');
+        const latencyVal = document.getElementById('orthanc-metric-latency');
+        const dot = document.getElementById('orthanc-live-dot');
+
+        async function pingOrthanc() {
+            if (consoleLog) consoleLog.textContent = 'Contacting Orthanc PACS archive (:8042 / :4242)...';
+            try {
+                const res = await fetch('/api/v1/pacs/orthanc/status');
+                if (res.ok) {
+                    const data = await res.json();
+                    const o = data.orthanc;
+                    if (statusPill) {
+                        statusPill.textContent = o.is_connected ? '● ONLINE / CONNECTED' : '● STANDALONE ARCHIVE';
+                        statusPill.style.color = o.is_connected ? '#34d399' : '#38bdf8';
+                    }
+                    if (statusVal) statusVal.textContent = o.is_connected ? 'LIVE ARCHIVE' : 'ONLINE';
+                    if (studiesVal) studiesVal.textContent = `${o.total_studies_in_archive} Studies`;
+                    if (sizeVal) sizeVal.textContent = `${o.storage_size_mb} MB`;
+                    if (latencyVal) latencyVal.textContent = `${o.latency_ms} ms`;
+                    if (dot) dot.style.background = '#34d399';
+                    if (consoleLog) {
+                        consoleLog.innerHTML = `<span style="color: #34d399;">[CONNECTED]</span> ${o.version} at ${o.host}:${o.dicom_port} (${o.ae_title}) - Latency: ${o.latency_ms}ms`;
+                    }
+                }
+            } catch (e) {
+                if (consoleLog) consoleLog.innerHTML = `<span style="color: #f87171;">[ERROR]</span> ${escapeHtml(e.message)}`;
+            }
+        }
+
+        if (btnPing) {
+            btnPing.addEventListener('click', pingOrthanc);
+        }
+
+        if (btnSync) {
+            btnSync.addEventListener('click', async () => {
+                if (consoleLog) consoleLog.textContent = 'Synchronizing studies from Orthanc PACS into Emergency Worklist...';
+                try {
+                    const res = await fetch('/api/v1/pacs/orthanc/sync', { method: 'POST' });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (consoleLog) {
+                            consoleLog.innerHTML = `<span style="color: #34d399;">[SYNC SUCCESS]</span> Ingested ${data.synced_studies_count} studies from Orthanc (${data.target_orthanc}) in ${data.duration_ms}ms`;
+                        }
+                        showWorkstationToast(`Synced ${data.synced_studies_count} studies from Orthanc PACS`);
+                        await fetchWorklist();
+                    }
+                } catch (e) {
+                    if (consoleLog) consoleLog.innerHTML = `<span style="color: #f87171;">[SYNC FAILED]</span> ${escapeHtml(e.message)}`;
+                }
+            });
+        }
+
+        // Trigger ping when opening the Orthanc tab
+        const orthancTabBtn = document.querySelector('.pacs-hub-tab-btn[data-pacs-tab="tab-orthanc"]');
+        if (orthancTabBtn) {
+            orthancTabBtn.addEventListener('click', pingOrthanc);
+        }
+    }
+
+    // ---------------------------------------------------------
     // INITIAL BOOT: FETCH WORKLIST & INIT ALL ENTERPRISE MODALS
     // ---------------------------------------------------------
     initPacsHubModal();
@@ -3148,6 +3425,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initVolumetricMPRViewer();
     initAuditTrailModal();
     initModalitySimulator();
+    initVoiceDictationAndRADLEX();
+    initOrthancIntegration();
     fetchWorklist();
 });
 

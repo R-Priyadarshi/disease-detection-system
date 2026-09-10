@@ -1,0 +1,36 @@
+{
+  "Name": "Orthanc Hospital PACS Archive",
+  "StorageDirectory": "/var/lib/orthanc/db",
+  "IndexDirectory": "/var/lib/orthanc/db",
+  "StorageCompression": false,
+  "MaximumStorageSize": 0,
+  "MaximumPatientCount": 0,
+  "HttpPort": 8042,
+  "DicomPort": 4242,
+  "DicomAet": "ORTHANC_PACS",
+  "DicomCheckCalledAet": false,
+  "StrictAetComparison": false,
+  "DicomAlwaysAllowEcho": true,
+  "DicomAlwaysAllowStore": true,
+  "DicomAlwaysAllowFind": true,
+  "DicomAlwaysAllowMove": true,
+  "DicomModalities": {
+    "ALVEON_PACS": [
+      "ALVEON_PACS",
+      "127.0.0.1",
+      11112
+    ],
+    "ALVEON_DOCKER": [
+      "ALVEON_PACS",
+      "app",
+      11112
+    ]
+  },
+  "OrthancPeers": {},
+  "HttpDescribeErrors": true,
+  "HttpCompressionEnabled": true,
+  "DicomWeb": {
+    "Enable": true,
+    "Root": "/dicom-web/"
+  }
+}

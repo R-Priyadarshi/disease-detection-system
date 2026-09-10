@@ -3730,3 +3730,339 @@ input[type="range"]::-webkit-slider-thumb {
     filter: brightness(1.15);
 }
 
+/* =========================================================================
+   v4.1 ENTERPRISE STYLES: Voice Dictation, RADLEX Reporting, OHIF, Orthanc
+   ========================================================================= */
+
+/* --- 1. OHIF Viewer Header and Card Buttons --- */
+.header-action-btn.ohif-btn-header {
+    background: rgba(14, 165, 233, 0.12);
+    border-color: rgba(56, 189, 248, 0.35);
+    color: #38bdf8;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.header-action-btn.ohif-btn-header:hover {
+    background: rgba(14, 165, 233, 0.25);
+    border-color: #38bdf8;
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+}
+
+.btn-card-ohif {
+    font-size: 9.5px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.btn-card-ohif:hover {
+    background: #0284c7;
+    color: #ffffff;
+    border-color: #38bdf8;
+}
+
+/* --- 2. Voice Dictation Interactive Toolbar --- */
+.voice-dictation-bar {
+    background: #0b0f17;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 10px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+
+.voice-controls-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    min-width: 300px;
+}
+
+.btn-voice-record {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #1e293b;
+    color: #f8fafc;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-voice-record:hover {
+    background: #334155;
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.btn-voice-record.recording {
+    background: linear-gradient(135deg, #e11d48, #be123c);
+    border-color: #f43f5e;
+    color: #ffffff;
+    box-shadow: 0 0 16px rgba(225, 29, 72, 0.5);
+    animation: micPulse 1.4s infinite ease-in-out;
+}
+
+@keyframes micPulse {
+    0%, 100% { transform: scale(1); box-shadow: 0 0 12px rgba(225, 29, 72, 0.4); }
+    50% { transform: scale(1.02); box-shadow: 0 0 22px rgba(225, 29, 72, 0.7); }
+}
+
+.voice-waveform {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    height: 18px;
+}
+
+.wave-bar {
+    width: 3px;
+    height: 100%;
+    background: #f43f5e;
+    border-radius: 2px;
+    animation: waveBounce 0.8s infinite ease-in-out;
+}
+
+.wave-bar:nth-child(1) { animation-delay: 0.0s; }
+.wave-bar:nth-child(2) { animation-delay: 0.15s; }
+.wave-bar:nth-child(3) { animation-delay: 0.3s; }
+.wave-bar:nth-child(4) { animation-delay: 0.45s; }
+.wave-bar:nth-child(5) { animation-delay: 0.6s; }
+
+@keyframes waveBounce {
+    0%, 100% { height: 4px; }
+    50% { height: 18px; }
+}
+
+.voice-status-badge {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+}
+
+.voice-status-badge.ready {
+    background: rgba(16, 185, 129, 0.12);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.voice-status-badge.listening {
+    background: rgba(225, 29, 72, 0.15);
+    color: #f43f5e;
+    border: 1px solid rgba(225, 29, 72, 0.4);
+}
+
+.voice-transcript-preview {
+    font-size: 11.5px;
+    color: #94a3b8;
+    font-style: italic;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+}
+
+.voice-macro-chips {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.voice-chip {
+    background: rgba(255, 255, 255, 0.05);
+    color: #cbd5e1;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 10.5px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.voice-chip:hover {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: #38bdf8;
+    color: #f8fafc;
+}
+
+/* --- 3. ACR / RADLEX Structured Reporting Card --- */
+.radlex-structured-card {
+    background: #0d1117;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    padding: 20px;
+    margin: 20px 0 10px 0;
+}
+
+.radlex-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    margin-bottom: 16px;
+}
+
+.radlex-header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.radlex-pill {
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+.radlex-voice-indicator {
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    color: #34d399;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+
+.radlex-acr-code {
+    font-size: 11px;
+    font-weight: 700;
+    color: #f59e0b;
+    background: rgba(245, 158, 11, 0.1);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    padding: 3px 10px;
+    border-radius: 4px;
+}
+
+.radlex-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.radlex-field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.radlex-field.full-width {
+    grid-column: span 2;
+}
+
+.radlex-field label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    color: #94a3b8;
+}
+
+.radlex-input, .radlex-textarea {
+    background: #161b22;
+    border: 1px solid #30363d;
+    color: #f0f6fc;
+    border-radius: 4px;
+    padding: 7px 10px;
+    font-size: 12px;
+    font-family: inherit;
+    line-height: 1.4;
+    transition: border-color 0.15s ease;
+    resize: vertical;
+}
+
+.radlex-input:focus, .radlex-textarea:focus {
+    outline: none;
+    border-color: #38bdf8;
+    box-shadow: 0 0 8px rgba(56, 189, 248, 0.2);
+}
+
+.radlex-textarea.impression-area {
+    font-weight: 600;
+    color: #ffffff;
+    border-color: rgba(56, 189, 248, 0.4);
+    background: rgba(56, 189, 248, 0.03);
+}
+
+/* --- 4. Orthanc Hospital PACS Telemetry Card --- */
+.orthanc-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin: 16px 0;
+}
+
+.orthanc-metric-box {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 10px;
+    text-align: center;
+}
+
+.orthanc-metric-box .metric-label {
+    font-size: 9.5px;
+    font-weight: 700;
+    color: #8b949e;
+    letter-spacing: 0.5px;
+}
+
+.orthanc-metric-box .metric-val {
+    font-size: 14px;
+    font-weight: 800;
+    color: #f0f6fc;
+    font-family: var(--font-mono);
+    margin-top: 4px;
+}
+
+.orthanc-btn-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.orthanc-deploy-info {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.code-snippet-box {
+    background: #090c10;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 10px 14px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: #38bdf8;
+    user-select: all;
+}
+
+

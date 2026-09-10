@@ -354,24 +354,62 @@ def generate_clinical_report_pdf(report_data: Dict[str, Any]) -> io.BytesIO:
     story.append(zone_table)
     story.append(Spacer(1, 8))
 
-    # 5. Clinical Impression & Recommendations
-    rec_text = report_data.get('clinical_recommendation')
-    if not rec_text:
-        if is_pneumonia:
-            rec_text = (
-                "STAT emergency department physician notification recommended. Evaluate for broad-spectrum "
-                "antimicrobial coverage, supplemental oxygenation, and microbiological sputum cultures. Follow-up "
-                "post-therapy radiograph advised in 48-72 hours to evaluate consolidation resolution."
-            )
-        else:
-            rec_text = (
-                "Pulmonary parenchyma within normal physiological limits. No evidence of focal consolidation, "
-                "pleural effusion, or pneumothorax. Heart size and mediastinal contours are unremarkable."
-            )
+    # 5. Clinical Impression & Recommendations (with RADLEX Structured Report if present)
+    structured = report_data.get('structured_report')
+    if structured:
+        if hasattr(structured, 'model_dump'):
+            structured = structured.model_dump()
+        elif hasattr(structured, 'dict'):
+            structured = structured.dict()
 
-    story.append(Paragraph("<b>CLINICAL IMPRESSION & RECOMMENDATIONS:</b>", style_section_heading))
-    story.append(Paragraph(rec_text, style_body))
-    story.append(Spacer(1, 8))
+        story.append(Paragraph("<b>ACR / RADLEX STRUCTURED THORACIC REPORT:</b>", style_section_heading))
+        sr_rows = [
+            [Paragraph("<b>TECHNIQUE:</b>", style_table_cell_bold), Paragraph(structured.get('examination_technique', 'Standard Chest PA/AP'), style_table_cell)],
+            [Paragraph("<b>INDICATION:</b>", style_table_cell_bold), Paragraph(structured.get('clinical_indication', 'Shortness of breath'), style_table_cell)],
+            [Paragraph("<b>LUNGS:</b>", style_table_cell_bold), Paragraph(structured.get('findings_lungs', 'Clear bilaterally'), style_table_cell)],
+            [Paragraph("<b>PLEURA:</b>", style_table_cell_bold), Paragraph(structured.get('findings_pleura', 'Normal'), style_table_cell)],
+            [Paragraph("<b>CARDIOMEDIASTINUM:</b>", style_table_cell_bold), Paragraph(structured.get('findings_cardiomediastinum', 'Normal'), style_table_cell)],
+            [Paragraph("<b>BONES & WALL:</b>", style_table_cell_bold), Paragraph(structured.get('findings_bones_soft_tissues', 'Intact'), style_table_cell)],
+            [Paragraph("<b>IMPRESSION:</b>", style_table_cell_bold), Paragraph(f"<b>{structured.get('impression', 'No acute disease')}</b>", style_table_cell_bold)],
+            [Paragraph("<b>ACR CODING:</b>", style_table_cell_bold), Paragraph(f"<font color='#0284c7'><b>{structured.get('acr_actionable_code', 'ACR Category 3')}</b></font>", style_table_cell)],
+        ]
+        if structured.get('dictated_voice'):
+            sr_rows.append([
+                Paragraph("<b>DICTATION:</b>", style_table_cell_bold),
+                Paragraph("<font color='#059669'>🎤 Certified Speech-to-Report Dictation Verified</font>", style_table_cell)
+            ])
+
+        sr_table = Table(sr_rows, colWidths=[130, 410])
+        sr_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f8fafc')),
+            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+            ('TOPPADDING', (0, 0), (-1, -1), 2.5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2.5),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ]))
+        story.append(sr_table)
+        story.append(Spacer(1, 8))
+    else:
+        rec_text = report_data.get('clinical_recommendation')
+        if not rec_text:
+            if is_pneumonia:
+                rec_text = (
+                    "STAT emergency department physician notification recommended. Evaluate for broad-spectrum "
+                    "antimicrobial coverage, supplemental oxygenation, and microbiological sputum cultures. Follow-up "
+                    "post-therapy radiograph advised in 48-72 hours to evaluate consolidation resolution."
+                )
+            else:
+                rec_text = (
+                    "Pulmonary parenchyma within normal physiological limits. No evidence of focal consolidation, "
+                    "pleural effusion, or pneumothorax. Heart size and mediastinal contours are unremarkable."
+                )
+
+        story.append(Paragraph("<b>CLINICAL IMPRESSION & RECOMMENDATIONS:</b>", style_section_heading))
+        story.append(Paragraph(rec_text, style_body))
+        story.append(Spacer(1, 8))
 
     # 6. Physician Attestation & SHA-256 Audit Seal
     physician_name = report_data.get('physician_name', 'Dr. Eleanor Vance, MD')

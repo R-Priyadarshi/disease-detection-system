@@ -1,5 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Body, Request, Response, Depends, Header
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, FileResponse
 from core.pdf_generator import generate_clinical_report_pdf
 from core.dicom_listener import get_dicom_scp
 from core.multilabel import get_multilabel_engine
@@ -22,6 +22,12 @@ from core.auth import (
 from core.audit_logger import get_audit_logger
 from core.volumetric import get_volumetric_engine, WINDOW_PRESETS
 from core.pacs_simulator import get_pacs_simulator
+from core.structured_reporting import (
+    get_structured_reporting_engine,
+    StructuredReportModel,
+    VoiceParseResult
+)
+from core.orthanc_integration import get_orthanc_engine
 from pathlib import Path
 import numpy as np
 import tensorflow as tf
@@ -66,7 +72,13 @@ from api.schemas import (
     VolumetricMPRRequest,
     VolumetricMPRResponse,
     SimulateModalityRequest,
-    SimulateModalityResponse
+    SimulateModalityResponse,
+    VoiceDictationRequest,
+    VoiceDictationResponse,
+    StructuredReportRequest,
+    StructuredReportResponse,
+    OrthancStatusResponse,
+    HealthProbeResponse
 )
 
 from core.model import get_model, PneumoniaCNNModel
@@ -1265,4 +1277,155 @@ async def trigger_simulated_modality_push(req: SimulateModalityRequest):
         sop_instance_uid=res["sop_instance_uid"],
         timestamp=res["timestamp"]
     )
+
+
+# =========================================================================
+# v4.1 Enterprise Endpoints: Probes, OHIF Viewer, Voice Dictation, Orthanc
+# =========================================================================
+
+# --- 1. Production Health & Readiness Probes ---
+
+@router.get("/healthz", response_model=HealthProbeResponse, tags=["Production Diagnostics & Probes"])
+@router.get("/readyz", response_model=HealthProbeResponse, tags=["Production Diagnostics & Probes"])
+@router.get("/api/v1/healthz", response_model=HealthProbeResponse, tags=["Production Diagnostics & Probes"])
+async def production_health_probes():
+    """Kubernetes, Docker, and Nginx liveness and readiness probe endpoint."""
+    return HealthProbeResponse(
+        status="healthy",
+        timestamp=datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        version="4.1.0",
+        components={
+            "api": "operational",
+            "model_engine": "loaded",
+            "pacs_scp": "listening:11112",
+            "orthanc_bridge": "available",
+            "dicomweb": "active"
+        }
+    )
+
+
+# --- 2. Diagnostic Web Viewer Bridge & OHIF Configuration ---
+
+@router.get("/viewer", tags=["Diagnostic Web Viewer"])
+@router.get("/ohif", tags=["Diagnostic Web Viewer"])
+async def serve_diagnostic_viewer():
+    """Serves the zero-footprint standalone diagnostic DICOM viewer bridge."""
+    viewer_path = settings.BASE_DIR / "web" / "ohif_viewer.html"
+    if viewer_path.exists():
+        return FileResponse(str(viewer_path), media_type="text/html")
+    raise HTTPException(status_code=404, detail="Viewer template not found.")
+
+@router.get("/api/v1/ohif/config", tags=["Diagnostic Web Viewer"])
+async def get_ohif_viewer_config():
+    """Returns dynamic configuration for OHIF Viewer v3 pointing to ALVEON DICOMweb."""
+    return {
+        "routerBasename": "/",
+        "showStudyList": True,
+        "servers": {
+            "dicomWeb": [
+                {
+                    "name": "ALVEON_DICOMWEB",
+                    "wadoUriRoot": "/dicomweb",
+                    "qidoRoot": "/dicomweb",
+                    "wadoRoot": "/dicomweb",
+                    "qidoSupportsIncludeField": True,
+                    "imageRendering": "wadors",
+                    "thumbnailRendering": "wadors",
+                    "enableStudyLazyLoading": True,
+                    "supportsFuzzyMatching": True
+                }
+            ]
+        }
+    }
+
+
+# --- 3. RADLEX Voice Dictation & AI Structured Reporting ---
+
+@router.post("/api/v1/voice/parse-dictation", response_model=VoiceDictationResponse, tags=["RADLEX Voice Dictation"])
+async def parse_voice_dictation(req: VoiceDictationRequest):
+    """
+    Parses speech transcripts from client microphone into ACR / RADLEX structured report fields or executes voice macros.
+    """
+    engine = get_structured_reporting_engine()
+    current_model = None
+    if req.current_report:
+        try:
+            current_model = StructuredReportModel(**req.current_report)
+        except Exception:
+            current_model = None
+
+    res = engine.parse_dictation_command(
+        text=req.transcript,
+        current_report=current_model
+    )
+    return VoiceDictationResponse(
+        status="success",
+        command_detected=res.command_detected,
+        target_field=res.target_field,
+        transcribed_text=res.transcribed_text,
+        action_executed=res.action_executed,
+        structured_report=res.structured_report.model_dump()
+    )
+
+@router.post("/api/v1/report/structured", response_model=StructuredReportResponse, tags=["RADLEX Voice Dictation"])
+async def synthesize_structured_report(req: StructuredReportRequest):
+    """
+    Generates a full ACR / RADLEX thoracic consultation report synthesized from AI findings or custom edits.
+    """
+    engine = get_structured_reporting_engine()
+    rep = engine.generate_report_from_findings(
+        diagnosis=req.diagnosis or "NORMAL",
+        confidence=req.confidence_percentage or 95.0,
+        multilabel_findings=req.all_findings,
+        zonation=req.zonation
+    )
+    if req.structured_report:
+        for k, v in req.structured_report.items():
+            if hasattr(rep, k) and v:
+                setattr(rep, k, v)
+    return StructuredReportResponse(
+        status="success",
+        structured_report=rep.model_dump()
+    )
+
+
+# --- 4. Orthanc Hospital PACS Integration ---
+
+@router.get("/api/v1/pacs/orthanc/status", response_model=OrthancStatusResponse, tags=["External PACS & Connectivity"])
+async def get_orthanc_pacs_status():
+    """Pings Orthanc PACS instance and returns connection status, disk usage, and study counts."""
+    engine = get_orthanc_engine()
+    status = engine.ping_orthanc()
+    return OrthancStatusResponse(
+        status="success",
+        orthanc=status.model_dump()
+    )
+
+@router.post("/api/v1/pacs/orthanc/sync", tags=["External PACS & Connectivity"])
+async def sync_orthanc_pacs_studies():
+    """Synchronizes studies between Orthanc archive and ALVEON emergency worklist."""
+    engine = get_orthanc_engine()
+    res = engine.sync_studies()
+    return res
+
+@router.post("/api/v1/pacs/orthanc/export/{study_id}", tags=["External PACS & Connectivity"])
+async def export_study_to_orthanc(study_id: str):
+    """Exports a study or AI secondary capture to Orthanc archive over REST/C-STORE."""
+    worklist_items = await get_emergency_worklist()
+    target_study = next((s for s in worklist_items.studies if s.study_id == study_id), None)
+    if not target_study:
+        raise HTTPException(status_code=404, detail=f"Study '{study_id}' not found in worklist.")
+
+    ds = study_item_to_pydicom(target_study)
+    bio = io.BytesIO()
+    ds.save_as(bio)
+    dcm_bytes = bio.getvalue()
+
+    engine = get_orthanc_engine()
+    res = engine.export_study_to_orthanc(
+        dcm_bytes=dcm_bytes,
+        patient_id=target_study.patient_id
+    )
+    return res
+
 

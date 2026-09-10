@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ALVEON | OHIF Diagnostic Web Viewer v3 Bridge</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --ohif-bg: #090c10;
+            --ohif-panel: #161b22;
+            --ohif-border: #30363d;
+            --ohif-text: #f0f6fc;
+            --ohif-accent: #38bdf8;
+            --ohif-font-mono: 'JetBrains Mono', monospace;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            background: var(--ohif-bg);
+            color: var(--ohif-text);
+            font-family: 'Inter', -apple-system, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* OHIF Top Toolbar */
+        .ohif-header {
+            height: 52px;
+            background: #0d1117;
+            border-bottom: 1px solid var(--ohif-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            gap: 16px;
+        }
+
+        .ohif-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .ohif-logo-box {
+            background: linear-gradient(135deg, #0284c7, #2563eb);
+            color: #fff;
+            font-weight: 800;
+            font-size: 13px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            letter-spacing: 0.5px;
+        }
+
+        .ohif-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #f8fafc;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .ohif-badge-dicomweb {
+            font-size: 10px;
+            font-family: var(--ohif-font-mono);
+            background: rgba(56, 189, 248, 0.12);
+            color: #38bdf8;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .ohif-tools-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .ohif-tool-btn {
+            background: #21262d;
+            border: 1px solid var(--ohif-border);
+            color: #c9d1d9;
+            font-size: 12px;
+            font-weight: 500;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.15s ease;
+        }
+
+        .ohif-tool-btn:hover {
+            background: #30363d;
+            color: #fff;
+            border-color: #8b949e;
+        }
+
+        .ohif-tool-btn.active {
+            background: rgba(56, 189, 248, 0.15);
+            border-color: #38bdf8;
+            color: #38bdf8;
+        }
+
+        .ohif-nav-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .btn-return-workstation {
+            background: #1f6feb;
+            color: #fff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+        }
+
+        /* OHIF Workspace Layout */
+        .ohif-main {
+            flex: 1;
+            display: flex;
+            position: relative;
+            background: #000;
+        }
+
+        /* Left Series Thumbnail Panel */
+        .ohif-series-panel {
+            width: 200px;
+            background: #0d1117;
+            border-right: 1px solid var(--ohif-border);
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        .ohif-series-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #8b949e;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .ohif-thumbnail-card {
+            background: #161b22;
+            border: 1px solid var(--ohif-border);
+            border-radius: 6px;
+            padding: 8px;
+            cursor: pointer;
+            transition: border-color 0.15s ease;
+        }
+
+        .ohif-thumbnail-card:hover, .ohif-thumbnail-card.active {
+            border-color: var(--ohif-accent);
+        }
+
+        .ohif-thumb-img {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 4px;
+            background: #000;
+        }
+
+        .ohif-thumb-meta {
+            margin-top: 6px;
+            font-size: 11px;
+            color: #c9d1d9;
+            line-height: 1.3;
+        }
+
+        /* Center Viewport Frame */
+        .ohif-viewport-container {
+            flex: 1;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+        }
+
+        #ohif-canvas {
+            max-width: 95%;
+            max-height: 95%;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+
+        /* 4-Corner Medical HUD */
+        .ohif-hud {
+            position: absolute;
+            font-family: var(--ohif-font-mono);
+            font-size: 11px;
+            color: #e2e8f0;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+            line-height: 1.4;
+            pointer-events: none;
+            z-index: 10;
+        }
+        .hud-tl { top: 16px; left: 16px; }
+        .hud-tr { top: 16px; right: 16px; text-align: right; }
+        .hud-bl { bottom: 16px; left: 16px; }
+        .hud-br { bottom: 16px; right: 16px; text-align: right; }
+
+        /* External OHIF Launch Banner */
+        .ohif-banner-bottom {
+            height: 40px;
+            background: #161b22;
+            border-top: 1px solid var(--ohif-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 16px;
+            font-size: 11px;
+            color: #8b949e;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Top Diagnostic Toolbar -->
+    <header class="ohif-header">
+        <div class="ohif-brand">
+            <span class="ohif-logo-box">OHIF v3</span>
+            <div class="ohif-title">
+                <span>Cornerstone 3D Diagnostic Viewer</span>
+                <span class="ohif-badge-dicomweb">DICOMweb™ REST PS 3.18</span>
+            </div>
+        </div>
+
+        <div class="ohif-tools-bar">
+            <button type="button" class="ohif-tool-btn active" id="tool-wl">🎚️ Window/Level</button>
+            <button type="button" class="ohif-tool-btn" id="tool-zoom">🔍 Zoom / Pan</button>
+            <button type="button" class="ohif-tool-btn" id="tool-length">📏 Length (mm)</button>
+            <button type="button" class="ohif-tool-btn" id="tool-invert">🌗 Invert</button>
+            <button type="button" class="ohif-tool-btn" id="tool-reset">↺ Reset View</button>
+        </div>
+
+        <div class="ohif-nav-right">
+            <a href="/" class="btn-return-workstation">← Return to ALVEON Workstation</a>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <main class="ohif-main">
+        <!-- Series Panel -->
+        <aside class="ohif-series-panel">
+            <div class="ohif-series-title">Study Series (DICOMweb)</div>
+            <div class="ohif-thumbnail-card active" id="thumb-primary">
+                <img id="thumb-img" class="ohif-thumb-img" src="" alt="Thumbnail">
+                <div class="ohif-thumb-meta">
+                    <strong id="thumb-series-desc">Thorax AP/PA</strong><br>
+                    <span id="thumb-series-modality" style="color: #38bdf8;">DX • 1 Image</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Viewport -->
+        <section class="ohif-viewport-container">
+            <!-- 4-Corner HUD -->
+            <div class="ohif-hud hud-tl">
+                <div id="hud-patient-name">PATIENT: ANONYMOUS</div>
+                <div id="hud-patient-mrn">MRN: #MRN-ER-901</div>
+                <div id="hud-patient-age-sex">29Y / F</div>
+            </div>
+            <div class="ohif-hud hud-tr">
+                <div id="hud-hospital">ST. JUDE METROPOLITAN MEDICAL CENTER</div>
+                <div id="hud-modality-header">DX • 16-BIT NATIVE</div>
+                <div id="hud-kvp">125 kVp • 14 ms</div>
+            </div>
+            <div class="ohif-hud hud-bl">
+                <div id="hud-zoom-val">ZOOM: 100%</div>
+                <div id="hud-wl-val">W: 1500  L: -600 (LUNG)</div>
+            </div>
+            <div class="ohif-hud hud-br">
+                <div>WADO-RS RENDERED</div>
+                <div>TRANSFER SYNTAX: 1.2.840.10008.1.2.1</div>
+                <div style="color: #10b981;">● LOSSLESS DIAGNOSTIC</div>
+            </div>
+
+            <canvas id="ohif-canvas" width="600" height="600"></canvas>
+        </section>
+    </main>
+
+    <!-- Bottom Footer -->
+    <footer class="ohif-banner-bottom">
+        <div>
+            Connected to <strong>ALVEON DICOMweb Service</strong> • WADO-RS: <code>/dicomweb/studies/{uid}/series/{uid}/instances/{uid}/rendered</code>
+        </div>
+        <div id="study-instance-uid-tag" style="font-family: var(--ohif-font-mono); color: #38bdf8;">
+            StudyInstanceUID: 1.2.840.10008.5.1.4.1.1.1.9901
+        </div>
+    </footer>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const studyId = params.get('study_id') || params.get('StudyInstanceUIDs') || 'SERIES-CT-CHEST-3201';
+
+        const canvas = document.getElementById('ohif-canvas');
+        const ctx = canvas.getContext('2d');
+        const thumbImg = document.getElementById('thumb-img');
+        let currentImg = new Image();
+        let isInverted = false;
+        let zoomScale = 1.0;
+
+        async function loadDicomwebStudy() {
+            try {
+                // Fetch study metadata via QIDO-RS
+                const res = await fetch('/dicomweb/studies');
+                const studies = await res.json();
+                const matched = studies.find(s => s["0020000D"]?.Value?.[0] === studyId) || studies[0];
+
+                if (matched) {
+                    const name = matched["00100010"]?.Value?.[0]?.Alphabetic || 'Hastings, Rose';
+                    const mrn = matched["00100020"]?.Value?.[0] || 'MRN-ER-901';
+                    const studyUid = matched["0020000D"]?.Value?.[0] || '1.2.840.9901';
+
+                    document.getElementById('hud-patient-name').textContent = `PATIENT: ${name.toUpperCase()}`;
+                    document.getElementById('hud-patient-mrn').textContent = `MRN: ${mrn}`;
+                    document.getElementById('study-instance-uid-tag').textContent = `StudyInstanceUID: ${studyUid}`;
+                }
+
+                // Render active image via WADO-RS rendered frame or active worklist image
+                const worklistRes = await fetch('/api/v1/worklist');
+                const worklistData = await worklistRes.json();
+                const activeItem = worklistData.studies?.[0];
+
+                const imgSource = activeItem?.image_b64 || activeItem?.gradcam_overlay_b64;
+                if (imgSource) {
+                    currentImg.onload = () => {
+                        renderCanvas();
+                        thumbImg.src = currentImg.src;
+                    };
+                    currentImg.src = imgSource;
+                }
+            } catch (err) {
+                console.error('Error loading DICOMweb study:', err);
+            }
+        }
+
+        function renderCanvas() {
+            if (!currentImg.src) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.save();
+            if (isInverted) {
+                ctx.filter = 'invert(1)';
+            } else {
+                ctx.filter = 'none';
+            }
+            ctx.drawImage(currentImg, 0, 0, canvas.width, canvas.height);
+            ctx.restore();
+        }
+
+        document.getElementById('tool-invert').addEventListener('click', () => {
+            isInverted = !isInverted;
+            renderCanvas();
+        });
+
+        document.getElementById('tool-reset').addEventListener('click', () => {
+            isInverted = false;
+            zoomScale = 1.0;
+            document.getElementById('hud-zoom-val').textContent = 'ZOOM: 100%';
+            renderCanvas();
+        });
+
+        document.getElementById('tool-zoom').addEventListener('click', () => {
+            zoomScale = zoomScale === 1.0 ? 1.5 : 1.0;
+            document.getElementById('hud-zoom-val').textContent = `ZOOM: ${Math.round(zoomScale * 100)}%`;
+            renderCanvas();
+        });
+
+        loadDicomwebStudy();
+    </script>
+</body>
+</html>
