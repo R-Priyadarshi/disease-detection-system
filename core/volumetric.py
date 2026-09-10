@@ -44,6 +44,18 @@ WINDOW_PRESETS: Dict[str, HUWindowPreset] = {
         description="Cerebral Parenchyma / High Contrast (W:80, L:40)",
         window_width=80,
         window_level=40
+    ),
+    "SUBDURAL": HUWindowPreset(
+        name="SUBDURAL",
+        description="Subdural / Epidural Blood (W:130, L:75)",
+        window_width=130,
+        window_level=75
+    ),
+    "STROKE": HUWindowPreset(
+        name="STROKE",
+        description="Stroke / Early Ischemia (W:35, L:35)",
+        window_width=35,
+        window_level=35
     )
 }
 
@@ -119,6 +131,27 @@ class VolumetricCTEngine:
             pixel_spacing_mm=[1.2, 1.2],
             default_window="MEDIASTINUM"
         )
+
+        # 3. 3D Neuro CT Series: Acute Stroke & Subdural Hematoma
+        try:
+            from core.neuro_engine import get_neuro_engine
+            neuro = get_neuro_engine()
+            for s_id, s in neuro.series_registry.items():
+                self._volumes[s_id] = s.volume_hu.astype(np.int16)
+                self._metadata[s_id] = VolumetricSeries(
+                    series_id=s.series_id,
+                    patient_id=s.patient_mrn,
+                    patient_name=s.patient_name,
+                    modality="CT",
+                    description=f"{s.primary_neuro_finding} (32 Slices)",
+                    num_slices=s.matrix_shape[0],
+                    dimensions=list(s.matrix_shape),
+                    slice_thickness_mm=2.5,
+                    pixel_spacing_mm=[1.0, 1.0],
+                    default_window="BRAIN"
+                )
+        except Exception:
+            pass
 
     def _synthesize_3d_chest_ct(
         self, depth: int = 32, height: int = 160, width: int = 160,

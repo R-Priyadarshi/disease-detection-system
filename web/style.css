@@ -4088,4 +4088,572 @@ input[type="range"]::-webkit-slider-thumb {
     user-select: all;
 }
 
+/* ==========================================================================
+   STAT CRITICAL TRAUMA ALERT BANNER & CLOSED-LOOP WORKFLOWS (v4.2)
+   ========================================================================== */
+.stat-alert-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 18px;
+    background: linear-gradient(90deg, rgba(220, 38, 38, 0.28) 0%, rgba(185, 28, 28, 0.15) 100%);
+    border-bottom: 2px solid #ef4444;
+    border-top: 1px solid rgba(239, 68, 68, 0.4);
+    animation: stat-banner-glow 2.5s infinite alternate ease-in-out;
+    position: relative;
+    z-index: 90;
+}
+
+@keyframes stat-banner-glow {
+    0% { background: linear-gradient(90deg, rgba(220, 38, 38, 0.24) 0%, rgba(185, 28, 28, 0.12) 100%); box-shadow: inset 0 0 12px rgba(239, 68, 68, 0.2); }
+    100% { background: linear-gradient(90deg, rgba(220, 38, 38, 0.38) 0%, rgba(185, 28, 28, 0.22) 100%); box-shadow: inset 0 0 20px rgba(239, 68, 68, 0.35); }
+}
+
+.stat-alert-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.stat-alert-beacon {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #ef4444;
+    box-shadow: 0 0 10px #ef4444, 0 0 20px #ef4444;
+    animation: beacon-pulse 1.2s infinite ease-in-out;
+    flex-shrink: 0;
+}
+
+@keyframes beacon-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.4); opacity: 0.6; }
+}
+
+.stat-alert-icon {
+    font-size: 20px;
+    filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6));
+}
+
+.stat-alert-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.stat-alert-headline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.stat-alert-pill {
+    background: #ef4444;
+    color: #ffffff;
+    font-size: 9.5px;
+    font-weight: 800;
+    font-family: var(--font-mono);
+    letter-spacing: 0.8px;
+    padding: 2px 7px;
+    border-radius: 3px;
+}
+
+.stat-alert-patient {
+    font-size: 13px;
+    font-weight: 700;
+    color: #fca5a5;
+}
+
+.stat-alert-finding {
+    font-size: 12px;
+    color: #f1f5f9;
+    font-weight: 500;
+}
+
+.stat-alert-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.stat-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 14px;
+    font-size: 11.5px;
+    font-weight: 700;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.stat-action-btn.primary {
+    background: linear-gradient(135deg, #ef4444, #b91c1c);
+    color: #ffffff;
+    border: 1px solid #f87171;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+}
+
+.stat-action-btn.primary:hover {
+    background: linear-gradient(135deg, #dc2626, #991b1b);
+    box-shadow: 0 4px 12px rgba(239, 68, 68, 0.6);
+}
+
+.stat-action-btn.mute {
+    background: rgba(30, 41, 59, 0.8);
+    color: #cbd5e1;
+    border: 1px solid #475569;
+}
+
+.stat-action-btn.mute:hover {
+    background: rgba(51, 65, 85, 0.9);
+    color: #ffffff;
+}
+
+/* ==========================================================================
+   CLOSED-LOOP VERBAL HANDOFF MODAL & SEAL
+   ========================================================================== */
+.handoff-alert-box {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 18px;
+}
+
+.handoff-alert-title {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 800;
+    color: #ef4444;
+    letter-spacing: 0.6px;
+    margin-bottom: 4px;
+}
+
+.handoff-patient-line {
+    font-size: 12.5px;
+    color: #e2e8f0;
+    margin-bottom: 4px;
+}
+
+.handoff-finding-desc {
+    font-size: 12px;
+    color: #cbd5e1;
+    line-height: 1.4;
+}
+
+.handoff-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.form-row-two {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.form-group label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 0.4px;
+}
+
+.readback-verify-box {
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 12px 14px;
+}
+
+.readback-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 11.5px;
+    color: #cbd5e1;
+    line-height: 1.45;
+}
+
+.readback-label input[type="checkbox"] {
+    margin-top: 3px;
+    accent-color: #ef4444;
+    cursor: pointer;
+}
+
+.handoff-seal-status {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    border-radius: 6px;
+    padding: 12px 16px;
+}
+
+.seal-icon {
+    font-size: 24px;
+}
+
+.seal-title {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 800;
+    color: #34d399;
+    letter-spacing: 0.5px;
+}
+
+.seal-hash {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: #94a3b8;
+    word-break: break-all;
+    margin-top: 2px;
+}
+
+/* ==========================================================================
+   REPORT SUITE TABS & PATIENT DISCHARGE GUIDE (v4.2)
+   ========================================================================== */
+.report-suite-tabs {
+    display: flex;
+    gap: 4px;
+    background: #090d16;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 6px 14px 0 14px;
+}
+
+.report-suite-tab-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 16px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #94a3b8;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.report-suite-tab-btn:hover {
+    color: #e2e8f0;
+}
+
+.report-suite-tab-btn.active {
+    color: #38bdf8;
+    border-bottom-color: #38bdf8;
+    font-weight: 700;
+}
+#report-dialog.alveon-modal {
+    width: 92%;
+    max-width: 980px;
+    height: 88vh;
+    max-height: 88vh;
+    background: #090d16;
+    color: #f8fafc;
+    overflow: hidden;
+}
+
+#report-dialog .modal-shell {
+    height: 100%;
+    max-height: 88vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.report-tab-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 auto;
+    height: calc(88vh - 120px);
+    max-height: calc(88vh - 120px);
+    overflow: hidden;
+}
+
+/* Patient Discharge Toolbar */
+.discharge-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 18px;
+    background: #0f172a;
+    border-bottom: 1px solid #1e293b;
+}
+
+.discharge-ctrl-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.discharge-label {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: #94a3b8;
+    letter-spacing: 0.5px;
+}
+
+.discharge-select {
+    background: #1e293b;
+    border: 1px solid #334155;
+    color: #f8fafc;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 4px;
+    outline: none;
+}
+
+.btn-generate-discharge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #0284c7, #2563eb);
+    border: 1px solid #38bdf8;
+    color: #ffffff;
+    font-size: 11.5px;
+    font-weight: 700;
+    padding: 6px 14px;
+    border-radius: 4px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+}
+
+.btn-generate-discharge:hover {
+    background: linear-gradient(135deg, #0369a1, #1d4ed8);
+}
+
+.discharge-engine-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: #38bdf8;
+    background: rgba(56, 189, 248, 0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.engine-dot-active {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #34d399;
+    box-shadow: 0 0 6px #34d399;
+}
+
+/* Patient Discharge Card Body */
+.discharge-scroll {
+    padding: 20px;
+    background: #090d16;
+    height: 100%;
+    overflow-y: auto;
+    flex: 1 1 auto;
+}
+
+.discharge-card {
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.discharge-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    padding: 16px 20px;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    border-bottom: 1px solid #334155;
+}
+
+.discharge-card-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #f8fafc;
+    margin: 0;
+}
+
+.discharge-card-sub {
+    font-size: 11px;
+    color: #94a3b8;
+    margin-top: 3px;
+}
+
+.reading-level-badge {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    color: #34d399;
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+.discharge-card-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.discharge-section {
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 6px;
+    padding: 14px 16px;
+}
+
+.discharge-section.warning-box {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.discharge-sec-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+}
+
+.discharge-sec-header h4 {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 800;
+    color: #38bdf8;
+    letter-spacing: 0.5px;
+    margin: 0;
+}
+
+.discharge-sec-header.warning h4 {
+    color: #f87171;
+}
+
+.discharge-sec-text {
+    font-size: 13px;
+    line-height: 1.55;
+    color: #e2e8f0;
+    margin: 0;
+}
+
+.discharge-sec-text.warning {
+    color: #fca5a5;
+    font-weight: 500;
+}
+
+.discharge-disclaimer {
+    font-size: 11px;
+    color: #64748b;
+    line-height: 1.4;
+    padding-top: 10px;
+    border-top: 1px dashed #1e293b;
+}
+
+.discharge-actions-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 12px 20px;
+    background: #0f172a;
+    border-top: 1px solid #1e293b;
+}
+
+/* ==========================================================================
+   NEURO CT 3D STROKE CADX DIAGNOSTIC BANNER (v4.2)
+   ========================================================================== */
+.neuro-diag-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: linear-gradient(90deg, rgba(14, 116, 144, 0.25) 0%, rgba(15, 23, 42, 0.8) 100%);
+    border: 1px solid rgba(6, 182, 212, 0.35);
+    border-radius: 4px;
+    margin-bottom: 8px;
+}
+
+.neuro-diag-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.neuro-pill {
+    background: linear-gradient(135deg, #0891b2, #0284c7);
+    color: #ffffff;
+    font-size: 9.5px;
+    font-weight: 800;
+    font-family: var(--font-mono);
+    letter-spacing: 0.6px;
+    padding: 2px 7px;
+    border-radius: 3px;
+}
+
+.neuro-diag-metrics {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.neuro-metric-badge {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    color: #94a3b8;
+    background: #1e293b;
+    border: 1px solid #334155;
+    padding: 3px 8px;
+    border-radius: 3px;
+}
+
+.neuro-metric-badge strong {
+    color: #38bdf8;
+}
+
+.neuro-metric-badge.alert {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+    color: #f87171;
+    font-weight: 800;
+}
+
+.neuro-diag-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+}
+
+.neuro-finding-label {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: #64748b;
+    font-weight: 700;
+}
+
+.neuro-finding-text {
+    color: #f1f5f9;
+    font-weight: 600;
+}
+
+
 

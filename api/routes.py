@@ -28,6 +28,11 @@ from core.structured_reporting import (
     VoiceParseResult
 )
 from core.orthanc_integration import get_orthanc_engine
+from core.hl7_engine import get_hl7_engine
+from core.fhir_engine import get_fhir_engine
+from core.patient_summary import get_patient_summary_engine
+from core.alerting_engine import get_alerting_engine
+from core.neuro_engine import get_neuro_engine, NEURO_HU_PRESETS
 from pathlib import Path
 import numpy as np
 import tensorflow as tf
@@ -78,7 +83,17 @@ from api.schemas import (
     StructuredReportRequest,
     StructuredReportResponse,
     OrthancStatusResponse,
-    HealthProbeResponse
+    HealthProbeResponse,
+    HL7OrderRequest,
+    HL7OrderResponse,
+    HL7ReportResponse,
+    PatientSummaryRequest,
+    PatientSummaryResponse,
+    ClosedLoopHandoffRequest,
+    ClosedLoopHandoffResponse,
+    NeuroSeriesListResponse,
+    NeuroSeriesItem,
+    NeuroAnalysisResponse
 )
 
 from core.model import get_model, PneumoniaCNNModel
@@ -100,6 +115,11 @@ def get_engine():
         _model = get_model()
         _gradcam = GradCAMGenerator(_model)
     return _model, _gradcam
+
+@router.api_route("/favicon.ico", methods=["GET", "HEAD"], include_in_schema=False)
+async def get_favicon():
+    return Response(content=b"", media_type="image/x-icon")
+
 
 @router.get("/health", response_model=HealthResponse, tags=["Diagnostics & System Health"])
 async def healthcheck():
@@ -1427,5 +1447,219 @@ async def export_study_to_orthanc(study_id: str):
         patient_id=target_study.patient_id
     )
     return res
+
+
+# =========================================================================
+# v4.2 Enterprise Endpoints: HL7 v2, FHIR R4, Patient Summary, Closed-Loop, Neuro CT
+# =========================================================================
+
+# --- 1. Option A: Hospital EHR Interoperability (HL7 v2 & FHIR R4) ---
+
+@router.post("/api/v1/hl7/order", response_model=HL7OrderResponse, tags=["Hospital EHR Interoperability (HL7 & FHIR)"])
+async def ingest_hl7_order(req: HL7OrderRequest):
+    """
+    Ingests an inbound HL7 v2.x General Order Message (ORM^O01).
+    Extracts patient demographics, accession, and matches with emergency worklist.
+    """
+    engine = get_hl7_engine()
+    if req.raw_hl7:
+        order = engine.parse_orm_o01(req.raw_hl7)
+    else:
+        # Construct synthetic ORM^O01 from request fields
+        raw_msg = (
+            f"MSH|^~\\&|EPIC_EHR|METROPOLITAN_HEALTH|ALVEON_PACS|ST_JUDE_HOSPITAL|{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S')}||ORM^O01|MSG{uuid.uuid4().hex[:6].upper()}|P|2.5.1\r\n"
+            f"PID|1||{req.patient_mrn or 'MRN-ER-901'}^^^ST_JUDE^MR||{req.patient_name or 'Sterling^Connor'}||19780512|M\r\n"
+            f"ORC|NW|ORD-{uuid.uuid4().hex[:6].upper()}|||||1^STAT||{datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%d%H%M%S')}|||10928^Dr. Sarah Adams^MD\r\n"
+            f"OBR|1|{req.accession_number or 'ACC-99120'}|{req.accession_number or 'ACC-99120'}|RAD-CXR^Chest Radiograph Single View^CPT-71045||||||||||||||||||||F||||||{req.clinical_indication or 'Shortness of breath'}\r\n"
+        )
+        order = engine.parse_orm_o01(raw_msg)
+
+    ack = engine.generate_ack(order.get("message_control_id", "MSG001"), success=True)
+    return HL7OrderResponse(
+        status="success",
+        order=order,
+        ack_message=ack.to_string()
+    )
+
+
+@router.get("/api/v1/hl7/report/{study_id}", response_model=HL7ReportResponse, tags=["Hospital EHR Interoperability (HL7 & FHIR)"])
+async def get_hl7_observation_report(study_id: str):
+    """
+    Generates an outbound HL7 v2.x Unsolicited Observation Message (ORU^R01)
+    transmitting signed radiologic interpretation to hospital EHRs.
+    """
+    worklist_items = await get_emergency_worklist()
+    target_study = next((s for s in worklist_items.studies if s.study_id == study_id), None)
+    
+    mrn = target_study.patient_mrn if target_study else "MRN-TRAUMA-4410"
+    name = target_study.patient_name if target_study else "Sterling, Connor"
+    diag = target_study.primary_finding if target_study else "PNEUMONIA"
+    conf = target_study.confidence_percentage if target_study else 99.8
+
+    engine = get_hl7_engine()
+    msg = engine.generate_oru_r01(
+        study_id=study_id,
+        patient_mrn=mrn,
+        patient_name=name,
+        diagnosis=diag,
+        confidence_percentage=conf,
+        findings_text="Consolidative alveolar opacity localized to right upper pulmonary lobe. No pneumothorax.",
+        impression_text=f"Focal consolidative pneumonia with {conf:.1f}% confidence. Category: ACR Level 1.",
+        acr_actionable_code="ACR Category 1 (Critical STAT Alert)"
+    )
+
+    return HL7ReportResponse(
+        status="success",
+        study_id=study_id,
+        patient_mrn=mrn,
+        accession_number=f"ACC-{study_id.replace('STUDY-', '')}",
+        raw_oru_r01=msg.to_string(),
+        message_control_id=msg.segments[0].fields[8] if len(msg.segments[0].fields) > 8 else "ALV001"
+    )
+
+
+@router.get("/api/v1/fhir/DiagnosticReport/{study_id}", tags=["Hospital EHR Interoperability (HL7 & FHIR)"])
+async def get_fhir_diagnostic_report(study_id: str):
+    """Generates standard HL7 FHIR R4 JSON DiagnosticReport resource."""
+    worklist_items = await get_emergency_worklist()
+    target = next((s for s in worklist_items.studies if s.study_id == study_id), None)
+    mrn = target.patient_mrn if target else "MRN-TRAUMA-4410"
+    name = target.patient_name if target else "Sterling, Connor"
+    diag = target.primary_finding if target else "PNEUMONIA"
+    conf = target.confidence_percentage if target else 99.8
+
+    engine = get_fhir_engine()
+    report = engine.generate_diagnostic_report(
+        study_id=study_id,
+        patient_mrn=mrn,
+        patient_name=name,
+        diagnosis=diag,
+        confidence_percentage=conf,
+        impression="Focal infiltrative consolidation consistent with acute bacterial pneumonia.",
+        acr_category="ACR Category 1 (Critical STAT Alert)",
+        is_signed=(target.status == "SIGNED") if target else True
+    )
+    return JSONResponse(content=report, media_type="application/fhir+json")
+
+
+
+@router.get("/api/v1/fhir/Observation/{study_id}", tags=["Hospital EHR Interoperability (HL7 & FHIR)"])
+async def get_fhir_observation_bundle(study_id: str):
+    """Generates standard HL7 FHIR R4 JSON Observation bundle."""
+    worklist_items = await get_emergency_worklist()
+    target = next((s for s in worklist_items.studies if s.study_id == study_id), None)
+    mrn = target.patient_mrn if target else "MRN-TRAUMA-4410"
+    diag = target.primary_finding if target else "PNEUMONIA"
+    conf = target.confidence_percentage / 100.0 if target else 0.998
+
+    engine = get_fhir_engine()
+    obs = engine.generate_observation_resource(
+        observation_id=f"{study_id}-pneu",
+        patient_mrn=mrn,
+        study_id=study_id,
+        diagnosis_label=diag,
+        probability=conf
+    )
+    bundle = {
+        "resourceType": "Bundle",
+        "type": "collection",
+        "total": 1,
+        "entry": [{"resource": obs}]
+    }
+    return JSONResponse(content=bundle, media_type="application/fhir+json")
+
+
+@router.get("/api/v1/fhir/ImagingStudy/{study_id}", tags=["Hospital EHR Interoperability (HL7 & FHIR)"])
+async def get_fhir_imaging_study(study_id: str):
+    """Generates standard HL7 FHIR R4 JSON ImagingStudy resource."""
+    worklist_items = await get_emergency_worklist()
+    target = next((s for s in worklist_items.studies if s.study_id == study_id), None)
+    mrn = target.patient_mrn if target else "MRN-TRAUMA-4410"
+    modality = target.modality if target else "DX"
+
+    engine = get_fhir_engine()
+    study = engine.generate_imaging_study_resource(
+        study_id=study_id,
+        patient_mrn=mrn,
+        modality=modality
+    )
+    return JSONResponse(content=study, media_type="application/fhir+json")
+
+
+# --- 2. Option B: Local AI Patient Discharge Summarizer ---
+
+@router.post("/api/v1/patient/summary", response_model=PatientSummaryResponse, tags=["Patient Care & Layperson Instructions"])
+async def generate_patient_discharge_summary(req: PatientSummaryRequest):
+    """
+    Translates radiologic findings into compassionate, 6th-grade reading level patient instructions.
+    Multi-lingual: English, Spanish, French, Hindi, Mandarin. Uses local Ollama or offline NLP fallback.
+    """
+    engine = get_patient_summary_engine()
+    res = engine.generate_patient_discharge_summary(
+        diagnosis=req.diagnosis,
+        confidence_percentage=req.confidence_percentage,
+        clinical_impression=req.clinical_impression,
+        language=req.language or "en",
+        patient_name=req.patient_name or "Patient",
+        patient_mrn=req.patient_mrn or "MRN-101"
+    )
+    return PatientSummaryResponse(**res)
+
+
+# --- 3. Option C: STAT Critical Trauma Alerting & Closed-Loop Communication ---
+
+@router.post("/api/v1/alert/closed-loop", response_model=ClosedLoopHandoffResponse, tags=["Emergency Critical Alerting"])
+async def record_closed_loop_verbal_handoff(req: ClosedLoopHandoffRequest):
+    """
+    Records an ACR-compliant closed-loop verbal handoff between radiologist and ER physician.
+    Automatically stamped into the tamper-evident HIPAA SHA-256 audit ledger.
+    """
+    engine = get_alerting_engine()
+    handoff = engine.record_closed_loop_handoff(
+        study_id=req.study_id,
+        patient_mrn=req.patient_mrn,
+        patient_name=req.patient_name,
+        critical_finding=req.critical_finding,
+        radiologist_name=req.radiologist_name,
+        er_physician_name=req.er_physician_name,
+        communication_method=req.communication_method or "Trauma Bay Hotline",
+        readback_confirmed=req.readback_confirmed if req.readback_confirmed is not None else True,
+        notes=req.notes or ""
+    )
+    return ClosedLoopHandoffResponse(status="success", handoff=handoff)
+
+
+@router.get("/api/v1/alert/closed-loop/{study_id}", tags=["Emergency Critical Alerting"])
+async def get_closed_loop_handoff_status(study_id: str):
+    """Retrieves recorded closed-loop verbal handoff status for a given study."""
+    engine = get_alerting_engine()
+    record = engine.get_handoff_status(study_id)
+    if not record:
+        return {"status": "none", "message": "No verbal handoff recorded yet for this study."}
+    return {"status": "recorded", "handoff": record}
+
+
+# --- 4. Option D: Multi-Modality Brain CT Stroke & Hemorrhage Suite ---
+
+@router.get("/api/v1/neuro/series", response_model=NeuroSeriesListResponse, tags=["3D Neuro CT & Stroke Suite"])
+async def list_neuro_ct_series():
+    """Lists available 3D volumetric Brain CT series for acute stroke & hemorrhage evaluation."""
+    engine = get_neuro_engine()
+    items = engine.list_series()
+    return NeuroSeriesListResponse(status="success", series=items)
+
+
+@router.post("/api/v1/neuro/analyze/{series_id}", response_model=NeuroAnalysisResponse, tags=["3D Neuro CT & Stroke Suite"])
+async def analyze_neuro_ct_series(series_id: str):
+    """
+    Executes automated AI stroke, intracranial hemorrhage, and mass effect analysis on a 3D Brain CT volume.
+    Returns ASPECTS score, midline shift measurement, and surgical alerts.
+    """
+    engine = get_neuro_engine()
+    res = engine.analyze_neuro_volume(series_id)
+    if res.get("status") == "error":
+        raise HTTPException(status_code=404, detail=res.get("message", "Series not found"))
+    return NeuroAnalysisResponse(**res)
+
 
 

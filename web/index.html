@@ -46,7 +46,11 @@
                     </button>
                     <button type="button" class="mode-toggle-btn" id="mode-btn-3d" data-workstation-mode="3d">
                         <span class="mode-icon">🧊</span>
-                        <span>3D CT / MPR</span>
+                        <span>3D Chest CT</span>
+                    </button>
+                    <button type="button" class="mode-toggle-btn" id="mode-btn-neuro" data-workstation-mode="neuro">
+                        <span class="mode-icon">🧠</span>
+                        <span>3D Neuro CT</span>
                     </button>
                 </div>
 
@@ -181,6 +185,33 @@
                 </div>
             </div>
         </nav>
+
+        <!-- STAT Critical Trauma Alert Banner (ACR Actionable Level 1 Alert) -->
+        <aside class="stat-alert-banner" id="stat-alert-banner" style="display: none;" role="alert" aria-live="assertive">
+            <div class="stat-alert-left">
+                <span class="stat-alert-beacon"></span>
+                <span class="stat-alert-icon">🚨</span>
+                <div class="stat-alert-info">
+                    <div class="stat-alert-headline">
+                        <span class="stat-alert-pill">ACR CATEGORY 1 STAT CRITICAL FINDING</span>
+                        <span class="stat-alert-patient" id="stat-alert-patient-name">Connor Sterling (MRN-TRAUMA-4410)</span>
+                    </div>
+                    <div class="stat-alert-finding" id="stat-alert-finding-text">
+                        Tension Pneumothorax detected with hemodynamic risk. Immediate verbal handoff required within 30 minutes.
+                    </div>
+                </div>
+            </div>
+            <div class="stat-alert-actions">
+                <button type="button" class="stat-action-btn primary" id="stat-initiate-handoff-btn">
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                    <span>Record Closed-Loop Handoff</span>
+                </button>
+                <button type="button" class="stat-action-btn mute" id="stat-mute-chime-btn" title="Silence Trauma Alarm Chime">
+                    <span id="stat-mute-icon">🔔</span>
+                    <span id="stat-mute-label">Silence Chime</span>
+                </button>
+            </div>
+        </aside>
 
         <!-- Main Radiologic Layout Grid -->
         <main class="workstation-grid">
@@ -630,8 +661,14 @@
                             <div class="mpr-series-box">
                                 <label for="mpr-series-selector" class="mpr-label">3D VOLUMETRIC CT / MRI SERIES:</label>
                                 <select id="mpr-series-selector" class="mpr-select">
-                                    <option value="SERIES-CT-CHEST-3201">Chest CT Angiogram (32 Slices • Trauma & Infiltration) - Rose Hastings</option>
-                                    <option value="SERIES-CT-NORMAL-3202">HRCT Inspiratory Chest (32 Slices • Baseline Normal) - Vivian Drake</option>
+                                    <optgroup label="Thoracic CT (Chest & Lungs)">
+                                        <option value="SERIES-CT-CHEST-3201">Chest CT Angiogram (32 Slices • Trauma & Infiltration) - Rose Hastings</option>
+                                        <option value="SERIES-CT-NORMAL-3202">HRCT Inspiratory Chest (32 Slices • Baseline Normal) - Vivian Drake</option>
+                                    </optgroup>
+                                    <optgroup label="3D Neuro CT (Brain & Stroke Suite)">
+                                        <option value="BRAIN-CT-STROKE-01">Non-Contrast Brain CT (32 Slices • Acute MCA Stroke / ASPECTS 7) - Margaret Vance</option>
+                                        <option value="BRAIN-CT-SDH-02">Non-Contrast Brain CT (32 Slices • Acute Subdural Hematoma) - Robert Keller</option>
+                                    </optgroup>
                                 </select>
                             </div>
                         </div>
@@ -643,7 +680,9 @@
                                 <button type="button" class="tool-btn active" data-hu="LUNG" title="Pulmonary Parenchyma (W:1500, L:-600)">🫁 Lung (1500/-600)</button>
                                 <button type="button" class="tool-btn" data-hu="MEDIASTINUM" title="Mediastinum & Heart (W:350, L:40)">🫀 Mediastinum (350/40)</button>
                                 <button type="button" class="tool-btn" data-hu="BONE" title="Thoracic Ribs & Spine (W:2000, L:500)">🦴 Bone (2000/500)</button>
-                                <button type="button" class="tool-btn" data-hu="BRAIN" title="High Contrast (W:80, L:40)">🧠 Contrast (80/40)</button>
+                                <button type="button" class="tool-btn" data-hu="BRAIN" title="High Contrast (W:80, L:40)">🧠 Brain (80/40)</button>
+                                <button type="button" class="tool-btn" data-hu="SUBDURAL" title="Subdural / Epidural Blood (W:130, L:75)">🩸 Hematoma (130/75)</button>
+                                <button type="button" class="tool-btn" data-hu="STROKE" title="Stroke / Early Ischemia (W:35, L:35)">⚡ Stroke (35/35)</button>
                             </div>
                         </div>
 
@@ -681,6 +720,22 @@
                             <span class="cine-speed-label">SPEED:</span>
                             <input type="range" id="mpr-fps-slider" min="5" max="30" value="15" step="1" title="Cine Frame Rate (FPS)">
                             <span id="mpr-fps-val" class="mono-num">15 fps</span>
+                        </div>
+                    </div>
+
+                    <!-- Neuro-Radiology Diagnostic & Stroke CADx Banner (Active on Brain CT) -->
+                    <div class="neuro-diag-banner" id="neuro-diag-banner" style="display: none;">
+                        <div class="neuro-diag-left">
+                            <span class="neuro-pill">🧠 3D BRAIN CT AI SUITE</span>
+                            <div class="neuro-diag-metrics">
+                                <span class="neuro-metric-badge" id="neuro-aspects-badge">ASPECTS: <strong>7 / 10</strong> (MCA Territory Ischemia)</span>
+                                <span class="neuro-metric-badge" id="neuro-shift-badge">MIDLINE SHIFT: <strong>1.8 mm</strong></span>
+                                <span class="neuro-metric-badge alert" id="neuro-alert-badge">ACR CAT 1 CRITICAL</span>
+                            </div>
+                        </div>
+                        <div class="neuro-diag-right">
+                            <span class="neuro-finding-label">RECOMMENDED INTERVENTION:</span>
+                            <span class="neuro-finding-text" id="neuro-finding-summary">Candidate for emergent Endovascular Thrombectomy (EVT) • STAT Neurosurgical Consult</span>
                         </div>
                     </div>
 
@@ -761,8 +816,22 @@
                     <button type="button" class="modal-x" id="close-modal-btn" aria-label="Close modal">&times;</button>
                 </div>
 
-                <!-- Voice Dictation Interactive Header Bar -->
-                <div class="voice-dictation-bar" id="voice-dictation-bar">
+                <!-- Report Suite Navigation Tabs -->
+                <div class="report-suite-tabs" role="tablist">
+                    <button type="button" class="report-suite-tab-btn active" id="tab-btn-radlex" data-report-tab="tab-radlex">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="22"/></svg>
+                        <span>🎙️ Radiologist Attestation (RADLEX & ACR)</span>
+                    </button>
+                    <button type="button" class="report-suite-tab-btn" id="tab-btn-discharge" data-report-tab="tab-discharge">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                        <span>🗣️ Patient Layperson Discharge Guide (AI Multi-Lingual)</span>
+                    </button>
+                </div>
+
+                <!-- Tab Panel 1: Radiologist Voice Dictation & RADLEX Structured Reporting -->
+                <div class="report-tab-panel active" id="tab-radlex">
+                    <!-- Voice Dictation Interactive Header Bar -->
+                    <div class="voice-dictation-bar" id="voice-dictation-bar">
                     <div class="voice-controls-left">
                         <button type="button" class="btn-voice-record" id="btn-voice-record" title="Click to Start/Stop Speech-to-Report Voice Dictation">
                             <span class="mic-icon">🎙️</span>
@@ -831,6 +900,108 @@
                         </div>
                     </div>
                 </div>
+                </div>
+
+                <!-- Tab Panel 2: Multi-Lingual Patient Layperson Discharge Instructions -->
+                <div class="report-tab-panel" id="tab-discharge" style="display: none;">
+                    <!-- Multi-Lingual Control Toolbar -->
+                    <div class="discharge-toolbar">
+                        <div class="discharge-ctrl-left">
+                            <label for="discharge-lang-select" class="discharge-label">🌐 PATIENT LANGUAGE:</label>
+                            <select id="discharge-lang-select" class="discharge-select">
+                                <option value="en">English (US / UK)</option>
+                                <option value="es">Español (Spanish)</option>
+                                <option value="fr">Français (French)</option>
+                                <option value="hi">हिन्दी (Hindi)</option>
+                                <option value="zh">中文 (Mandarin Chinese)</option>
+                            </select>
+                            <button type="button" class="btn-generate-discharge" id="btn-generate-discharge">
+                                <span>✨ Translate Patient Instructions</span>
+                            </button>
+                        </div>
+                        <div class="discharge-engine-badge">
+                            <span class="engine-dot-active"></span>
+                            <span id="discharge-engine-label">ALVEON Multi-Lingual NLP Engine (Local & Free)</span>
+                        </div>
+                    </div>
+
+                    <!-- Scrollable Discharge Instructions Container -->
+                    <div class="modal-scroll discharge-scroll" id="discharge-scroll">
+                        <div class="discharge-card">
+                            <div class="discharge-card-header">
+                                <div>
+                                    <h3 class="discharge-card-title" id="discharge-card-title">Patient Care & Education Guide</h3>
+                                    <div class="discharge-card-sub" id="discharge-patient-meta">Patient: Connor Sterling (MRN-TRAUMA-4410) • Emergency Thoracic Evaluation</div>
+                                </div>
+                                <span class="reading-level-badge" id="discharge-reading-level">Grade 6 Reading Level (AMA Compliant)</span>
+                            </div>
+
+                            <div class="discharge-card-body">
+                                <!-- 1. What We Examined -->
+                                <div class="discharge-section">
+                                    <div class="discharge-sec-header">
+                                        <span class="sec-icon">📋</span>
+                                        <h4>1. WHAT YOUR X-RAY SHOWED (IN SIMPLE WORDS)</h4>
+                                    </div>
+                                    <p class="discharge-sec-text" id="discharge-text-found">
+                                        Your chest X-ray showed an area of infection or inflammation in your lung, known as pneumonia. This is causing your cough, chest tightness, or fever.
+                                    </p>
+                                </div>
+
+                                <!-- 2. What You Need To Do -->
+                                <div class="discharge-section">
+                                    <div class="discharge-sec-header">
+                                        <span class="sec-icon">💊</span>
+                                        <h4>2. WHAT YOU NEED TO DO AT HOME</h4>
+                                    </div>
+                                    <p class="discharge-sec-text" id="discharge-text-action">
+                                        Take all prescribed antibiotic medications exactly as directed by your doctor, even if you feel better. Drink plenty of water (8-10 glasses daily), get plenty of sleep, and avoid smoke or vaping.
+                                    </p>
+                                </div>
+
+                                <!-- 3. Red Flag Warnings -->
+                                <div class="discharge-section warning-box">
+                                    <div class="discharge-sec-header warning">
+                                        <span class="sec-icon">🚨</span>
+                                        <h4>3. CRITICAL WARNING SIGNS — WHEN TO RETURN TO THE EMERGENCY ROOM</h4>
+                                    </div>
+                                    <p class="discharge-sec-text warning" id="discharge-text-warnings">
+                                        Return to the Emergency Room immediately if you have severe trouble breathing, your lips turn blue, you cough up blood, or you experience chest pain that suddenly gets worse.
+                                    </p>
+                                </div>
+
+                                <!-- 4. Follow-up Care -->
+                                <div class="discharge-section">
+                                    <div class="discharge-sec-header">
+                                        <span class="sec-icon">🩺</span>
+                                        <h4>4. NEXT STEPS & FOLLOW-UP</h4>
+                                    </div>
+                                    <p class="discharge-sec-text" id="discharge-text-followup">
+                                        Schedule a follow-up appointment with your primary care clinic in 3 to 5 days to confirm your lungs are clearing.
+                                    </p>
+                                </div>
+
+                                <!-- Clinical Disclaimer -->
+                                <div class="discharge-disclaimer" id="discharge-disclaimer">
+                                    ⚖️ <em>Disclaimer: This patient education summary is generated to aid understanding and does not replace direct consultation with your treating emergency physician.</em>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Discharge Footer Actions Bar -->
+                    <div class="discharge-actions-bar">
+                        <button type="button" class="btn-titanium" id="btn-copy-discharge">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <span>📋 Copy Plain Text</span>
+                        </button>
+                        <button type="button" class="btn-master" id="btn-print-discharge" style="width: auto; padding: 8px 18px;">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                            <span>🖨️ Print Handout</span>
+                        </button>
+                    </div>
+                </div>
+
                 <div class="modal-bottom">
                     <button type="button" class="btn-titanium" id="modal-cancel-btn">Dismiss</button>
                     <button type="button" class="btn-master" id="modal-pdf-btn" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, #0284c7, #2563eb); border-color: #38bdf8;">
@@ -970,6 +1141,10 @@
                     <button type="button" class="pacs-hub-tab-btn" data-pacs-tab="tab-orthanc">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
                         Orthanc Hospital PACS
+                    </button>
+                    <button type="button" class="pacs-hub-tab-btn" data-pacs-tab="tab-hl7-fhir">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+                        HL7 & FHIR EHR Gateway
                     </button>
                 </div>
 
@@ -1303,6 +1478,71 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Tab 6: HL7 v2 & FHIR R4 Enterprise Interoperability -->
+                    <div class="pacs-tab-panel" id="tab-hl7-fhir">
+                        <div class="pacs-status-banner">
+                            <div class="pacs-status-left">
+                                <span class="pacs-live-indicator"></span>
+                                <div>
+                                    <div class="pacs-listener-title">Hospital EHR Interoperability Gateway (HL7 v2 & FHIR R4)</div>
+                                    <div class="pacs-listener-sub">Standards: HL7 v2.5.1 (ORM^O01, ORU^R01, ACK) • HL7 FHIR R4 REST (DiagnosticReport, Observation, ImagingStudy)</div>
+                                </div>
+                            </div>
+                            <span class="pacs-badge-online">● EHR CONNECTED / READY</span>
+                        </div>
+
+                        <div class="pacs-two-col">
+                            <!-- 1. HL7 v2 Order & Report Simulation Box -->
+                            <div class="pacs-card">
+                                <div class="pacs-card-header">
+                                    <h4>📨 HL7 v2 Transmission Inspector</h4>
+                                    <span class="pacs-card-sub">Inbound Orders (ORM^O01) & Outbound Results (ORU^R01)</span>
+                                </div>
+                                
+                                <!-- Order Ingestion Simulation -->
+                                <div style="margin-bottom: 14px;">
+                                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                                        <input type="text" id="hl7-order-mrn" class="pacs-input" value="MRN-TRAUMA-4410" placeholder="Patient MRN" style="flex: 1;">
+                                        <input type="text" id="hl7-order-name" class="pacs-input" value="Sterling^Connor" placeholder="Patient Name" style="flex: 1;">
+                                    </div>
+                                    <div style="display: flex; gap: 8px;">
+                                        <button type="button" class="btn-master" id="btn-send-hl7-order" style="flex: 1; font-size: 11px; padding: 7px 10px;">
+                                            📥 Transmit Order (ORM^O01)
+                                        </button>
+                                        <button type="button" class="btn-titanium" id="btn-fetch-hl7-oru" style="flex: 1; font-size: 11px; padding: 7px 10px;">
+                                            📤 Generate Results (ORU^R01)
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="pacs-console-log hl7-console-log" id="hl7-console-log" style="height: 180px; font-size: 11px; font-family: monospace; white-space: pre-wrap; overflow-y: auto;">Ready for HL7 v2.5.1 transmission inspection...
+Click "Transmit Order" or "Generate Results" to test live MLLP / JSON parsing.</div>
+                            </div>
+
+                            <!-- 2. FHIR R4 REST Resource Explorer -->
+                            <div class="pacs-card">
+                                <div class="pacs-card-header">
+                                    <h4>🔥 HL7 FHIR® R4 REST Resource Explorer</h4>
+                                    <span class="pacs-card-sub">Standard Clinical Resources (JSON Format)</span>
+                                </div>
+
+                                <div style="display: flex; gap: 6px; margin-bottom: 12px;">
+                                    <button type="button" class="tool-btn active" id="btn-fhir-diag-report" style="flex: 1; font-size: 11px;">
+                                        DiagnosticReport
+                                    </button>
+                                    <button type="button" class="tool-btn" id="btn-fhir-observation" style="flex: 1; font-size: 11px;">
+                                        Observation
+                                    </button>
+                                    <button type="button" class="tool-btn" id="btn-fhir-imaging-study" style="flex: 1; font-size: 11px;">
+                                        ImagingStudy
+                                    </button>
+                                </div>
+
+                                <div class="pacs-console-log fhir-console-log" id="fhir-console-log" style="height: 180px; font-size: 11px; font-family: monospace; white-space: pre-wrap; overflow-y: auto;">Select a standard FHIR R4 resource above to fetch live JSON payload for the current study.</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="modal-bottom">
@@ -1378,6 +1618,95 @@
                         <span>HASH CHAIN: <strong>SHA-256 Genesis-Linked</strong></span>
                     </div>
                     <button type="button" class="btn-titanium" id="dismiss-audit-btn">Close Ledger</button>
+                </div>
+            </div>
+        </dialog>
+
+        <!-- 6. ACR Category 1 STAT Closed-Loop Verbal Handoff Dialog -->
+        <dialog id="closed-loop-dialog" class="alveon-modal">
+            <div class="modal-shell" style="max-width: 680px;">
+                <div class="modal-top">
+                    <div class="modal-title-cluster">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="prio-dot-pulse"></span>
+                            <span class="modal-title">ACR Practice Parameter § Closed-Loop Verbal Communication</span>
+                        </div>
+                        <span class="dicom-tag-sub">Actionable Finding Category 1 • Time-Critical Physician-to-Physician Direct Handoff</span>
+                    </div>
+                    <button type="button" class="modal-x" id="close-closed-loop-btn" aria-label="Close modal">&times;</button>
+                </div>
+
+                <div class="modal-scroll" style="padding: 20px;">
+                    <!-- Finding Overview Box -->
+                    <div class="handoff-alert-box">
+                        <div class="handoff-alert-title">🚨 CRITICAL FINDING REQUIRING IMMEDIATE ESCALATION</div>
+                        <div class="handoff-patient-line" id="handoff-patient-info">
+                            Patient: <strong>Connor Sterling</strong> • MRN: <strong>MRN-TRAUMA-4410</strong> • Study: <strong>STUDY-CHEST-9901</strong>
+                        </div>
+                        <div class="handoff-finding-desc" id="handoff-finding-text">
+                            Tension Pneumothorax with mediastinal shift. Risk of obstructive shock. Immediate clinical intervention required.
+                        </div>
+                    </div>
+
+                    <!-- Clinical Communication Form -->
+                    <div class="handoff-form">
+                        <div class="form-row-two">
+                            <div class="form-group">
+                                <label for="handoff-rad-name">Communicating Radiologist</label>
+                                <input type="text" id="handoff-rad-name" class="pacs-input" value="Dr. Eleanor Vance, MD" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="handoff-er-physician">Receiving Treating Clinician</label>
+                                <input type="text" id="handoff-er-physician" class="pacs-input" value="Dr. Sarah Adams, MD (ER Attending)" placeholder="e.g. Dr. Sarah Adams, MD">
+                            </div>
+                        </div>
+
+                        <div class="form-row-two">
+                            <div class="form-group">
+                                <label for="handoff-channel">Communication Channel</label>
+                                <select id="handoff-channel" class="pacs-select">
+                                    <option value="Trauma Bay Direct Hotline">Trauma Bay Direct Hotline (Dedicated Line)</option>
+                                    <option value="Direct Bedside In-Person">Direct Bedside In-Person Communication</option>
+                                    <option value="Hospital VoLTE / Vocera">Hospital Vocera / Secure VoLTE Badge</option>
+                                    <option value="STAT Cellular Audio Call">Emergency Cellular Call (Recorded)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="handoff-time">Contact Timestamp (UTC)</label>
+                                <input type="text" id="handoff-time" class="pacs-input" readonly>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="handoff-notes">Verbal Handoff Notes & Actions Communicated</label>
+                            <textarea id="handoff-notes" class="radlex-textarea" rows="3" placeholder="Document specific clinical advice communicated (e.g. 'Informed ER team of right tension pneumothorax. ER Attending acknowledged and prepped needle decompression tray.')"></textarea>
+                        </div>
+
+                        <!-- Readback Verification Checkbox -->
+                        <div class="readback-verify-box">
+                            <label class="readback-label">
+                                <input type="checkbox" id="handoff-readback-checkbox" checked>
+                                <span><strong>Readback Acknowledgment Confirmed:</strong> I certify that the receiving clinician verbally repeated back the critical finding and confirmed understanding in accordance with ACR Actionable Reporting guidelines.</span>
+                            </label>
+                        </div>
+
+                        <!-- Cryptographic Seal Status -->
+                        <div class="handoff-seal-status" id="handoff-seal-status" style="display: none;">
+                            <div class="seal-icon">🔒</div>
+                            <div>
+                                <div class="seal-title">VERBAL HANDOFF CRYPTOGRAPHICALLY SEALED</div>
+                                <div class="seal-hash" id="handoff-seal-hash">HIPAA SHA-256 Ledger Block: 0x...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-bottom">
+                    <button type="button" class="btn-titanium" id="cancel-closed-loop-btn">Cancel</button>
+                    <button type="button" class="btn-master" id="submit-closed-loop-btn" style="width: auto; padding: 10px 24px; background: linear-gradient(135deg, #ef4444, #dc2626); border-color: #f87171;">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                        <span>Confirm & Seal Closed-Loop Handoff</span>
+                    </button>
                 </div>
             </div>
         </dialog>

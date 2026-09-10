@@ -88,6 +88,7 @@ class WorklistStudyItem(BaseModel):
     confidence_percentage: float
     dominant_zone: str
     status: str = Field("PENDING", description="'PENDING' or 'SIGNED'")
+    is_signed: bool = False
     modality: str = "DX"
     image_b64: str
     gradcam_overlay_b64: Optional[str] = None
@@ -339,6 +340,98 @@ class OrthancStatusResponse(BaseModel):
 class HealthProbeResponse(BaseModel):
     status: str = "healthy"
     timestamp: str
-    version: str = "4.1.0"
+    version: str = "4.2.0"
     components: Dict[str, str] = Field(default_factory=dict)
+
+# =========================================================================
+# v4.2 Enterprise Schemas: HL7 v2, FHIR R4, Patient Summary, Closed-Loop, Neuro CT
+# =========================================================================
+
+class HL7OrderRequest(BaseModel):
+    raw_hl7: Optional[str] = None
+    patient_mrn: Optional[str] = None
+    patient_name: Optional[str] = None
+    accession_number: Optional[str] = None
+    clinical_indication: Optional[str] = None
+
+class HL7OrderResponse(BaseModel):
+    status: str = "success"
+    order: Dict[str, Any]
+    ack_message: str
+
+class HL7ReportResponse(BaseModel):
+    status: str = "success"
+    study_id: str
+    patient_mrn: str
+    accession_number: str
+    raw_oru_r01: str
+    message_control_id: str
+
+class PatientSummaryRequest(BaseModel):
+    diagnosis: str
+    confidence_percentage: Optional[float] = 98.0
+    clinical_impression: Optional[str] = ""
+    language: Optional[str] = "en"
+    patient_name: Optional[str] = "Patient"
+    patient_mrn: Optional[str] = "MRN-101"
+
+class PatientSummaryResponse(BaseModel):
+    status: str = "success"
+    ai_engine: str
+    language: str
+    patient_mrn: str
+    patient_name: str
+    reading_level: str
+    title: str
+    what_was_found: str
+    what_you_need_to_do: str
+    warning_signs: str
+    follow_up: str
+    disclaimer: str
+    timestamp: str
+
+class ClosedLoopHandoffRequest(BaseModel):
+    study_id: str
+    patient_mrn: str
+    patient_name: str
+    critical_finding: str
+    radiologist_name: str
+    er_physician_name: str
+    communication_method: Optional[str] = "Trauma Bay Hotline"
+    readback_confirmed: Optional[bool] = True
+    notes: Optional[str] = ""
+
+class ClosedLoopHandoffResponse(BaseModel):
+    status: str = "success"
+    handoff: Dict[str, Any]
+
+class NeuroSeriesItem(BaseModel):
+    series_id: str
+    patient_mrn: str
+    patient_name: str
+    patient_age_sex: str
+    primary_neuro_finding: str
+    aspects_score: Optional[int] = None
+    midline_shift_mm: float = 0.0
+    matrix_shape: List[int]
+    modality: str = "CT (Non-Contrast Head)"
+
+class NeuroSeriesListResponse(BaseModel):
+    status: str = "success"
+    series: List[NeuroSeriesItem]
+
+class NeuroAnalysisResponse(BaseModel):
+    status: str = "success"
+    series_id: str
+    patient_mrn: str
+    patient_name: str
+    modality: str
+    primary_diagnosis: str
+    aspects_score: Optional[int] = None
+    midline_shift_mm: float
+    critical_neurosurgical_alert: bool
+    acr_category: str
+    recommended_action: str
+    hu_window_presets: Dict[str, Any]
+
 

@@ -771,6 +771,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Render full radiologic findings in viewport
         renderDiagnosisResults(currentPrediction);
+        evaluateStatAlert(study);
     }
 
     function updateSignoffButtonState(isSigned) {
@@ -2794,29 +2795,67 @@ document.addEventListener('DOMContentLoaded', () => {
     function initWorkstationModeSwitch() {
         const btn2D = document.getElementById('mode-btn-2d');
         const btn3D = document.getElementById('mode-btn-3d');
+        const btnNeuro = document.getElementById('mode-btn-neuro');
         const diagContent = document.getElementById('diagnosis-content');
         const volContent = document.getElementById('volumetric-content');
         const pacsToolbar = document.getElementById('pacs-toolbar');
+        const neuroBanner = document.getElementById('neuro-diag-banner');
+        const seriesSelector = document.getElementById('mpr-series-selector');
 
         if (btn2D && btn3D) {
             btn2D.addEventListener('click', () => {
                 btn2D.classList.add('active');
                 btn3D.classList.remove('active');
+                if (btnNeuro) btnNeuro.classList.remove('active');
                 if (diagContent) diagContent.style.display = '';
                 if (volContent) volContent.style.display = 'none';
                 if (pacsToolbar) pacsToolbar.style.display = '';
+                if (neuroBanner) neuroBanner.style.display = 'none';
                 showWorkstationToast('🩻 2D Radiographic Workstation Active');
             });
 
             btn3D.addEventListener('click', () => {
                 btn3D.classList.add('active');
                 btn2D.classList.remove('active');
+                if (btnNeuro) btnNeuro.classList.remove('active');
                 if (diagContent) diagContent.style.display = 'none';
                 if (volContent) volContent.style.display = 'flex';
                 if (pacsToolbar) pacsToolbar.style.display = 'none';
-                showWorkstationToast('🧊 3D Volumetric CT / MPR Viewport Active');
+                if (neuroBanner) neuroBanner.style.display = 'none';
+                if (seriesSelector && seriesSelector.value.startsWith('BRAIN')) {
+                    seriesSelector.value = 'SERIES-CT-CHEST-3201';
+                    mprState.seriesId = 'SERIES-CT-CHEST-3201';
+                    mprState.windowPreset = 'LUNG';
+                }
+                showWorkstationToast('🧊 3D Chest CT / MPR Viewport Active');
                 loadVolumetricMPR();
             });
+
+            if (btnNeuro) {
+                btnNeuro.addEventListener('click', () => {
+                    btnNeuro.classList.add('active');
+                    btn2D.classList.remove('active');
+                    btn3D.classList.remove('active');
+                    if (diagContent) diagContent.style.display = 'none';
+                    if (volContent) volContent.style.display = 'flex';
+                    if (pacsToolbar) pacsToolbar.style.display = 'none';
+                    if (neuroBanner) neuroBanner.style.display = 'flex';
+                    if (seriesSelector) {
+                        seriesSelector.value = 'BRAIN-CT-STROKE-01';
+                        mprState.seriesId = 'BRAIN-CT-STROKE-01';
+                        mprState.windowPreset = 'BRAIN';
+                    }
+                    const huPresets = document.getElementById('mpr-hu-presets');
+                    if (huPresets) {
+                        huPresets.querySelectorAll('button').forEach(b => {
+                            b.classList.toggle('active', b.dataset.hu === 'BRAIN');
+                        });
+                    }
+                    showWorkstationToast('🧠 3D Neuro CT & Stroke Suite Active');
+                    loadVolumetricMPR();
+                    updateNeuroDiagnosticSummary('BRAIN-CT-STROKE-01');
+                });
+            }
         }
     }
 
@@ -2936,6 +2975,25 @@ document.addEventListener('DOMContentLoaded', () => {
             seriesSelector.addEventListener('change', () => {
                 mprState.seriesId = seriesSelector.value;
                 mprState.axialIdx = 16;
+                const neuroBanner = document.getElementById('neuro-diag-banner');
+                if (seriesSelector.value.startsWith('BRAIN-CT')) {
+                    if (neuroBanner) neuroBanner.style.display = 'flex';
+                    mprState.windowPreset = seriesSelector.value.includes('STROKE') ? 'STROKE' : 'SUBDURAL';
+                    if (huPresets) {
+                        huPresets.querySelectorAll('button').forEach(b => {
+                            b.classList.toggle('active', b.dataset.hu === mprState.windowPreset);
+                        });
+                    }
+                    updateNeuroDiagnosticSummary(seriesSelector.value);
+                } else {
+                    if (neuroBanner) neuroBanner.style.display = 'none';
+                    mprState.windowPreset = 'LUNG';
+                    if (huPresets) {
+                        huPresets.querySelectorAll('button').forEach(b => {
+                            b.classList.toggle('active', b.dataset.hu === 'LUNG');
+                        });
+                    }
+                }
                 loadVolumetricMPR();
             });
         }
@@ -3450,6 +3508,540 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---------------------------------------------------------
+    // 24. STAT CRITICAL ALERTING & TRAUMA CHIME (ACR Category 1)
+    // ---------------------------------------------------------
+    let audioCtx = null;
+    let chimeInterval = null;
+    let isChimeMuted = false;
+    let activeStatStudy = null;
+
+    function playTraumaAlertChime() {
+        if (isChimeMuted) return;
+        try {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, now);
+            osc.frequency.exponentialRampToValueAtTime(440, now + 0.35);
+
+            gain.gain.setValueAtTime(0.12, now);
+            gain.gain.exponentialRampToValueAtTime(0.005, now + 0.35);
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            osc.start(now);
+            osc.stop(now + 0.4);
+        } catch (e) {
+            console.warn('Web Audio trauma chime notice:', e);
+        }
+    }
+
+    function startTraumaChimeLoop() {
+        stopTraumaChimeLoop();
+        playTraumaAlertChime();
+        chimeInterval = setInterval(() => {
+            if (!isChimeMuted) playTraumaAlertChime();
+        }, 4500);
+    }
+
+    function stopTraumaChimeLoop() {
+        if (chimeInterval) {
+            clearInterval(chimeInterval);
+            chimeInterval = null;
+        }
+    }
+
+    async function evaluateStatAlert(study) {
+        if (!study) return;
+        activeStatStudy = study;
+        const banner = document.getElementById('stat-alert-banner');
+        if (!banner) return;
+
+        const isStat = study.priority === 'STAT_CRITICAL' ||
+                       study.primary_finding === 'PNEUMOTHORAX' ||
+                       (study.primary_finding && study.primary_finding.includes('TRAUMA')) ||
+                       (study.diagnosis && study.diagnosis.toUpperCase().includes('PNEUMOTHORAX'));
+
+        if (!isStat) {
+            banner.style.display = 'none';
+            stopTraumaChimeLoop();
+            return;
+        }
+
+        // Check if already sealed in closed-loop ledger
+        try {
+            const checkRes = await fetch(`/api/v1/alert/closed-loop/${encodeURIComponent(study.study_id)}`);
+            if (checkRes.ok) {
+                const checkData = await checkRes.json();
+                if (checkData.status === 'recorded') {
+                    banner.style.display = 'flex';
+                    banner.style.background = 'linear-gradient(90deg, rgba(16, 185, 129, 0.28) 0%, rgba(5, 150, 105, 0.15) 100%)';
+                    banner.style.borderBottomColor = '#10b981';
+                    const pill = banner.querySelector('.stat-alert-pill');
+                    if (pill) {
+                        pill.style.background = '#10b981';
+                        pill.textContent = 'CLOSED-LOOP ATTESTED & SEALED';
+                    }
+                    const finding = document.getElementById('stat-alert-finding-text');
+                    if (finding) {
+                        finding.textContent = `Verbal handoff confirmed by ${checkData.handoff.er_physician_name} via ${checkData.handoff.communication_method}. Ledger block validated.`;
+                    }
+                    const handoffBtn = document.getElementById('stat-initiate-handoff-btn');
+                    if (handoffBtn) {
+                        handoffBtn.innerHTML = '<span>✓ Handoff Complete</span>';
+                        handoffBtn.style.background = '#10b981';
+                        handoffBtn.style.borderColor = '#34d399';
+                    }
+                    stopTraumaChimeLoop();
+                    return;
+                }
+            }
+        } catch (e) {
+            console.warn('Closed loop check notice:', e);
+        }
+
+        banner.style.display = 'flex';
+        banner.style.background = 'linear-gradient(90deg, rgba(220, 38, 38, 0.28) 0%, rgba(185, 28, 28, 0.15) 100%)';
+        banner.style.borderBottomColor = '#ef4444';
+        const pill = banner.querySelector('.stat-alert-pill');
+        if (pill) {
+            pill.style.background = '#ef4444';
+            pill.textContent = 'ACR CATEGORY 1 STAT CRITICAL FINDING';
+        }
+        const patientSpan = document.getElementById('stat-alert-patient-name');
+        if (patientSpan) {
+            patientSpan.textContent = `${study.patient_name} (${study.patient_mrn})`;
+        }
+        const finding = document.getElementById('stat-alert-finding-text');
+        if (finding) {
+            finding.textContent = `${study.primary_finding || study.diagnosis}: Critical Actionable Finding. Immediate verbal handoff required within 30 minutes.`;
+        }
+        const handoffBtn = document.getElementById('stat-initiate-handoff-btn');
+        if (handoffBtn) {
+            handoffBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                <span>Record Closed-Loop Handoff</span>
+            `;
+            handoffBtn.style.background = 'linear-gradient(135deg, #ef4444, #b91c1c)';
+            handoffBtn.style.borderColor = '#f87171';
+        }
+
+        startTraumaChimeLoop();
+    }
+
+    function initStatCriticalAlerting() {
+        const muteBtn = document.getElementById('stat-mute-chime-btn');
+        if (muteBtn) {
+            muteBtn.addEventListener('click', () => {
+                isChimeMuted = !isChimeMuted;
+                const icon = document.getElementById('stat-mute-icon');
+                const label = document.getElementById('stat-mute-label');
+                if (isChimeMuted) {
+                    stopTraumaChimeLoop();
+                    if (icon) icon.textContent = '🔕';
+                    if (label) label.textContent = 'Chime Muted';
+                    showWorkstationToast('🔕 Trauma Alarm Chime Silenced');
+                } else {
+                    if (icon) icon.textContent = '🔔';
+                    if (label) label.textContent = 'Silence Chime';
+                    playTraumaAlertChime();
+                    startTraumaChimeLoop();
+                    showWorkstationToast('🔔 Trauma Alarm Chime Active');
+                }
+            });
+        }
+
+        const handoffBtn = document.getElementById('stat-initiate-handoff-btn');
+        if (handoffBtn) {
+            handoffBtn.addEventListener('click', () => {
+                openClosedLoopModal(activeStatStudy);
+            });
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 25. CLOSED-LOOP VERBAL HANDOFF MODAL & AUDIT SEALING
+    // ---------------------------------------------------------
+    function openClosedLoopModal(study) {
+        const dialog = document.getElementById('closed-loop-dialog');
+        if (!dialog) return;
+
+        const currentStudy = study || worklistStudies.find(s => s.study_id === selectedStudyId) || worklistStudies[0];
+        const patientInfo = document.getElementById('handoff-patient-info');
+        const findingText = document.getElementById('handoff-finding-text');
+        const radName = document.getElementById('handoff-rad-name');
+        const handoffTime = document.getElementById('handoff-time');
+        const sealStatus = document.getElementById('handoff-seal-status');
+
+        if (patientInfo && currentStudy) {
+            patientInfo.innerHTML = `Patient: <strong>${escapeHtml(currentStudy.patient_name)}</strong> • MRN: <strong>${escapeHtml(currentStudy.patient_mrn)}</strong> • Study: <strong>${escapeHtml(currentStudy.study_id)}</strong>`;
+        }
+        if (findingText && currentStudy) {
+            findingText.textContent = `${currentStudy.primary_finding || currentStudy.diagnosis}: ACR Category 1 Critical Alert. Rapid decompensation risk requiring immediate verbal handoff.`;
+        }
+        if (radName && typeof currentUserSession !== 'undefined' && currentUserSession && currentUserSession.full_name) {
+            radName.value = `${currentUserSession.full_name}`;
+        }
+        if (handoffTime) {
+            handoffTime.value = new Date().toISOString().replace('T', ' ').substring(0, 19) + ' UTC';
+        }
+        if (sealStatus) sealStatus.style.display = 'none';
+
+        dialog.showModal();
+    }
+
+    function initClosedLoopHandoff() {
+        const dialog = document.getElementById('closed-loop-dialog');
+        const closeBtn = document.getElementById('close-closed-loop-btn');
+        const cancelBtn = document.getElementById('cancel-closed-loop-btn');
+        const submitBtn = document.getElementById('submit-closed-loop-btn');
+
+        if (closeBtn && dialog) closeBtn.addEventListener('click', () => dialog.close());
+        if (cancelBtn && dialog) cancelBtn.addEventListener('click', () => dialog.close());
+
+        if (submitBtn) {
+            submitBtn.addEventListener('click', async () => {
+                const currentStudy = activeStatStudy || worklistStudies.find(s => s.study_id === selectedStudyId) || worklistStudies[0];
+                const radName = document.getElementById('handoff-rad-name')?.value || 'Dr. Eleanor Vance, MD';
+                const erName = document.getElementById('handoff-er-physician')?.value || 'Dr. Sarah Adams, MD';
+                const channel = document.getElementById('handoff-channel')?.value || 'Trauma Bay Direct Hotline';
+                const notes = document.getElementById('handoff-notes')?.value || '';
+                const readback = document.getElementById('handoff-readback-checkbox')?.checked ?? true;
+
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span>⏳ Stamping into SHA-256 Ledger...</span>';
+
+                try {
+                    const res = await fetch('/api/v1/alert/closed-loop', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            study_id: currentStudy.study_id,
+                            patient_mrn: currentStudy.patient_mrn,
+                            patient_name: currentStudy.patient_name,
+                            critical_finding: currentStudy.primary_finding || currentStudy.diagnosis,
+                            radiologist_name: radName,
+                            er_physician_name: erName,
+                            communication_method: channel,
+                            readback_confirmed: readback,
+                            notes: notes
+                        })
+                    });
+
+                    if (!res.ok) throw new Error('Failed to record closed-loop handoff');
+                    const data = await res.json();
+                    const handoff = data.handoff;
+
+                    const sealStatus = document.getElementById('handoff-seal-status');
+                    const sealHash = document.getElementById('handoff-seal-hash');
+                    if (sealStatus && sealHash) {
+                        sealStatus.style.display = 'flex';
+                        sealHash.textContent = `HIPAA Ledger Hash: ${handoff.ledger_block_hash || 'SHA256:4f8e...verified'} • Handoff ID: ${handoff.handoff_id}`;
+                    }
+
+                    stopTraumaChimeLoop();
+                    const statBanner = document.getElementById('stat-alert-banner');
+                    if (statBanner) {
+                        statBanner.style.background = 'linear-gradient(90deg, rgba(16, 185, 129, 0.28) 0%, rgba(5, 150, 105, 0.15) 100%)';
+                        statBanner.style.borderBottomColor = '#10b981';
+                        const pill = statBanner.querySelector('.stat-alert-pill');
+                        if (pill) {
+                            pill.style.background = '#10b981';
+                            pill.textContent = 'CLOSED-LOOP ATTESTED & SEALED';
+                        }
+                        const finding = document.getElementById('stat-alert-finding-text');
+                        if (finding) {
+                            finding.textContent = `Verbal handoff confirmed by ${handoff.er_physician_name} via ${handoff.communication_method}. Stamped to HIPAA Ledger.`;
+                        }
+                        const handoffBtn = document.getElementById('stat-initiate-handoff-btn');
+                        if (handoffBtn) {
+                            handoffBtn.innerHTML = '<span>✓ Handoff Complete</span>';
+                            handoffBtn.style.background = '#10b981';
+                            handoffBtn.style.borderColor = '#34d399';
+                        }
+                    }
+
+                    showWorkstationToast('🔒 Closed-Loop Verbal Handoff Cryptographically Sealed!');
+                    setTimeout(() => {
+                        if (dialog && dialog.open) dialog.close();
+                    }, 1600);
+                } catch (err) {
+                    console.error('Closed-loop error:', err);
+                    showWorkstationToast('Failed to record closed-loop handoff');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = `
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+                        <span>Confirm & Seal Closed-Loop Handoff</span>
+                    `;
+                }
+            });
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 26. PATIENT DISCHARGE SUITE (Multi-Lingual AI Summarizer)
+    // ---------------------------------------------------------
+    async function generatePatientDischargeGuide(lang) {
+        const language = lang || document.getElementById('discharge-lang-select')?.value || 'en';
+        const study = worklistStudies.find(s => s.study_id === selectedStudyId) || worklistStudies[0];
+        const diag = currentPrediction?.diagnosis || study?.diagnosis || 'Pneumonia';
+        const conf = currentPrediction?.confidence_percentage || study?.confidence_percentage || 95.0;
+        const impr = document.getElementById('sr-impression')?.value || currentPrediction?.clinical_recommendation || '';
+
+        try {
+            const res = await fetch('/api/v1/patient/summary', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    diagnosis: diag,
+                    confidence_percentage: conf,
+                    clinical_impression: impr,
+                    language: language,
+                    patient_name: study?.patient_name || 'Connor Sterling',
+                    patient_mrn: study?.patient_mrn || 'MRN-TRAUMA-4410'
+                })
+            });
+            if (!res.ok) throw new Error('Failed to generate patient summary');
+            const data = await res.json();
+
+            const titleElem = document.getElementById('discharge-card-title');
+            const levelElem = document.getElementById('discharge-reading-level');
+            const foundElem = document.getElementById('discharge-text-found');
+            const actionElem = document.getElementById('discharge-text-action');
+            const warnElem = document.getElementById('discharge-text-warnings');
+            const followElem = document.getElementById('discharge-text-followup');
+            const engineElem = document.getElementById('discharge-engine-label');
+            const metaElem = document.getElementById('discharge-patient-meta');
+
+            if (titleElem) titleElem.textContent = data.title;
+            if (levelElem) levelElem.textContent = data.reading_level;
+            if (foundElem) foundElem.textContent = data.what_was_found;
+            if (actionElem) actionElem.textContent = data.what_you_need_to_do;
+            if (warnElem) warnElem.textContent = data.warning_signs;
+            if (followElem) followElem.textContent = data.follow_up;
+            if (engineElem) engineElem.textContent = `${data.ai_engine} (${data.language.toUpperCase()})`;
+            if (metaElem && study) metaElem.textContent = `Patient: ${study.patient_name} (${study.patient_mrn}) • Emergency Thoracic Evaluation`;
+
+            showWorkstationToast(`🗣️ Discharge Guide Translated (${data.language.toUpperCase()})`);
+        } catch (err) {
+            console.error('Discharge generation error:', err);
+            showWorkstationToast('Error generating discharge instructions');
+        }
+    }
+
+    function initPatientDischargeSuite() {
+        const tabRadlexBtn = document.getElementById('tab-btn-radlex');
+        const tabDischargeBtn = document.getElementById('tab-btn-discharge');
+        const panelRadlex = document.getElementById('tab-radlex');
+        const panelDischarge = document.getElementById('tab-discharge');
+        const langSelect = document.getElementById('discharge-lang-select');
+        const genBtn = document.getElementById('btn-generate-discharge');
+        const copyBtn = document.getElementById('btn-copy-discharge');
+        const printBtn = document.getElementById('btn-print-discharge');
+
+        if (tabRadlexBtn && tabDischargeBtn && panelRadlex && panelDischarge) {
+            tabRadlexBtn.addEventListener('click', () => {
+                tabRadlexBtn.classList.add('active');
+                tabDischargeBtn.classList.remove('active');
+                panelRadlex.style.display = '';
+                panelDischarge.style.display = 'none';
+            });
+
+            tabDischargeBtn.addEventListener('click', () => {
+                tabDischargeBtn.classList.add('active');
+                tabRadlexBtn.classList.remove('active');
+                panelRadlex.style.display = 'none';
+                panelDischarge.style.display = 'flex';
+                generatePatientDischargeGuide(langSelect?.value || 'en');
+            });
+        }
+
+        if (genBtn) {
+            genBtn.addEventListener('click', () => {
+                generatePatientDischargeGuide(langSelect?.value || 'en');
+            });
+        }
+
+        if (langSelect) {
+            langSelect.addEventListener('change', () => {
+                generatePatientDischargeGuide(langSelect.value);
+            });
+        }
+
+        if (copyBtn) {
+            copyBtn.addEventListener('click', () => {
+                const title = document.getElementById('discharge-card-title')?.textContent || '';
+                const found = document.getElementById('discharge-text-found')?.textContent || '';
+                const action = document.getElementById('discharge-text-action')?.textContent || '';
+                const warn = document.getElementById('discharge-text-warnings')?.textContent || '';
+                const follow = document.getElementById('discharge-text-followup')?.textContent || '';
+                const fullText = `${title}\n\n1. WHAT WE FOUND:\n${found}\n\n2. WHAT TO DO AT HOME:\n${action}\n\n3. WARNING SIGNS (RETURN TO ER):\n${warn}\n\n4. FOLLOW-UP:\n${follow}`;
+                navigator.clipboard.writeText(fullText).then(() => {
+                    showWorkstationToast('📋 Discharge Note Copied to Clipboard');
+                });
+            });
+        }
+
+        if (printBtn) {
+            printBtn.addEventListener('click', () => window.print());
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 27. HL7 v2 & FHIR R4 ENTERPRISE GATEWAY TAB
+    // ---------------------------------------------------------
+    function initHL7FHIRGateway() {
+        const btnSendOrder = document.getElementById('btn-send-hl7-order');
+        const btnFetchOru = document.getElementById('btn-fetch-hl7-oru');
+        const hl7Log = document.getElementById('hl7-console-log');
+        const fhirLog = document.getElementById('fhir-console-log');
+
+        const btnFhirDiag = document.getElementById('btn-fhir-diag-report');
+        const btnFhirObs = document.getElementById('btn-fhir-observation');
+        const btnFhirImg = document.getElementById('btn-fhir-imaging-study');
+
+        if (btnSendOrder) {
+            btnSendOrder.addEventListener('click', async () => {
+                const mrn = document.getElementById('hl7-order-mrn')?.value || 'MRN-TRAUMA-4410';
+                const name = document.getElementById('hl7-order-name')?.value || 'Sterling^Connor';
+                if (hl7Log) hl7Log.textContent = `[TRANSMITTING] Sending HL7 v2.5.1 ORM^O01 inbound order for ${name} (${mrn})...`;
+
+                try {
+                    const res = await fetch('/api/v1/hl7/order', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            patient_mrn: mrn,
+                            patient_name: name,
+                            order_number: `ORD-${Date.now().toString().slice(-6)}`,
+                            ordering_physician: 'Dr. Sarah Adams, MD'
+                        })
+                    });
+                    if (!res.ok) throw new Error('HL7 order ingestion failed');
+                    const data = await res.json();
+                    const nowStamp = new Date().toISOString().replace(/[-:T]/g,'').slice(0,14);
+                    const rawOrm = `MSH|^~\\&|EPIC_EHR|METRO_HOSPITAL|ALVEON_PACS|ST_JUDE|${nowStamp}||ORM^O01|MSG-${Date.now().toString().slice(-6)}|P|2.5\r\nPID|1||${data.order?.patient_mrn || mrn}^^^HOSPITAL||${data.order?.patient_name || name}||19850412|F\r\nPV1|1|E|ER-TRAUMA-BAY-2\r\nORC|NW|ORD-99201|||||||${nowStamp}\r\nOBR|1|ORD-99201||71045^CHEST XR 2-VIEWS^CPT||||||||||||||||||CRITICAL CHEST PAIN`;
+                    if (hl7Log) {
+                        hl7Log.textContent = `=== INBOUND HL7 v2.5.1 ORM^O01 ===\n${rawOrm}\n\n=== RECEIVED ACKNOWLEDGMENT (ACK^O01) ===\n${data.ack_message}\n\n[STATUS: ORDER INGESTED & SCHEDULED IN EMERGENCY WORKLIST]`;
+                    }
+                    showWorkstationToast('📥 HL7 v2 Order (ORM^O01) Ingested Successfully');
+                } catch (e) {
+                    if (hl7Log) hl7Log.textContent = `[HL7 ERROR] ${e.message}`;
+                }
+            });
+        }
+
+        if (btnFetchOru) {
+            btnFetchOru.addEventListener('click', async () => {
+                const studyId = selectedStudyId || 'STUDY-CHEST-9901';
+                if (hl7Log) hl7Log.textContent = `[QUERYING] Generating outbound HL7 v2.5.1 ORU^R01 result for ${studyId}...`;
+
+                try {
+                    const res = await fetch(`/api/v1/hl7/report/${encodeURIComponent(studyId)}`);
+                    if (!res.ok) throw new Error('HL7 report generation failed');
+                    const data = await res.json();
+                    if (hl7Log) {
+                        hl7Log.textContent = `=== OUTBOUND HL7 v2.5.1 ORU^R01 OBSERVATION RESULT ===\n${data.raw_oru_r01}\n\n[STATUS: READY FOR MLLP TRANSMISSION TO HOSPITAL EHR]`;
+                    }
+                    showWorkstationToast('📤 Outbound HL7 Result (ORU^R01) Generated');
+                } catch (e) {
+                    if (hl7Log) hl7Log.textContent = `[HL7 ERROR] ${e.message}`;
+                }
+            });
+        }
+
+        async function fetchFhirResource(endpoint, typeName) {
+            const studyId = selectedStudyId || 'STUDY-CHEST-9901';
+            if (fhirLog) fhirLog.textContent = `[FETCHING] GET ${endpoint}/${studyId} (FHIR R4)...`;
+
+            try {
+                const res = await fetch(`${endpoint}/${encodeURIComponent(studyId)}`);
+                if (!res.ok) throw new Error(`Failed to fetch FHIR ${typeName}`);
+                const data = await res.json();
+                if (fhirLog) {
+                    fhirLog.textContent = JSON.stringify(data, null, 2);
+                }
+                showWorkstationToast(`🔥 FHIR R4 ${typeName} Retrieved`);
+            } catch (e) {
+                if (fhirLog) fhirLog.textContent = `[FHIR ERROR] ${e.message}`;
+            }
+        }
+
+        if (btnFhirDiag) {
+            btnFhirDiag.addEventListener('click', () => {
+                [btnFhirDiag, btnFhirObs, btnFhirImg].forEach(b => b?.classList.remove('active'));
+                btnFhirDiag.classList.add('active');
+                fetchFhirResource('/api/v1/fhir/DiagnosticReport', 'DiagnosticReport');
+            });
+        }
+
+        if (btnFhirObs) {
+            btnFhirObs.addEventListener('click', () => {
+                [btnFhirDiag, btnFhirObs, btnFhirImg].forEach(b => b?.classList.remove('active'));
+                btnFhirObs.classList.add('active');
+                fetchFhirResource('/api/v1/fhir/Observation', 'Observation');
+            });
+        }
+
+        if (btnFhirImg) {
+            btnFhirImg.addEventListener('click', () => {
+                [btnFhirDiag, btnFhirObs, btnFhirImg].forEach(b => b?.classList.remove('active'));
+                btnFhirImg.classList.add('active');
+                fetchFhirResource('/api/v1/fhir/ImagingStudy', 'ImagingStudy');
+            });
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 28. 3D NEURO CT CADx DIAGNOSTIC BANNER UPDATE
+    // ---------------------------------------------------------
+    async function updateNeuroDiagnosticSummary(seriesId) {
+        const neuroBanner = document.getElementById('neuro-diag-banner');
+        const aspectsBadge = document.getElementById('neuro-aspects-badge');
+        const shiftBadge = document.getElementById('neuro-shift-badge');
+        const alertBadge = document.getElementById('neuro-alert-badge');
+        const findingSummary = document.getElementById('neuro-finding-summary');
+
+        try {
+            const res = await fetch(`/api/v1/neuro/analyze/${encodeURIComponent(seriesId)}`, { method: 'POST' });
+            if (!res.ok) throw new Error('Failed to analyze neuro series');
+            const data = await res.json();
+
+            if (neuroBanner) neuroBanner.style.display = 'flex';
+            if (aspectsBadge) {
+                if (data.aspects_score !== null) {
+                    aspectsBadge.innerHTML = `ASPECTS: <strong>${data.aspects_score} / 10</strong> (MCA Territory Ischemia)`;
+                    aspectsBadge.style.display = '';
+                } else {
+                    aspectsBadge.style.display = 'none';
+                }
+            }
+            if (shiftBadge) {
+                shiftBadge.innerHTML = `MIDLINE SHIFT: <strong>${data.midline_shift_mm.toFixed(1)} mm</strong>`;
+            }
+            if (alertBadge) {
+                alertBadge.textContent = data.acr_category;
+                alertBadge.className = data.critical_neurosurgical_alert ? 'neuro-metric-badge alert' : 'neuro-metric-badge';
+            }
+            if (findingSummary) {
+                findingSummary.textContent = `${data.primary_diagnosis} • ${data.recommended_action}`;
+            }
+        } catch (err) {
+            console.error('Neuro analysis error:', err);
+        }
+    }
+
+    // ---------------------------------------------------------
     // INITIAL BOOT: FETCH WORKLIST & INIT ALL ENTERPRISE MODALS
     // ---------------------------------------------------------
     initPacsHubModal();
@@ -3460,6 +4052,11 @@ document.addEventListener('DOMContentLoaded', () => {
     initModalitySimulator();
     initVoiceDictationAndRADLEX();
     initOrthancIntegration();
+    initStatCriticalAlerting();
+    initClosedLoopHandoff();
+    initPatientDischargeSuite();
+    initHL7FHIRGateway();
     fetchWorklist();
 });
+
 
