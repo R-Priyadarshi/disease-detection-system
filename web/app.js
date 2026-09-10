@@ -33,8 +33,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Ingestion & Dropzone
     const fileInput = document.getElementById('file-input');
+    const folderInput = document.getElementById('folder-input');
     const dropZone = document.getElementById('drop-zone');
     const browseBtn = document.getElementById('browse-btn');
+    const browseFolderBtn = document.getElementById('browse-folder-btn');
+    const worklistFolderBtn = document.getElementById('worklist-folder-btn');
+    const worklistFilesBtn = document.getElementById('worklist-files-btn');
     const analyzeBtn = document.getElementById('analyze-btn');
     const analyzeSpinner = document.getElementById('analyze-spinner');
     const analyzeBtnText = document.getElementById('analyze-btn-text');
@@ -537,56 +541,201 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---------------------------------------------------------
-    // 8. STUDY INGESTION & BATCH MULTI-FILE DROP
+    // 8. STUDY INGESTION & BATCH MULTI-FILE & FOLDER DROP
     // ---------------------------------------------------------
-    if (browseBtn) {
-        browseBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            fileInput.click();
+
+    // Helper to filter valid medical image and DICOM formats
+    function filterMedicalFiles(fileList) {
+        const validExts = ['.dcm', '.dicom', '.jpg', '.jpeg', '.png', '.webp', '.tiff', '.tif'];
+        return (fileList || []).filter(file => {
+            if (!file || !file.name) return false;
+            // Exclude system files and hidden files
+            if (file.name.startsWith('.') || file.name === 'Thumbs.db') return false;
+            const lower = file.name.toLowerCase();
+            const hasExt = validExts.some(ext => lower.endsWith(ext));
+            // Potential DICOM file without extension (e.g., standard PACS export like CT0001, IM001)
+            const isDicomCandidate = !file.name.includes('.') && file.size > 132;
+            return hasExt || isDicomCandidate;
         });
     }
 
+    // HTML5 File System API Directory Scanner with 100-item pagination support
+    async function scanFileSystemEntry(entry) {
+        if (!entry) return [];
+        if (entry.isFile) {
+            return new Promise((resolve) => {
+                entry.file(
+                    (f) => resolve([f]),
+                    (err) => {
+                        console.warn('Error reading file entry:', err);
+                        resolve([]);
+                    }
+                );
+            });
+        } else if (entry.isDirectory) {
+            try {
+                const dirReader = entry.createDirectoryReader();
+                const allEntries = [];
+
+                // Chromium reads at most 100 entries per batch; loop until empty
+                const readNextBatch = () => new Promise((resolve, reject) => {
+                    dirReader.readEntries(resolve, reject);
+                });
+
+                let batch = await readNextBatch();
+                while (batch && batch.length > 0) {
+                    allEntries.push(...batch);
+                    batch = await readNextBatch();
+                }
+
+                // Recursively traverse all sub-entries
+                const subPromises = allEntries.map(sub => scanFileSystemEntry(sub));
+                const subResults = await Promise.all(subPromises);
+                return subResults.flat();
+            } catch (err) {
+                console.warn('Error traversing directory entry:', err);
+                return [];
+            }
+        }
+        return [];
+    }
+
+    // Extract all files from DataTransfer (handles dropped files, directories, nested trees)
+    async function extractFilesFromDataTransfer(dataTransfer) {
+        if (!dataTransfer) return [];
+        const items = dataTransfer.items;
+        if (items && items.length > 0) {
+            const promises = [];
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (item.kind !== 'file') continue;
+                const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : (item.getAsEntry ? item.getAsEntry() : null);
+                if (entry) {
+                    promises.push(scanFileSystemEntry(entry));
+                } else {
+                    const f = item.getAsFile();
+                    if (f) promises.push(Promise.resolve([f]));
+                }
+            }
+            const arrays = await Promise.all(promises);
+            return arrays.flat().filter(Boolean);
+        } else if (dataTransfer.files && dataTransfer.files.length > 0) {
+            return Array.from(dataTransfer.files);
+        }
+        return [];
+    }
+
+    // Connect File/Folder Picker Triggers
+    if (browseBtn) {
+        browseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (fileInput) fileInput.click();
+        });
+    }
+
+    if (browseFolderBtn) {
+        browseFolderBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (folderInput) folderInput.click();
+        });
+    }
+
+    if (worklistFolderBtn) {
+        worklistFolderBtn.addEventListener('click', () => {
+            if (folderInput) folderInput.click();
+        });
+    }
+
+    if (worklistFilesBtn) {
+        worklistFilesBtn.addEventListener('click', () => {
+            if (fileInput) fileInput.click();
+        });
+    }
+
+    // Dropzone Click (ignoring direct clicks on buttons)
     if (dropZone) {
-        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('click', (e) => {
+            if (e.target.closest('#browse-btn') || e.target.closest('#browse-folder-btn')) return;
+            if (fileInput) fileInput.click();
+        });
+    }
+
+    // Drag and Drop Event Setup for Dropzone & Worklist Queue
+    [dropZone, triageWorklistContainer].forEach(zone => {
+        if (!zone) return;
 
         ['dragenter', 'dragover'].forEach(name => {
-            dropZone.addEventListener(name, (e) => {
+            zone.addEventListener(name, (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                dropZone.classList.add('dragover');
+                zone.classList.add('dragover');
             });
         });
 
         ['dragleave', 'drop'].forEach(name => {
-            dropZone.addEventListener(name, (e) => {
+            zone.addEventListener(name, (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                dropZone.classList.remove('dragover');
+                zone.classList.remove('dragover');
             });
         });
 
-        dropZone.addEventListener('drop', (e) => {
-            const files = e.dataTransfer.files;
-            if (!files || files.length === 0) return;
+        zone.addEventListener('drop', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            zone.classList.remove('dragover');
 
-            if (files.length > 1) {
-                handleBatchFiles(Array.from(files));
-            } else {
-                handleFileSelected(files[0]);
+            showWorkstationToast('🔍 Unpacking folder / studies from drop payload...');
+            const rawFiles = await extractFilesFromDataTransfer(e.dataTransfer);
+            const validFiles = filterMedicalFiles(rawFiles);
+
+            if (validFiles.length === 0) {
+                showWorkstationToast('⚠️ No supported radiograph or DICOM files found in dropped folder or files.');
+                return;
             }
+
+            showWorkstationToast(`📂 Ingesting ${validFiles.length} studies from folder / payload...`);
+            handleFileSelected(validFiles[0]);
+            await handleBatchFiles(validFiles);
+        });
+    });
+
+    // File Input Change
+    if (fileInput) {
+        fileInput.addEventListener('change', async (e) => {
+            const rawFiles = Array.from(e.target.files || []);
+            if (rawFiles.length === 0) return;
+
+            const validFiles = filterMedicalFiles(rawFiles);
+            if (validFiles.length === 0) {
+                showWorkstationToast('⚠️ No supported radiograph/DICOM formats (.dcm, .jpg, .png) selected.');
+                fileInput.value = '';
+                return;
+            }
+
+            handleFileSelected(validFiles[0]);
+            await handleBatchFiles(validFiles);
+            fileInput.value = '';
         });
     }
 
-    if (fileInput) {
-        fileInput.addEventListener('change', (e) => {
-            const files = e.target.files;
-            if (!files || files.length === 0) return;
+    // Folder Directory Input Change
+    if (folderInput) {
+        folderInput.addEventListener('change', async (e) => {
+            const rawFiles = Array.from(e.target.files || []);
+            if (rawFiles.length === 0) return;
 
-            if (files.length > 1) {
-                handleBatchFiles(Array.from(files));
-            } else {
-                handleFileSelected(files[0]);
+            const validFiles = filterMedicalFiles(rawFiles);
+            if (validFiles.length === 0) {
+                showWorkstationToast('⚠️ No supported radiograph or DICOM files (.dcm, .jpg, .png) found in folder.');
+                folderInput.value = '';
+                return;
             }
+
+            showWorkstationToast(`📁 Folder Selected: Found ${validFiles.length} studies. Ingesting cohort...`);
+            handleFileSelected(validFiles[0]);
+            await handleBatchFiles(validFiles);
+            folderInput.value = '';
         });
     }
 
@@ -627,7 +776,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadWorklistStudy(data.triaged_studies[0]);
             }
 
-            showWorkstationToast(`✓ Batch Ingested: ${data.total_ingested} studies (${data.critical_stat_count} STAT)`);
+            showWorkstationToast(`✓ Cohort Ingested: ${data.total_ingested} studies (${data.critical_stat_count} STAT prioritized)`);
         } catch (err) {
             console.error('Batch triage error:', err);
             alert('Batch Triage Ingestion Error: ' + err.message);

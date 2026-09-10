@@ -1256,6 +1256,45 @@ input[type="range"]::-webkit-slider-thumb {
     border-color: var(--pathology-critical);
 }
 
+.triage-actions-bar {
+    display: flex;
+    gap: 8px;
+    padding: 8px 14px;
+    background: #08090d;
+    border-bottom: 1px solid var(--border-hairline);
+}
+
+.btn-quick-upload {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: var(--titanium-200);
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 600;
+    padding: 6px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btn-quick-upload:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--titanium-300);
+    color: #ffffff;
+    box-shadow: 0 0 12px rgba(255, 255, 255, 0.08);
+}
+
+.triage-worklist-container.dragover {
+    outline: 2px dashed var(--titanium-200);
+    outline-offset: -2px;
+    background: rgba(255, 255, 255, 0.03);
+}
+
 .study-queue-scroll {
     flex: 1;
     overflow-y: auto;

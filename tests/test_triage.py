@@ -129,3 +129,54 @@ def test_predict_with_native_dicom(client):
     assert meta["patient_name"] == "TEST^DICOM"
     assert "125" in str(meta["kvp"])
     assert "12" in str(meta["exposure_time"])
+
+def test_folder_cohort_ingestion_and_patient_name_derivation(client):
+    """Test folder cohort simulation with multi-level directories and patient name extraction."""
+    img1 = Image.new("L", (128, 128), color=60)
+    buf1 = io.BytesIO()
+    img1.save(buf1, format="PNG")
+    buf1.seek(0)
+
+    # DICOM with explicit patient name
+    pixels = (np.ones((128, 128), dtype=np.uint16) * 1200)
+    pixels[40:90, 40:90] = 3400
+    dcm_bytes = dicom_handler.create_synthetic_dicom(
+        pixel_array=pixels,
+        patient_id="MRN-CONNOR-09",
+        patient_name="CONNOR^SARAH",
+        patient_age="035Y",
+        patient_sex="F"
+    )
+
+    img2 = Image.new("L", (128, 128), color=180)
+    buf2 = io.BytesIO()
+    img2.save(buf2, format="JPEG")
+    buf2.seek(0)
+
+    # Simulating a folder drop with relative directory paths
+    files = [
+        ("files", ("Ward_Emergency/Robert_Taylor_Chest.png", buf1, "image/png")),
+        ("files", ("Ward_Emergency/Acute_Cohort/Connor_Sarah.dcm", io.BytesIO(dcm_bytes), "application/dicom")),
+        ("files", ("Ward_Emergency/Routine/Marcus_Wright_PA.jpg", buf2, "image/jpeg"))
+    ]
+
+    response = client.post("/api/v1/batch/triage", files=files)
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["total_ingested"] == 3
+    studies = data["triaged_studies"]
+    assert len(studies) == 3
+
+    # Check patient names
+    names = [s["patient_name"] for s in studies]
+    # One of them must be the DICOM patient "CONNOR, SARAH"
+    assert any("CONNOR, SARAH" in n or "Connor, Sarah" in n for n in names)
+    # The others derived from filename stems
+    assert any("Robert Taylor" in n for n in names)
+    assert any("Marcus Wright" in n for n in names)
+
+    # Verify priority ranks are sorted
+    ranks = [s["priority_rank"] for s in studies]
+    assert ranks == sorted(ranks)
+

@@ -131,6 +131,22 @@
                         <button type="button" class="triage-filter-pill" data-filter="signed">Signed (<span id="count-signed">1</span>)</button>
                     </div>
 
+                    <!-- ER Ingestion Quick Actions -->
+                    <div class="triage-actions-bar">
+                        <button type="button" class="btn-quick-upload" id="worklist-folder-btn" title="Upload entire patient directory or cohort folder">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                            </svg>
+                            📁 Ingest Folder
+                        </button>
+                        <button type="button" class="btn-quick-upload" id="worklist-files-btn" title="Upload individual or multiple radiograph files">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 5v14M5 12h14"></path>
+                            </svg>
+                            + Ingest Files
+                        </button>
+                    </div>
+
                     <!-- Dynamic Study Queue List -->
                     <div class="study-queue-scroll" id="study-queue-list">
                         <!-- Populated dynamically via app.js -->
@@ -145,18 +161,22 @@
 
                 <!-- 2. STUDY INGESTION & PARAMETERS (Hidden when Worklist active) -->
                 <div class="study-ingestion-container" id="study-ingestion-container" hidden>
-                    <!-- Precision Multi-file / DICOM Drop Zone -->
+                    <!-- Precision Multi-file / Folder / DICOM Drop Zone -->
                     <div class="pacs-dropzone" id="drop-zone" role="button" tabindex="0" aria-label="Upload Radiograph or DICOM File">
                         <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.webp,.tiff,.dcm,.dicom" multiple hidden>
+                        <input type="file" id="folder-input" webkitdirectory directory mozdirectory multiple hidden>
                         <div class="dropzone-inner">
                             <div class="dropzone-reticle">
                                 <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
                                     <path d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                                 </svg>
                             </div>
-                            <div class="drop-text-primary">Ingest DICOM / Radiograph</div>
-                            <div class="drop-text-secondary">Drag & Drop .dcm, .jpg, .png (Single or Batch)</div>
-                            <button type="button" class="btn-titanium" id="browse-btn">Browse Local Files</button>
+                            <div class="drop-text-primary">Ingest Patient Cohort Folder or Studies</div>
+                            <div class="drop-text-secondary">Drag & Drop Folders or DICOM Files (.dcm, .jpg, .png) • Automatic ER Acuity Triage</div>
+                            <div class="dropzone-actions-cluster" style="display: flex; gap: 8px; margin-top: 10px; justify-content: center;">
+                                <button type="button" class="btn-titanium" id="browse-btn">Browse Files</button>
+                                <button type="button" class="btn-titanium" id="browse-folder-btn">📁 Ingest Folder</button>
+                            </div>
                         </div>
                     </div>
 

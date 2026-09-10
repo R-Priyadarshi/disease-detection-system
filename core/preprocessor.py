@@ -56,10 +56,16 @@ class MedicalImagePreprocessor:
 
         # Standard non-DICOM image metadata stub
         pat_id = filename.rsplit(".", 1)[0].upper() if filename else f"ALV-{np.random.randint(1000, 9999)}"
+        if filename:
+            clean_stem = filename.rsplit(".", 1)[0].replace("_", " ").replace("-", " ").strip()
+            pat_name = clean_stem.title() if clean_stem.islower() else clean_stem
+        else:
+            pat_name = "ANONYMOUS PATIENT"
+
         default_meta: Dict[str, Any] = {
             "is_dicom": False,
             "patient_id": pat_id,
-            "patient_name": "ANONYMOUS PATIENT",
+            "patient_name": pat_name,
             "patient_age": "52Y",
             "patient_sex": "U",
             "study_date": "20260910",

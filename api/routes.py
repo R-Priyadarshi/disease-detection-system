@@ -328,11 +328,21 @@ async def batch_triage_radiographs(
                 prio = "ROUTINE"
                 rank = 3
 
+            # Clean patient name and MRN
+            raw_pname = dicom_meta.get("patient_name")
+            if raw_pname and raw_pname not in ("ANONYMOUS PATIENT", "Anonymous Patient"):
+                clean_pname = str(raw_pname).replace("^", ", ")
+            elif f.filename:
+                stem = Path(f.filename).stem.replace("_", " ").replace("-", " ").strip()
+                clean_pname = stem.title() if stem.islower() else stem
+            else:
+                clean_pname = f"PATIENT #{idx + 1}"
+
             study_id = f"ALV-BAT-{uuid.uuid4().hex[:6].upper()}"
             item = WorklistStudyItem(
                 study_id=study_id,
                 patient_mrn=dicom_meta.get("patient_id", f"MRN-{uuid.uuid4().hex[:5].upper()}"),
-                patient_name=dicom_meta.get("patient_name", f"STUDY_{f.filename or idx}"),
+                patient_name=clean_pname,
                 patient_age_sex=f"{dicom_meta.get('patient_age', '50Y')} / {dicom_meta.get('patient_sex', 'U')}",
                 study_time=datetime.datetime.now().strftime("%H:%M EST"),
                 priority=prio,
