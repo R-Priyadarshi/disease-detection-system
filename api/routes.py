@@ -1,4 +1,4 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Body, Request, Response
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Body, Request, Response, Depends, Header
 from fastapi.responses import StreamingResponse, JSONResponse
 from core.pdf_generator import generate_clinical_report_pdf
 from core.dicom_listener import get_dicom_scp
@@ -11,6 +11,17 @@ from core.dicomweb import (
     render_dicom_frame
 )
 from core.pacs_client import get_pacs_client
+from core.auth import (
+    CLINICAL_DIRECTORY,
+    ClinicalUser,
+    UserRole,
+    create_access_token,
+    get_current_user,
+    require_roles
+)
+from core.audit_logger import get_audit_logger
+from core.volumetric import get_volumetric_engine, WINDOW_PRESETS
+from core.pacs_simulator import get_pacs_simulator
 from pathlib import Path
 import numpy as np
 import tensorflow as tf
@@ -43,13 +54,26 @@ from api.schemas import (
     BatchDeleteResponse,
     MultiLabelFindingItem,
     PacsPingRequest,
-    PacsPushRequest
+    PacsPushRequest,
+    LoginRequest,
+    TokenResponse,
+    ClinicalUserSchema,
+    AuditQueryResponse,
+    AuditVerifyResponse,
+    VolumetricSeriesListResponse,
+    VolumetricSeriesItem,
+    VolumetricSliceResponse,
+    VolumetricMPRRequest,
+    VolumetricMPRResponse,
+    SimulateModalityRequest,
+    SimulateModalityResponse
 )
 
 from core.model import get_model, PneumoniaCNNModel
 from core.gradcam import GradCAMGenerator
 
 router = APIRouter()
+
 
 # In-memory singletons and triage worklist cache
 _model: Optional[PneumoniaCNNModel] = None
@@ -401,21 +425,51 @@ async def batch_triage_radiographs(
     )
 
 @router.post("/api/v1/signoff", response_model=SignoffResponse, tags=["Emergency Triage & Worklist"])
-async def signoff_study(req: SignoffRequest):
+async def signoff_study(
+    req: SignoffRequest,
+    current_user: ClinicalUser = Depends(get_current_user)
+):
     """
     Registers a radiologist's electronic verification signature,
-    updates the study status to 'SIGNED', and generates an SHA-256 audit stamp.
+    enforces Attending Radiologist credentials, updates the study status to 'SIGNED',
+    and registers an immutable HIPAA chained audit record.
     """
+    # Enforce RBAC: Only Attending Radiologists or Admins may legally finalize reports
+    if current_user.role not in [UserRole.ATTENDING_RADIOLOGIST, UserRole.PACS_ADMIN]:
+        raise HTTPException(
+            status_code=403,
+            detail=f"Clinical Sign-off Restricted: Role '{current_user.role.value}' cannot execute final legal attestation. Attending Radiologist review required."
+        )
+
     global _WORKLIST_CACHE
     timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
     audit_data = f"{req.study_id}:{req.physician_license}:{timestamp}"
     audit_hash = hashlib.sha256(audit_data.encode()).hexdigest()[:16].upper()
 
+    target_mrn = None
     if _WORKLIST_CACHE:
         for s in _WORKLIST_CACHE:
             if s.study_id == req.study_id:
                 s.status = "SIGNED"
+                target_mrn = s.patient_mrn
                 break
+
+
+    # Record HIPAA Audit Log
+    get_audit_logger().log(
+        action="ATTESTATION_SIGNED",
+        user_id=current_user.user_id,
+        username=current_user.username,
+        user_role=current_user.role.value,
+        patient_mrn=target_mrn or "MRN-UNKNOWN",
+        study_id=req.study_id,
+        details={
+            "physician_signature": req.physician_name,
+            "physician_license": req.physician_license,
+            "attestation_notes": req.clinical_notes,
+            "cryptographic_stamp": audit_hash
+        }
+    )
 
     return SignoffResponse(
         status="success",
@@ -425,6 +479,7 @@ async def signoff_study(req: SignoffRequest):
         signoff_badge="VERIFIED & SIGNED",
         audit_hash=audit_hash
     )
+
 
 @router.delete("/api/v1/worklist/{study_id}", tags=["Emergency Triage & Worklist"])
 async def delete_worklist_study(study_id: str):
@@ -966,3 +1021,248 @@ async def generate_clinical_report(report_data: ClinicalReportRequest):
         timestamp=timestamp,
         summary_html=html_content
     )
+
+
+# =========================================================================
+# v4.0 Enterprise Endpoints: Authentication, HIPAA Audit, 3D MPR, Modality Simulator
+# =========================================================================
+
+# --- 1. Authentication & Role-Based Access Control ---
+
+@router.post("/api/v1/auth/login", response_model=TokenResponse, tags=["Enterprise Security & RBAC"])
+async def login(req: LoginRequest):
+    """
+    Authenticates clinical staff with hospital credentials,
+    issues an HMAC-SHA256 JWT session token, and records a HIPAA login audit event.
+    """
+    username = req.username.strip().lower()
+    if username not in CLINICAL_DIRECTORY:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Authentication failed: User '{username}' not recognized in hospital directory."
+        )
+
+    user = CLINICAL_DIRECTORY[username]
+    token = create_access_token(user)
+
+    # Log HIPAA security access
+    get_audit_logger().log(
+        action="LOGIN",
+        user_id=user.user_id,
+        username=user.username,
+        user_role=user.role.value,
+        details={"department": user.department, "title": user.title}
+    )
+
+    return TokenResponse(
+        access_token=token,
+        token_type="bearer",
+        expires_in=86400,
+        user=ClinicalUserSchema(
+            user_id=user.user_id,
+            username=user.username,
+            full_name=user.full_name,
+            title=user.title,
+            role=user.role.value,
+            department=user.department,
+            npi=user.npi,
+            initials=user.initials
+        )
+    )
+
+@router.get("/api/v1/auth/me", response_model=ClinicalUserSchema, tags=["Enterprise Security & RBAC"])
+async def get_my_session(current_user: ClinicalUser = Depends(get_current_user)):
+    """Returns profile and role claims for the active authenticated session."""
+    return ClinicalUserSchema(
+        user_id=current_user.user_id,
+        username=current_user.username,
+        full_name=current_user.full_name,
+        title=current_user.title,
+        role=current_user.role.value,
+        department=current_user.department,
+        npi=current_user.npi,
+        initials=current_user.initials
+    )
+
+@router.get("/api/v1/auth/users", response_model=List[ClinicalUserSchema], tags=["Enterprise Security & RBAC"])
+async def list_clinical_directory():
+    """Lists pre-configured clinical personas for demonstration and role switching."""
+    return [
+        ClinicalUserSchema(
+            user_id=u.user_id,
+            username=u.username,
+            full_name=u.full_name,
+            title=u.title,
+            role=u.role.value,
+            department=u.department,
+            npi=u.npi,
+            initials=u.initials
+        )
+        for u in CLINICAL_DIRECTORY.values()
+    ]
+
+
+# --- 2. HIPAA Chained Audit Trail ---
+
+@router.get("/api/v1/audit/logs", response_model=AuditQueryResponse, tags=["HIPAA Security & Audit Trail"])
+async def get_audit_trail(
+    limit: int = 50,
+    action: Optional[str] = None,
+    current_user: ClinicalUser = Depends(get_current_user)
+):
+    """
+    Retrieves chronological tamper-evident HIPAA audit events.
+    Authorized for Attending Radiologists and PACS Administrators.
+    """
+    events = get_audit_logger().query(limit=limit, action=action)
+    return AuditQueryResponse(
+        status="success",
+        total_returned=len(events),
+        events=[e.model_dump() for e in events]
+    )
+
+@router.get("/api/v1/audit/verify", response_model=AuditVerifyResponse, tags=["HIPAA Security & Audit Trail"])
+async def verify_audit_trail():
+    """
+    Verifies the cryptographic SHA-256 chained hash integrity of the entire audit ledger.
+    Detects any file manipulation or record modification.
+    """
+    res = get_audit_logger().verify_integrity()
+    return AuditVerifyResponse(
+        is_valid=res["is_valid"],
+        total_events=res.get("total_events", 0),
+        latest_hash=res.get("latest_hash"),
+        message=res["message"]
+    )
+
+
+# --- 3. 3D Volumetric CT & Multi-Planar Reconstruction (MPR) ---
+
+@router.get("/api/v1/volumetric/series", response_model=VolumetricSeriesListResponse, tags=["3D Volumetric CT & MPR"])
+async def list_volumetric_series():
+    """Lists available 3D volumetric CT/MRI stacks for multi-planar reconstruction."""
+    engine = get_volumetric_engine()
+    series_list = engine.list_series()
+    return VolumetricSeriesListResponse(
+        status="success",
+        total_series=len(series_list),
+        series=[s.model_dump() for s in series_list]
+    )
+
+@router.get("/api/v1/volumetric/{series_id}/slice", response_model=VolumetricSliceResponse, tags=["3D Volumetric CT & MPR"])
+async def get_volumetric_slice(
+    series_id: str,
+    orientation: str = "AXIAL",
+    slice_idx: int = 16,
+    window_preset: str = "LUNG",
+    width: Optional[int] = None,
+    level: Optional[int] = None
+):
+    """
+    Extracts a 2D planar slice along AXIAL, CORONAL, or SAGITTAL orthogonal planes
+    and applies Hounsfield Unit (HU) windowing.
+    """
+    engine = get_volumetric_engine()
+    try:
+        _, slice_8bit, meta = engine.extract_orthogonal_slice(
+            series_id=series_id,
+            orientation=orientation,
+            slice_idx=slice_idx,
+            window_preset=window_preset,
+            custom_width=width,
+            custom_level=level
+        )
+        data_url = engine.slice_to_data_url(slice_8bit)
+        return VolumetricSliceResponse(
+            status="success",
+            series_id=series_id,
+            orientation=meta["orientation"],
+            slice_index=meta["slice_index"],
+            max_slices=meta["max_slices"],
+            slice_location_mm=meta["slice_location_mm"],
+            window_preset=meta["window_preset"],
+            window_width=meta["window_width"],
+            window_level=meta["window_level"],
+            mean_hu=meta["mean_hu"],
+            data_url=data_url
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Volumetric series '{series_id}' not found.")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.post("/api/v1/volumetric/{series_id}/mpr", response_model=VolumetricMPRResponse, tags=["3D Volumetric CT & MPR"])
+async def get_tri_planar_mpr(series_id: str, req: VolumetricMPRRequest):
+    """
+    Returns synchronized Tri-Planar Multi-Planar Reconstruction views:
+    Axial, Coronal, and Sagittal orthogonal cross-sections with coordinate crosshairs.
+    """
+    engine = get_volumetric_engine()
+    try:
+        mpr_res = engine.get_tri_planar_mpr(
+            series_id=series_id,
+            axial_idx=req.axial_idx,
+            coronal_idx=req.coronal_idx,
+            sagittal_idx=req.sagittal_idx,
+            window_preset=req.window_preset
+        )
+        return VolumetricMPRResponse(
+            status="success",
+            series_id=series_id,
+            window_preset=mpr_res["window_preset"],
+            crosshairs=mpr_res["crosshairs"],
+            axial=mpr_res["axial"],
+            coronal=mpr_res["coronal"],
+            sagittal=mpr_res["sagittal"]
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Volumetric series '{series_id}' not found.")
+
+
+# --- 4. Hospital Modality & VNA Simulator ---
+
+@router.get("/api/v1/pacs/modalities", tags=["External PACS & Connectivity"])
+async def list_hospital_modalities():
+    """Returns available simulated hospital modalities (XR Emergency Bay, Trauma CT, VNA)."""
+    sim = get_pacs_simulator()
+    return {"status": "success", "modalities": [m.model_dump() for m in sim.list_modalities()]}
+
+@router.post("/api/v1/pacs/simulate-modality", response_model=SimulateModalityResponse, tags=["External PACS & Connectivity"])
+async def trigger_simulated_modality_push(req: SimulateModalityRequest):
+    """
+    Triggers an automated emergency modality scan completion and C-STORE network transmission
+    into ALVEON's Storage SCP on port 11112.
+    """
+    sim = get_pacs_simulator()
+    res = sim.simulate_modality_transmission(
+        modality_key=req.modality_key,
+        target_port=req.target_port,
+        study_idx=req.study_idx
+    )
+
+    # Log HIPAA audit trail
+    get_audit_logger().log(
+        action="MODALITY_PUSH",
+        user_id="SIM-DEVICE-AUTOPUSH",
+        username=res["modality_device"]["ae_title"],
+        user_role="MODALITY_SYSTEM",
+        patient_mrn=res["study_transmitted"]["patient_id"],
+        details={
+            "device": res["modality_device"]["model_name"],
+            "target": res["target_node"],
+            "latency_ms": res["network_latency_ms"]
+        }
+    )
+
+    return SimulateModalityResponse(
+        status="success",
+        success=res["success"],
+        status_code=res["status_code"],
+        modality_device=res["modality_device"],
+        study_transmitted=res["study_transmitted"],
+        target_node=res["target_node"],
+        network_latency_ms=res["network_latency_ms"],
+        sop_instance_uid=res["sop_instance_uid"],
+        timestamp=res["timestamp"]
+    )
+

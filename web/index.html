@@ -36,21 +36,80 @@
                 </div>
             </div>
 
-            <!-- PACS Telemetry HUD -->
+            <!-- Workstation Mode & Security Header Controls -->
             <div class="telemetry-bar" id="telemetry-bar">
-                <div class="telemetry-item">
-                    <span class="telemetry-label">STATION</span>
-                    <span class="telemetry-val" id="telemetry-station">ACTIVE / CALIBRATED</span>
+                <!-- Viewport Mode Selector (2D Planar vs 3D Volumetric) -->
+                <div class="header-mode-toggle" id="header-mode-toggle">
+                    <button type="button" class="mode-toggle-btn active" id="mode-btn-2d" data-workstation-mode="2d">
+                        <span class="mode-icon">🩻</span>
+                        <span>2D Chest XR</span>
+                    </button>
+                    <button type="button" class="mode-toggle-btn" id="mode-btn-3d" data-workstation-mode="3d">
+                        <span class="mode-icon">🧊</span>
+                        <span>3D CT / MPR</span>
+                    </button>
                 </div>
+
                 <div class="telemetry-divider"></div>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">STANDARD</span>
-                    <span class="telemetry-val">DICOM GSDF-14</span>
-                </div>
+
+                <!-- HIPAA Audit Trail Quick Button -->
+                <button type="button" class="header-action-btn" id="open-audit-trail-btn" title="Inspect HIPAA Security Audit Trail">
+                    <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                        <path d="m9 12 2 2 4-4"/>
+                    </svg>
+                    <span>HIPAA Audit</span>
+                </button>
+
                 <div class="telemetry-divider"></div>
-                <div class="telemetry-item">
-                    <span class="telemetry-label">DIAGNOSTIC ENGINE</span>
-                    <span class="telemetry-val" id="engine-status">TF 2.21.0 • CPU (Optimized AVX2)</span>
+
+                <!-- Active Clinical User & Role Switcher -->
+                <div class="user-role-dropdown" id="user-role-dropdown">
+                    <button type="button" class="user-role-trigger" id="user-role-trigger" title="Switch Clinical User Persona / Role">
+                        <span class="user-avatar" id="current-user-avatar">EV</span>
+                        <div class="user-details-col">
+                            <span class="user-name" id="current-user-name">Dr. Eleanor Vance, MD</span>
+                            <span class="user-role-badge attending" id="current-user-role-badge">ATTENDING RADIOLOGIST</span>
+                        </div>
+                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+                    </button>
+
+                    <!-- Dropdown Menu for Quick Role Persona Switching -->
+                    <div class="role-menu-popover" id="role-menu-popover" style="display: none;">
+                        <div class="role-menu-header">HOSPITAL CLINICAL PERSONAS (RBAC)</div>
+                        <button type="button" class="role-menu-item active" data-username="dr.vance">
+                            <span class="role-item-avatar">EV</span>
+                            <div class="role-item-info">
+                                <div class="role-item-name">Dr. Eleanor Vance, MD</div>
+                                <div class="role-item-title">Chief Thoracic Radiologist • Full Attestation</div>
+                            </div>
+                            <span class="role-pill attending">ATTENDING</span>
+                        </button>
+                        <button type="button" class="role-menu-item" data-username="dr.chen">
+                            <span class="role-item-avatar">KC</span>
+                            <div class="role-item-info">
+                                <div class="role-item-name">Dr. Kevin Chen, MD</div>
+                                <div class="role-item-title">Radiology Resident (PGY-4) • Draft Reads</div>
+                            </div>
+                            <span class="role-pill resident">RESIDENT</span>
+                        </button>
+                        <button type="button" class="role-menu-item" data-username="dr.adams">
+                            <span class="role-item-avatar">SA</span>
+                            <div class="role-item-info">
+                                <div class="role-item-name">Dr. Sarah Adams, MD</div>
+                                <div class="role-item-title">ER Attending • Fast STAT Review</div>
+                            </div>
+                            <span class="role-pill er">ER ATTENDING</span>
+                        </button>
+                        <button type="button" class="role-menu-item" data-username="admin.marcus">
+                            <span class="role-item-avatar">MB</span>
+                            <div class="role-item-info">
+                                <div class="role-item-name">Marcus Brody, CIIP</div>
+                                <div class="role-item-title">PACS Administrator • Security & Audit</div>
+                            </div>
+                            <span class="role-pill admin">PACS ADMIN</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </header>
@@ -542,6 +601,132 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- 3D Volumetric CT & Multi-Planar Reconstruction (MPR) Viewport -->
+                <div class="volumetric-viewport-wrapper" id="volumetric-content" style="display: none;">
+                    <!-- Volumetric Master Controls Toolbar -->
+                    <div class="mpr-control-banner">
+                        <div class="mpr-ctrl-left">
+                            <div class="mpr-series-box">
+                                <label for="mpr-series-selector" class="mpr-label">3D VOLUMETRIC CT / MRI SERIES:</label>
+                                <select id="mpr-series-selector" class="mpr-select">
+                                    <option value="SERIES-CT-CHEST-3201">Chest CT Angiogram (32 Slices • Trauma & Infiltration) - Rose Hastings</option>
+                                    <option value="SERIES-CT-NORMAL-3202">HRCT Inspiratory Chest (32 Slices • Baseline Normal) - Vivian Drake</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Hounsfield Unit Windowing Presets -->
+                        <div class="mpr-ctrl-center">
+                            <span class="mpr-label">HOUNSFIELD UNIT (HU) WINDOW:</span>
+                            <div class="pill-group" id="mpr-hu-presets">
+                                <button type="button" class="tool-btn active" data-hu="LUNG" title="Pulmonary Parenchyma (W:1500, L:-600)">🫁 Lung (1500/-600)</button>
+                                <button type="button" class="tool-btn" data-hu="MEDIASTINUM" title="Mediastinum & Heart (W:350, L:40)">🫀 Mediastinum (350/40)</button>
+                                <button type="button" class="tool-btn" data-hu="BONE" title="Thoracic Ribs & Spine (W:2000, L:500)">🦴 Bone (2000/500)</button>
+                                <button type="button" class="tool-btn" data-hu="BRAIN" title="High Contrast (W:80, L:40)">🧠 Contrast (80/40)</button>
+                            </div>
+                        </div>
+
+                        <!-- MPR Tri-Planar View Toggle -->
+                        <div class="mpr-ctrl-right">
+                            <div class="pill-group">
+                                <button type="button" class="tool-btn active" id="mpr-view-tri-btn">Tri-Planar MPR</button>
+                                <button type="button" class="tool-btn" id="mpr-view-axial-btn">Axial Solo</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cine Player & Slice Position Scroller -->
+                    <div class="mpr-cine-toolbar">
+                        <div class="cine-btn-group">
+                            <button type="button" class="cine-btn" id="mpr-cine-play-btn" title="Toggle Cine Auto-Play (Space)">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" id="cine-icon-play"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                <span id="mpr-cine-play-text">Play Cine</span>
+                            </button>
+                            <button type="button" class="cine-step-btn" id="mpr-slice-prev-btn" title="Previous Slice (Down Arrow)">◀</button>
+                            <button type="button" class="cine-step-btn" id="mpr-slice-next-btn" title="Next Slice (Up Arrow)">▶</button>
+                        </div>
+
+                        <div class="cine-slider-wrap">
+                            <input type="range" id="mpr-slice-slider" min="0" max="31" value="16" step="1" class="cine-slider">
+                        </div>
+
+                        <div class="cine-telemetry-box">
+                            <span class="cine-slice-tag" id="mpr-slice-tag">AXIAL SLICE 16 / 32</span>
+                            <span class="cine-loc-tag" id="mpr-loc-tag">LOC: -5.0 mm</span>
+                            <span class="cine-hu-tag" id="mpr-hu-live-tag">HU: LUNG (-750 HU)</span>
+                        </div>
+
+                        <div class="cine-speed-control">
+                            <span class="cine-speed-label">SPEED:</span>
+                            <input type="range" id="mpr-fps-slider" min="5" max="30" value="15" step="1" title="Cine Frame Rate (FPS)">
+                            <span id="mpr-fps-val" class="mono-num">15 fps</span>
+                        </div>
+                    </div>
+
+                    <!-- Tri-Planar Orthogonal Slicing Grid -->
+                    <div class="mpr-viewport-grid" id="mpr-grid">
+                        <!-- 1. Axial Panel (Transverse XY) -->
+                        <div class="mpr-panel active" id="mpr-panel-axial">
+                            <div class="mpr-panel-header">
+                                <div class="mpr-panel-title">
+                                    <span class="mpr-plane-tag axial">AXIAL (XY)</span>
+                                    <span class="mpr-plane-sub">Transverse Primary • Mouse Wheel Scroll</span>
+                                </div>
+                                <span class="mpr-pos-indicator" id="mpr-axial-pos">Z: 16/32</span>
+                            </div>
+                            <div class="mpr-canvas-container">
+                                <canvas id="mpr-axial-canvas" class="mpr-canvas" width="320" height="320"></canvas>
+                                <div class="mpr-crosshair-h" id="crosshair-ax-h"></div>
+                                <div class="mpr-crosshair-v" id="crosshair-ax-v"></div>
+                                <div class="mpr-corner-overlay top-left">LUNG CT 1.25mm</div>
+                                <div class="mpr-corner-overlay top-right">R ◀ ▶ L</div>
+                                <div class="mpr-corner-overlay bottom-left" id="axial-wl-label">W:1500 L:-600</div>
+                                <div class="mpr-corner-overlay bottom-right">KV: 120 • MA: 320</div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Coronal Panel (Frontal XZ) -->
+                        <div class="mpr-panel" id="mpr-panel-coronal">
+                            <div class="mpr-panel-header">
+                                <div class="mpr-panel-title">
+                                    <span class="mpr-plane-tag coronal">CORONAL (XZ)</span>
+                                    <span class="mpr-plane-sub">Frontal Orthogonal Reconstruct</span>
+                                </div>
+                                <span class="mpr-pos-indicator" id="mpr-coronal-pos">Y: 80/160</span>
+                            </div>
+                            <div class="mpr-canvas-container">
+                                <canvas id="mpr-coronal-canvas" class="mpr-canvas" width="320" height="320"></canvas>
+                                <div class="mpr-crosshair-h" id="crosshair-cor-h"></div>
+                                <div class="mpr-crosshair-v" id="crosshair-cor-v"></div>
+                                <div class="mpr-corner-overlay top-left">MPR RECON</div>
+                                <div class="mpr-corner-overlay top-right">H (Cranial)</div>
+                                <div class="mpr-corner-overlay bottom-left">R ◀ ▶ L</div>
+                                <div class="mpr-corner-overlay bottom-right">F (Caudal)</div>
+                            </div>
+                        </div>
+
+                        <!-- 3. Sagittal Panel (Lateral YZ) -->
+                        <div class="mpr-panel" id="mpr-panel-sagittal">
+                            <div class="mpr-panel-header">
+                                <div class="mpr-panel-title">
+                                    <span class="mpr-plane-tag sagittal">SAGITTAL (YZ)</span>
+                                    <span class="mpr-plane-sub">Lateral Orthogonal Reconstruct</span>
+                                </div>
+                                <span class="mpr-pos-indicator" id="mpr-sagittal-pos">X: 80/160</span>
+                            </div>
+                            <div class="mpr-canvas-container">
+                                <canvas id="mpr-sagittal-canvas" class="mpr-canvas" width="320" height="320"></canvas>
+                                <div class="mpr-crosshair-h" id="crosshair-sag-h"></div>
+                                <div class="mpr-crosshair-v" id="crosshair-sag-v"></div>
+                                <div class="mpr-corner-overlay top-left">MPR RECON</div>
+                                <div class="mpr-corner-overlay top-right">A (Anterior)</div>
+                                <div class="mpr-corner-overlay bottom-left">P (Posterior)</div>
+                                <div class="mpr-corner-overlay bottom-right">H ◀ ▶ F</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </section>
         </main>
 
@@ -685,7 +870,12 @@
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                         Clinical Cohort Ingestion (6 Patients)
                     </button>
+                    <button type="button" class="pacs-hub-tab-btn" data-pacs-tab="tab-simulator">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="m9 8 6 4-6 4Z"/></svg>
+                        Modality Simulator (XR & CT)
+                    </button>
                 </div>
+
 
                 <div class="modal-scroll pacs-hub-scroll">
                     <!-- Tab 1: DIMSE Network & SCU/SCP -->
@@ -899,6 +1089,54 @@
                             <div class="cohort-log-body" id="cohort-log-stream"></div>
                         </div>
                     </div>
+
+                    <!-- Tab 4: Hospital Modality Acquisition Simulator -->
+                    <div class="pacs-tab-panel" id="tab-simulator">
+                        <div class="pacs-section-intro">
+                            <h3>Emergency Modality Acquisition Simulator</h3>
+                            <p>Simulate live exam completions on physical hospital equipment (Siemens Digital XR, GE Revolution 256-Slice CT) pushing directly over network port 11112 into ALVEON's Storage SCP.</p>
+                        </div>
+
+                        <div class="modality-cards-grid">
+                            <!-- Modality 1: Siemens Ysio Lumos XR Bay 1 -->
+                            <div class="modality-card">
+                                <div class="modality-card-top">
+                                    <span class="modality-type-badge xr">DIGITAL XR</span>
+                                    <span class="modality-ae-title">SIEMENS_LUMOS_XR</span>
+                                </div>
+                                <div class="modality-card-title">Emergency Trauma Bay 1 (Siemens YSIO X.pree)</div>
+                                <div class="modality-card-sub">St. Jude Metropolitan Medical Center • Sensor: 125 kVp, 12 ms</div>
+                                <p class="modality-card-desc">Simulate STAT portable trauma chest exam acquisition for Connor Sterling (Severe tension pneumothorax with mediastinal shift).</p>
+                                <button type="button" class="btn-modality-push" id="sim-push-xr-btn">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                    Acquire & Push STAT Chest XR (Port 11112)
+                                </button>
+                            </div>
+
+                            <!-- Modality 2: GE Revolution Apex Elite CT Scanner 2 -->
+                            <div class="modality-card">
+                                <div class="modality-card-top">
+                                    <span class="modality-type-badge ct">TRAUMA CT</span>
+                                    <span class="modality-ae-title">GE_REVOLUTION_CT</span>
+                                </div>
+                                <div class="modality-card-title">Emergency CT Scanner 2 (GE Revolution Apex Elite)</div>
+                                <div class="modality-card-sub">Emergency Radiology Core • 256-Slice Volumetric CT • 100 kVp, 500 ms</div>
+                                <p class="modality-card-desc">Simulate STAT IV contrast chest CT exam acquisition for Harold Benton (Massive pleural effusion & cardiomegaly).</p>
+                                <button type="button" class="btn-modality-push" id="sim-push-ct-btn">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                                    Acquire & Push Emergency 3D CT (Port 11112)
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="cohort-log" id="modality-sim-log" style="display: none; margin-top: 20px;">
+                            <div class="cohort-log-header">
+                                <span>MODALITY C-STORE TRANSMISSION STREAM</span>
+                                <span id="modality-sim-summary">Transmitting...</span>
+                            </div>
+                            <div class="cohort-log-body" id="modality-sim-stream"></div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="modal-bottom">
@@ -911,7 +1149,74 @@
                 </div>
             </div>
         </dialog>
+
+        <!-- 5. HIPAA Security Rule § 164.312(b) Immutable Audit Trail Dialog -->
+        <dialog id="audit-trail-dialog" class="pacs-hub-modal">
+            <div class="modal-shell audit-trail-shell">
+                <div class="modal-top">
+                    <div class="modal-title-cluster">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="audit-shield-icon">🛡️</span>
+                            <span class="modal-title">HIPAA § 164.312(b) Immutable Audit Ledger</span>
+                        </div>
+                        <span class="dicom-tag-sub">Cryptographically Chained SHA-256 Audit Trail • Tamper-Evident Medical Security Records</span>
+                    </div>
+                    <button type="button" class="modal-x" id="close-audit-modal-btn" aria-label="Close Audit Trail">&times;</button>
+                </div>
+
+                <div class="audit-toolbar-row">
+                    <div class="audit-integrity-badge valid" id="audit-integrity-badge">
+                        <span class="integrity-dot"></span>
+                        <span id="audit-integrity-text">SHA-256 Chained Hash: VALID & UNTAMPERED</span>
+                    </div>
+
+                    <div class="audit-filter-controls">
+                        <label for="audit-filter-action" class="audit-filter-label">FILTER ACTION:</label>
+                        <select id="audit-filter-action" class="audit-select">
+                            <option value="">All Clinical & System Actions</option>
+                            <option value="LOGIN">User Logins (Authentication)</option>
+                            <option value="PHI_VIEW">Protected Health Information (PHI Access)</option>
+                            <option value="AI_INFERENCE">AI Inference Execution</option>
+                            <option value="ATTESTATION_SIGNED">Physician Legal Sign-Off</option>
+                            <option value="PDF_EXPORTED">Certified PDF Exports</option>
+                            <option value="MODALITY_PUSH">Hospital Modality Ingestions</option>
+                            <option value="STUDY_DELETED">Study Purges & Deletions</option>
+                        </select>
+                        <button type="button" class="tool-btn" id="audit-refresh-btn">Refresh Ledger</button>
+                    </div>
+                </div>
+
+                <div class="modal-scroll audit-scroll">
+                    <table class="audit-ledger-table">
+                        <thead>
+                            <tr>
+                                <th>TIMESTAMP (UTC)</th>
+                                <th>EVENT ID</th>
+                                <th>USER & ROLE</th>
+                                <th>ACTION</th>
+                                <th>PATIENT / TARGET</th>
+                                <th>DETAILS & ATTRIBUTES</th>
+                                <th>RECORD SHA-256 HASH</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-ledger-tbody">
+                            <!-- Populated dynamically via app.js -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="modal-bottom">
+                    <div class="pacs-footer-status">
+                        <span>LEGAL COMPLIANCE: <strong>HIPAA Security Rule § 164.312(b)</strong></span>
+                        <span>•</span>
+                        <span>HASH CHAIN: <strong>SHA-256 Genesis-Linked</strong></span>
+                    </div>
+                    <button type="button" class="btn-titanium" id="dismiss-audit-btn">Close Ledger</button>
+                </div>
+            </div>
+        </dialog>
     </div>
+
 
     <script src="/static/app.js"></script>
 </body>

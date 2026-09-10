@@ -189,3 +189,114 @@ class BatchDeleteResponse(BaseModel):
     status: str = "success"
     deleted_count: int
     remaining_count: int
+
+# =========================================================================
+# v4.0 Enterprise Schemas: Auth, HIPAA Audit, 3D Volumetric, Modality Simulator
+# =========================================================================
+
+class LoginRequest(BaseModel):
+    username: str
+    password: Optional[str] = "clinical_demo_pass"
+
+class ClinicalUserSchema(BaseModel):
+    user_id: str
+    username: str
+    full_name: str
+    title: str
+    role: str
+    department: str
+    npi: Optional[str] = None
+    initials: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    expires_in: int = 86400
+    user: ClinicalUserSchema
+
+class AuditLogItem(BaseModel):
+    event_id: str
+    timestamp_utc: str
+    timestamp_epoch: float
+    user_id: str
+    username: str
+    user_role: str
+    action: str
+    patient_mrn: Optional[str] = None
+    study_id: Optional[str] = None
+    ip_address: str
+    details: Dict[str, Any] = Field(default_factory=dict)
+    prev_hash: str
+    record_hash: str
+
+class AuditQueryResponse(BaseModel):
+    status: str = "success"
+    total_returned: int
+    events: List[AuditLogItem]
+
+class AuditVerifyResponse(BaseModel):
+    is_valid: bool
+    total_events: int
+    latest_hash: Optional[str] = None
+    message: str
+
+class VolumetricSeriesItem(BaseModel):
+    series_id: str
+    patient_id: str
+    patient_name: str
+    modality: str
+    description: str
+    num_slices: int
+    dimensions: List[int]
+    slice_thickness_mm: float
+    pixel_spacing_mm: List[float]
+    default_window: str = "LUNG"
+
+class VolumetricSeriesListResponse(BaseModel):
+    status: str = "success"
+    total_series: int
+    series: List[VolumetricSeriesItem]
+
+class VolumetricSliceResponse(BaseModel):
+    status: str = "success"
+    series_id: str
+    orientation: str
+    slice_index: int
+    max_slices: int
+    slice_location_mm: float
+    window_preset: str
+    window_width: int
+    window_level: int
+    mean_hu: float
+    data_url: str
+
+class VolumetricMPRRequest(BaseModel):
+    axial_idx: int = 16
+    coronal_idx: int = 80
+    sagittal_idx: int = 80
+    window_preset: str = "LUNG"
+
+class VolumetricMPRResponse(BaseModel):
+    status: str = "success"
+    series_id: str
+    window_preset: str
+    crosshairs: Dict[str, int]
+    axial: Dict[str, Any]
+    coronal: Dict[str, Any]
+    sagittal: Dict[str, Any]
+
+class SimulateModalityRequest(BaseModel):
+    modality_key: str = "XR_EMERGENCY_BAY_1"
+    study_idx: int = 0
+    target_port: int = 11112
+
+class SimulateModalityResponse(BaseModel):
+    status: str = "success"
+    success: bool
+    status_code: str
+    modality_device: Dict[str, Any]
+    study_transmitted: Dict[str, Any]
+    target_node: str
+    network_latency_ms: float
+    sop_instance_uid: str
+    timestamp: str

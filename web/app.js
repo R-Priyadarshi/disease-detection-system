@@ -2451,7 +2451,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const targetTabId = btn.dataset.pacsTab;
                 pacsHubDialog.querySelectorAll('.pacs-tab-panel').forEach(panel => {
-                    panel.classList.toggle('active', panel.id === targetTabId);
+                    const isActive = panel.id === targetTabId;
+                    panel.classList.toggle('active', isActive);
+                    panel.style.display = isActive ? 'block' : 'none';
                 });
             });
         });
@@ -2636,9 +2638,516 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // =========================================================================
+    // v4.0 ENTERPRISE MODULES: AUTH/RBAC, 3D VOLUMETRIC MPR, HIPAA AUDIT LEDGER
+    // =========================================================================
+
+    let currentUserSession = {
+        username: "dr.vance",
+        full_name: "Dr. Eleanor Vance, MD",
+        role: "ATTENDING_RADIOLOGIST",
+        initials: "EV",
+        token: null
+    };
+
     // ---------------------------------------------------------
-    // INITIAL BOOT: FETCH WORKLIST & INIT MODALS
+    // 19. USER AUTHENTICATION & ROLE-BASED ACCESS CONTROL (RBAC)
+    // ---------------------------------------------------------
+    function initUserAuthAndRBAC() {
+        const userTrigger = document.getElementById('user-role-trigger');
+        const rolePopover = document.getElementById('role-menu-popover');
+        const userAvatar = document.getElementById('current-user-avatar');
+        const userName = document.getElementById('current-user-name');
+        const userRoleBadge = document.getElementById('current-user-role-badge');
+        const btnSignoff = document.getElementById('btn-signoff');
+
+        if (userTrigger && rolePopover) {
+            userTrigger.addEventListener('click', (e) => {
+                e.stopPropagation();
+                rolePopover.style.display = rolePopover.style.display === 'none' ? 'block' : 'none';
+            });
+
+            document.addEventListener('click', () => {
+                rolePopover.style.display = 'none';
+            });
+        }
+
+        async function switchClinicalPersona(username) {
+            try {
+                const res = await fetch('/api/v1/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username })
+                });
+                if (!res.ok) throw new Error('Login failed');
+                const data = await res.json();
+                
+                currentUserSession = {
+                    username: data.user.username,
+                    full_name: data.user.full_name,
+                    role: data.user.role,
+                    initials: data.user.initials,
+                    token: data.access_token
+                };
+                localStorage.setItem('alveon_auth_token', data.access_token);
+
+                // Update UI Avatar and Badges
+                if (userAvatar) userAvatar.textContent = currentUserSession.initials;
+                if (userName) userName.textContent = currentUserSession.full_name;
+                if (userRoleBadge) {
+                    userRoleBadge.textContent = currentUserSession.role.replace('_', ' ');
+                    userRoleBadge.className = `user-role-badge ${currentUserSession.role.toLowerCase().includes('attending') ? 'attending' : currentUserSession.role.toLowerCase().includes('resident') ? 'resident' : currentUserSession.role.toLowerCase().includes('er') ? 'er' : 'admin'}`;
+                }
+
+                // Update Active Checkmark in Menu
+                document.querySelectorAll('.role-menu-item').forEach(item => {
+                    item.classList.toggle('active', item.dataset.username === username);
+                });
+
+                // Update Signoff Button Permission
+                if (btnSignoff) {
+                    const canSign = currentUserSession.role === 'ATTENDING_RADIOLOGIST' || currentUserSession.role === 'PACS_ADMIN';
+                    btnSignoff.style.opacity = canSign ? '1' : '0.6';
+                    btnSignoff.title = canSign ? 'Sign Off & Attest (S)' : 'Restricted: Attending Radiologist Review Required';
+                }
+
+                showWorkstationToast(`👤 Switched Persona: ${currentUserSession.full_name} (${currentUserSession.role})`);
+            } catch (err) {
+                console.error('Failed to switch persona:', err);
+            }
+        }
+
+        document.querySelectorAll('.role-menu-item').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (rolePopover) rolePopover.style.display = 'none';
+                switchClinicalPersona(btn.dataset.username);
+            });
+        });
+
+        // Initialize default Attending login
+        switchClinicalPersona('dr.vance');
+    }
+
+    // ---------------------------------------------------------
+    // 20. WORKSTATION VIEWPORT MODE SWITCHER (2D vs 3D CT/MPR)
+    // ---------------------------------------------------------
+    function initWorkstationModeSwitch() {
+        const btn2D = document.getElementById('mode-btn-2d');
+        const btn3D = document.getElementById('mode-btn-3d');
+        const diagContent = document.getElementById('diagnosis-content');
+        const volContent = document.getElementById('volumetric-content');
+        const pacsToolbar = document.getElementById('pacs-toolbar');
+
+        if (btn2D && btn3D) {
+            btn2D.addEventListener('click', () => {
+                btn2D.classList.add('active');
+                btn3D.classList.remove('active');
+                if (diagContent) diagContent.style.display = '';
+                if (volContent) volContent.style.display = 'none';
+                if (pacsToolbar) pacsToolbar.style.display = '';
+                showWorkstationToast('🩻 2D Radiographic Workstation Active');
+            });
+
+            btn3D.addEventListener('click', () => {
+                btn3D.classList.add('active');
+                btn2D.classList.remove('active');
+                if (diagContent) diagContent.style.display = 'none';
+                if (volContent) volContent.style.display = 'flex';
+                if (pacsToolbar) pacsToolbar.style.display = 'none';
+                showWorkstationToast('🧊 3D Volumetric CT / MPR Viewport Active');
+                loadVolumetricMPR();
+            });
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 21. 3D VOLUMETRIC CT & MULTI-PLANAR RECONSTRUCTION (MPR)
+    // ---------------------------------------------------------
+    let mprState = {
+        seriesId: "SERIES-CT-CHEST-3201",
+        axialIdx: 16,
+        coronalIdx: 80,
+        sagittalIdx: 80,
+        windowPreset: "LUNG",
+        maxSlices: 32,
+        isPlaying: false,
+        fps: 15,
+        timer: null
+    };
+
+    async function loadVolumetricMPR() {
+        const axialCanvas = document.getElementById('mpr-axial-canvas');
+        const coronalCanvas = document.getElementById('mpr-coronal-canvas');
+        const sagittalCanvas = document.getElementById('mpr-sagittal-canvas');
+        const sliceTag = document.getElementById('mpr-slice-tag');
+        const locTag = document.getElementById('mpr-loc-tag');
+        const huLiveTag = document.getElementById('mpr-hu-live-tag');
+        const sliceSlider = document.getElementById('mpr-slice-slider');
+        const axialPos = document.getElementById('mpr-axial-pos');
+        const corPos = document.getElementById('mpr-coronal-pos');
+        const sagPos = document.getElementById('mpr-sagittal-pos');
+        const wlLabel = document.getElementById('axial-wl-label');
+
+        try {
+            const res = await fetch(`/api/v1/volumetric/${mprState.seriesId}/mpr`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    axial_idx: mprState.axialIdx,
+                    coronal_idx: mprState.coronalIdx,
+                    sagittal_idx: mprState.sagittalIdx,
+                    window_preset: mprState.windowPreset
+                })
+            });
+
+            if (!res.ok) throw new Error('Failed to load MPR data');
+            const data = await res.json();
+
+            // Render Axial Canvas
+            if (axialCanvas && data.axial?.data_url) {
+                const imgAx = new Image();
+                imgAx.onload = () => {
+                    const ctx = axialCanvas.getContext('2d');
+                    ctx.drawImage(imgAx, 0, 0, axialCanvas.width, axialCanvas.height);
+                };
+                imgAx.src = data.axial.data_url;
+            }
+
+            // Render Coronal Canvas
+            if (coronalCanvas && data.coronal?.data_url) {
+                const imgCor = new Image();
+                imgCor.onload = () => {
+                    const ctx = coronalCanvas.getContext('2d');
+                    ctx.drawImage(imgCor, 0, 0, coronalCanvas.width, coronalCanvas.height);
+                };
+                imgCor.src = data.coronal.data_url;
+            }
+
+            // Render Sagittal Canvas
+            if (sagittalCanvas && data.sagittal?.data_url) {
+                const imgSag = new Image();
+                imgSag.onload = () => {
+                    const ctx = sagittalCanvas.getContext('2d');
+                    ctx.drawImage(imgSag, 0, 0, sagittalCanvas.width, sagittalCanvas.height);
+                };
+                imgSag.src = data.sagittal.data_url;
+            }
+
+            // Update Telemetry
+            if (sliceTag) sliceTag.textContent = `AXIAL SLICE ${mprState.axialIdx + 1} / ${mprState.maxSlices}`;
+            if (locTag && data.axial?.metadata?.slice_location_mm !== undefined) {
+                locTag.textContent = `LOC: ${data.axial.metadata.slice_location_mm} mm`;
+            }
+            if (huLiveTag) {
+                huLiveTag.textContent = `WINDOW: ${mprState.windowPreset}`;
+            }
+            if (wlLabel && data.axial?.metadata) {
+                wlLabel.textContent = `W:${data.axial.metadata.window_width} L:${data.axial.metadata.window_level}`;
+            }
+            if (sliceSlider) sliceSlider.value = mprState.axialIdx;
+            if (axialPos) axialPos.textContent = `Z: ${mprState.axialIdx + 1}/${mprState.maxSlices}`;
+            if (corPos) corPos.textContent = `Y: ${mprState.coronalIdx}/160`;
+            if (sagPos) sagPos.textContent = `X: ${mprState.sagittalIdx}/160`;
+
+        } catch (err) {
+            console.error('MPR loading error:', err);
+        }
+    }
+
+    function initVolumetricMPRViewer() {
+        const seriesSelector = document.getElementById('mpr-series-selector');
+        const huPresets = document.getElementById('mpr-hu-presets');
+        const sliceSlider = document.getElementById('mpr-slice-slider');
+        const prevBtn = document.getElementById('mpr-slice-prev-btn');
+        const nextBtn = document.getElementById('mpr-slice-next-btn');
+        const playBtn = document.getElementById('mpr-cine-play-btn');
+        const playText = document.getElementById('mpr-cine-play-text');
+        const fpsSlider = document.getElementById('mpr-fps-slider');
+        const fpsVal = document.getElementById('mpr-fps-val');
+        const axialCanvas = document.getElementById('mpr-axial-canvas');
+        const btnTri = document.getElementById('mpr-view-tri-btn');
+        const btnAxial = document.getElementById('mpr-view-axial-btn');
+        const mprGrid = document.getElementById('mpr-grid');
+        const panelCor = document.getElementById('mpr-panel-coronal');
+        const panelSag = document.getElementById('mpr-panel-sagittal');
+
+        // Series selection
+        if (seriesSelector) {
+            seriesSelector.addEventListener('change', () => {
+                mprState.seriesId = seriesSelector.value;
+                mprState.axialIdx = 16;
+                loadVolumetricMPR();
+            });
+        }
+
+        // HU Presets
+        if (huPresets) {
+            huPresets.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    huPresets.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    mprState.windowPreset = btn.dataset.hu;
+                    loadVolumetricMPR();
+                });
+            });
+        }
+
+        // Slice slider
+        if (sliceSlider) {
+            sliceSlider.addEventListener('input', () => {
+                mprState.axialIdx = parseInt(sliceSlider.value, 10);
+                loadVolumetricMPR();
+            });
+        }
+
+        // Step buttons
+        if (prevBtn) {
+            prevBtn.addEventListener('click', () => {
+                mprState.axialIdx = Math.max(0, mprState.axialIdx - 1);
+                loadVolumetricMPR();
+            });
+        }
+        if (nextBtn) {
+            nextBtn.addEventListener('click', () => {
+                mprState.axialIdx = Math.min(mprState.maxSlices - 1, mprState.axialIdx + 1);
+                loadVolumetricMPR();
+            });
+        }
+
+        // Mouse wheel slice scrolling on axial canvas
+        if (axialCanvas) {
+            let wheelTimeout = null;
+            axialCanvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                if (e.deltaY < 0) {
+                    mprState.axialIdx = Math.min(mprState.maxSlices - 1, mprState.axialIdx + 1);
+                } else {
+                    mprState.axialIdx = Math.max(0, mprState.axialIdx - 1);
+                }
+                clearTimeout(wheelTimeout);
+                wheelTimeout = setTimeout(loadVolumetricMPR, 20);
+            }, { passive: false });
+        }
+
+        // Cine Auto-Play
+        function toggleCine() {
+            mprState.isPlaying = !mprState.isPlaying;
+            if (mprState.isPlaying) {
+                if (playText) playText.textContent = 'Pause Cine';
+                mprState.timer = setInterval(() => {
+                    mprState.axialIdx = (mprState.axialIdx + 1) % mprState.maxSlices;
+                    loadVolumetricMPR();
+                }, 1000 / mprState.fps);
+            } else {
+                if (playText) playText.textContent = 'Play Cine';
+                clearInterval(mprState.timer);
+                mprState.timer = null;
+            }
+        }
+
+        if (playBtn) playBtn.addEventListener('click', toggleCine);
+
+        // FPS Speed
+        if (fpsSlider) {
+            fpsSlider.addEventListener('input', () => {
+                mprState.fps = parseInt(fpsSlider.value, 10);
+                if (fpsVal) fpsVal.textContent = `${mprState.fps} fps`;
+                if (mprState.isPlaying) {
+                    clearInterval(mprState.timer);
+                    mprState.timer = setInterval(() => {
+                        mprState.axialIdx = (mprState.axialIdx + 1) % mprState.maxSlices;
+                        loadVolumetricMPR();
+                    }, 1000 / mprState.fps);
+                }
+            });
+        }
+
+        // Layout mode (Tri-Planar vs Axial Solo)
+        if (btnTri && btnAxial && mprGrid) {
+            btnTri.addEventListener('click', () => {
+                btnTri.classList.add('active');
+                btnAxial.classList.remove('active');
+                mprGrid.style.gridTemplateColumns = '1.2fr 1fr 1fr';
+                if (panelCor) panelCor.style.display = 'flex';
+                if (panelSag) panelSag.style.display = 'flex';
+            });
+
+            btnAxial.addEventListener('click', () => {
+                btnAxial.classList.add('active');
+                btnTri.classList.remove('active');
+                mprGrid.style.gridTemplateColumns = '1fr';
+                if (panelCor) panelCor.style.display = 'none';
+                if (panelSag) panelSag.style.display = 'none';
+            });
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 22. HIPAA SECURITY AUDIT TRAIL MODAL
+    // ---------------------------------------------------------
+    function initAuditTrailModal() {
+        const auditDialog = document.getElementById('audit-trail-dialog');
+        const openBtn = document.getElementById('open-audit-trail-btn');
+        const closeBtn = document.getElementById('close-audit-modal-btn');
+        const dismissBtn = document.getElementById('dismiss-audit-btn');
+        const tbody = document.getElementById('audit-ledger-tbody');
+        const filterSelect = document.getElementById('audit-filter-action');
+        const refreshBtn = document.getElementById('audit-refresh-btn');
+        const integrityBadge = document.getElementById('audit-integrity-badge');
+        const integrityText = document.getElementById('audit-integrity-text');
+
+        async function fetchAuditTrail() {
+            const action = filterSelect ? filterSelect.value : '';
+            const queryUrl = action ? `/api/v1/audit/logs?limit=50&action=${action}` : '/api/v1/audit/logs?limit=50';
+
+            try {
+                const [logsRes, verifyRes] = await Promise.all([
+                    fetch(queryUrl),
+                    fetch('/api/v1/audit/verify')
+                ]);
+
+                if (verifyRes.ok) {
+                    const vData = await verifyRes.json();
+                    if (integrityBadge) {
+                        integrityBadge.className = `audit-integrity-badge ${vData.is_valid ? 'valid' : 'invalid'}`;
+                    }
+                    if (integrityText) {
+                        integrityText.textContent = vData.is_valid
+                            ? `SHA-256 Chained Hash: VALID & UNTAMPERED (${vData.total_events} Blocks)`
+                            : `INTEGRITY VIOLATION DETECTED: ${vData.message}`;
+                    }
+                }
+
+                if (logsRes.ok && tbody) {
+                    const lData = await logsRes.json();
+                    if (!lData.events || lData.events.length === 0) {
+                        tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 24px; color: #64748b;">No HIPAA audit events recorded for current filter.</td></tr>`;
+                        return;
+                    }
+
+                    tbody.innerHTML = lData.events.map(e => {
+                        let actionClass = 'phi';
+                        if (e.action === 'LOGIN') actionClass = 'login';
+                        else if (e.action === 'AI_INFERENCE') actionClass = 'inference';
+                        else if (e.action === 'ATTESTATION_SIGNED') actionClass = 'signoff';
+                        else if (e.action === 'PDF_EXPORTED') actionClass = 'pdf';
+                        else if (e.action === 'MODALITY_PUSH') actionClass = 'modality';
+                        else if (e.action === 'STUDY_DELETED') actionClass = 'delete';
+
+                        const detailsStr = Object.entries(e.details || {})
+                            .map(([k, v]) => `${k}: ${v}`)
+                            .slice(0, 3)
+                            .join(' • ');
+
+                        return `
+                            <tr>
+                                <td style="font-family: var(--font-mono); font-size: 10px; color: #94a3b8;">${escapeHtml(e.timestamp_utc)}</td>
+                                <td style="font-family: var(--font-mono); font-size: 10.5px; font-weight: 700; color: #f8fafc;">${escapeHtml(e.event_id)}</td>
+                                <td>
+                                    <div style="font-weight: 700; color: #f1f5f9;">${escapeHtml(e.username)}</div>
+                                    <div style="font-size: 9px; color: #64748b;">${escapeHtml(e.user_role)}</div>
+                                </td>
+                                <td><span class="audit-action-pill ${actionClass}">${escapeHtml(e.action)}</span></td>
+                                <td style="font-family: var(--font-mono); color: #38bdf8;">${escapeHtml(e.patient_mrn || 'N/A')}</td>
+                                <td style="font-size: 10.5px; color: #94a3b8; max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(detailsStr || 'None')}</td>
+                                <td><span class="audit-hash-code" title="${escapeHtml(e.record_hash)}">${escapeHtml(e.record_hash.substring(0, 14))}...</span></td>
+                            </tr>
+                        `;
+                    }).join('');
+                }
+            } catch (err) {
+                console.error('Audit trail load error:', err);
+                if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="color: #f87171; text-align: center; padding: 20px;">Failed to load audit records: ${escapeHtml(err.message)}</td></tr>`;
+            }
+        }
+
+        if (openBtn && auditDialog) {
+            openBtn.addEventListener('click', () => {
+                auditDialog.showModal();
+                fetchAuditTrail();
+            });
+        }
+
+        if (closeBtn && auditDialog) closeBtn.addEventListener('click', () => auditDialog.close());
+        if (dismissBtn && auditDialog) dismissBtn.addEventListener('click', () => auditDialog.close());
+        if (filterSelect) filterSelect.addEventListener('change', fetchAuditTrail);
+        if (refreshBtn) refreshBtn.addEventListener('click', fetchAuditTrail);
+    }
+
+    // ---------------------------------------------------------
+    // 23. HOSPITAL MODALITY ACQUISITION SIMULATOR
+    // ---------------------------------------------------------
+    function initModalitySimulator() {
+        const btnPushXR = document.getElementById('sim-push-xr-btn');
+        const btnPushCT = document.getElementById('sim-push-ct-btn');
+        const simLog = document.getElementById('modality-sim-log');
+        const simSummary = document.getElementById('modality-sim-summary');
+        const simStream = document.getElementById('modality-sim-stream');
+
+        async function triggerModalityPush(modalityKey, studyIdx, label) {
+            if (simLog) simLog.style.display = 'block';
+            if (simSummary) simSummary.textContent = `Acquiring & Transmitting via C-STORE...`;
+            if (simStream) simStream.innerHTML = `<div style="color: #38bdf8;">[INIT] Starting C-STORE transmission from ${modalityKey} (port 11112)...</div>`;
+
+            try {
+                const res = await fetch('/api/v1/pacs/simulate-modality', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        modality_key: modalityKey,
+                        study_idx: studyIdx,
+                        target_port: 11112
+                    })
+                });
+
+                const data = await res.json();
+                if (res.ok && data.success) {
+                    if (simSummary) simSummary.textContent = `Transmission Complete (${data.network_latency_ms} ms)`;
+                    if (simStream) {
+                        simStream.innerHTML += `
+                            <div style="color: #10b981;">[SUCCESS 0x0000] C-STORE Association Verified</div>
+                            <div style="color: #cbd5e1;">&nbsp;• Modality: ${escapeHtml(data.modality_device.manufacturer)} ${escapeHtml(data.modality_device.model_name)}</div>
+                            <div style="color: #cbd5e1;">&nbsp;• Patient: ${escapeHtml(data.study_transmitted.patient_name)} (${escapeHtml(data.study_transmitted.patient_id)})</div>
+                            <div style="color: #cbd5e1;">&nbsp;• Study: ${escapeHtml(data.study_transmitted.study_description)}</div>
+                            <div style="color: #cbd5e1;">&nbsp;• Acuity: <strong style="color: #f87171;">${escapeHtml(data.study_transmitted.acuity_level)}</strong></div>
+                            <div style="color: #38bdf8;">&nbsp;• Target SOP Instance UID: ${escapeHtml(data.sop_instance_uid)}</div>
+                        `;
+                    }
+                    showWorkstationToast(`📡 Ingested ${label} via C-STORE`);
+                    await fetchWorklist();
+                } else {
+                    if (simSummary) simSummary.textContent = 'Transmission Failed';
+                    if (simStream) simStream.innerHTML += `<div style="color: #f87171;">[FAILED] Transmission error: ${escapeHtml(data.detail || 'C-STORE rejected')}</div>`;
+                }
+            } catch (err) {
+                if (simSummary) simSummary.textContent = 'Network Error';
+                if (simStream) simStream.innerHTML += `<div style="color: #f87171;">[ERROR] ${escapeHtml(err.message)}</div>`;
+            }
+        }
+
+        if (btnPushXR) {
+            btnPushXR.addEventListener('click', () => {
+                triggerModalityPush('XR_EMERGENCY_BAY_1', 0, 'STAT Chest XR');
+            });
+        }
+
+        if (btnPushCT) {
+            btnPushCT.addEventListener('click', () => {
+                triggerModalityPush('CT_TRAUMA_SCANNER_2', 2, 'Emergency 3D CT');
+            });
+        }
+    }
+
+    // ---------------------------------------------------------
+    // INITIAL BOOT: FETCH WORKLIST & INIT ALL ENTERPRISE MODALS
     // ---------------------------------------------------------
     initPacsHubModal();
+    initUserAuthAndRBAC();
+    initWorkstationModeSwitch();
+    initVolumetricMPRViewer();
+    initAuditTrailModal();
+    initModalitySimulator();
     fetchWorklist();
 });
+
