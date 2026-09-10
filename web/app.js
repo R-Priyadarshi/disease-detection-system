@@ -232,6 +232,12 @@ document.addEventListener('DOMContentLoaded', () => {
             document.querySelectorAll('#colormap-selectors .colormap-pill').forEach(p => p.classList.remove('active'));
             pill.classList.add('active');
             selectedColormap = pill.dataset.color;
+
+            // If in Film Only mode, switch to Split Wipe or Thermal Only so the colormap is visible
+            if (currentViewMode === 'original') {
+                applyViewMode('split');
+            }
+
             if (currentFile && currentPrediction) executeAnalysis();
         });
     });
@@ -390,8 +396,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function resetSplitSlider() { setSplitPosition(50); }
 
     function setSplitPosition(pct) {
-        const clamped = Math.max(5, Math.min(95, pct));
-        splitClipped.style.width = `${clamped}%`;
+        const clamped = Math.max(0, Math.min(100, pct));
+        splitSliderWrapper.style.setProperty('--split-pos', `${clamped}%`);
         sliderHandle.style.left = `${clamped}%`;
     }
 
@@ -429,19 +435,22 @@ document.addEventListener('DOMContentLoaded', () => {
     // 9. Viewport Mode Toggles
     document.querySelectorAll('#viewport-modes .view-mode-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            document.querySelectorAll('#viewport-modes .view-mode-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            currentViewMode = btn.dataset.mode;
-            applyViewMode(currentViewMode);
+            applyViewMode(btn.dataset.mode);
         });
     });
 
     function applyViewMode(mode) {
+        currentViewMode = mode;
+        document.querySelectorAll('#viewport-modes .view-mode-btn').forEach(b => {
+            b.classList.toggle('active', b.dataset.mode === mode);
+        });
+
         if (mode === 'split') {
             splitSliderWrapper.hidden = false;
             sideBySideWrapper.hidden = true;
             splitClipped.hidden = false;
             sliderHandle.hidden = false;
+            splitClipped.style.clipPath = '';
             setSplitPosition(50);
         } else if (mode === 'side') {
             splitSliderWrapper.hidden = true;
@@ -456,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
             sideBySideWrapper.hidden = true;
             splitClipped.hidden = false;
             sliderHandle.hidden = true;
-            splitClipped.style.width = '100%';
+            splitClipped.style.clipPath = 'none';
         }
     }
 

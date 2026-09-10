@@ -4,6 +4,10 @@
    Aesthetic: Pure Obsidian Carbon, Liquid Titanium, Swiss Architectural Type
    ========================================================================== */
 
+[hidden] {
+    display: none !important;
+}
+
 :root {
     /* Base Neutral Obsidian & Carbon */
     --bg-canvas: #060709;
@@ -805,37 +809,50 @@ input[type="range"]::-webkit-slider-thumb {
     position: relative;
     width: 100%;
     height: 100%;
+    overflow: hidden;
 }
 
-.plate-img {
+#view-underlay,
+#view-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
     width: 100%;
     height: 100%;
     object-fit: contain;
     display: block;
+    user-select: none;
+    -webkit-user-drag: none;
+    pointer-events: none;
+}
+
+#view-underlay {
+    z-index: 1;
 }
 
 .split-curtain {
     position: absolute;
     top: 0;
     left: 0;
-    width: 50%;
+    width: 100%;
     height: 100%;
-    overflow: hidden;
-    border-right: 1px solid rgba(255, 255, 255, 0.85);
+    z-index: 2;
+    clip-path: inset(0 calc(100% - var(--split-pos, 50%)) 0 0);
+    pointer-events: none;
+    border-right: none;
 }
 
 .split-curtain .plate-img {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    max-width: none;
 }
 
 .split-divider {
     position: absolute;
     top: 0;
     bottom: 0;
-    left: 50%;
+    left: var(--split-pos, 50%);
     width: 32px;
     transform: translateX(-50%);
     cursor: ew-resize;
@@ -843,17 +860,38 @@ input[type="range"]::-webkit-slider-thumb {
     align-items: center;
     justify-content: center;
     z-index: 15;
+    pointer-events: auto;
+}
+
+.split-divider::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
 }
 
 .reticle-handle {
-    width: 22px;
-    height: 22px;
-    background: #000;
-    border: 1px solid #fff;
+    position: relative;
+    z-index: 2;
+    width: 24px;
+    height: 24px;
+    background: #060709;
+    border: 1.5px solid #ffffff;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.7);
+    transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.split-divider:hover .reticle-handle {
+    transform: scale(1.15);
+    border-color: var(--titanium-100);
 }
 
 /* Dual Screen View */

@@ -156,7 +156,9 @@ class GradCAMGenerator:
         else:
             orig_bgr = original_gray.copy()
 
-        # Superimpose heatmap onto radiograph
-        blended = cv2.addWeighted(orig_bgr, 1.0 - alpha, colored_heatmap, alpha, 0)
+        # Intensity-weighted clinical blending:
+        # High-activation opacities glow with thermal contrast while background parenchyma preserves native grayscale
+        weight = np.expand_dims(np.clip(resized_heatmap, 0.0, 1.0), -1) * float(np.clip(alpha * 1.35, 0.2, 0.95))
+        blended = np.clip(orig_bgr.astype(np.float32) * (1.0 - weight) + colored_heatmap.astype(np.float32) * weight, 0, 255).astype(np.uint8)
 
         return blended, colored_heatmap, zonation
