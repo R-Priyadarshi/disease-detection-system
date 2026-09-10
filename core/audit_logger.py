@@ -170,11 +170,13 @@ class AuditLogger:
 
                 # Check chained previous hash
                 if record.get("prev_hash") != expected_prev_hash:
+                    err_msg = f"Hash chain broken at index {idx}. Expected prev_hash {expected_prev_hash[:12]}..., got {record.get('prev_hash')[:12]}..."
                     return {
                         "is_valid": False,
                         "corrupted_event_id": record.get("event_id"),
                         "index": idx,
-                        "error": f"Hash chain broken at index {idx}. Expected prev_hash {expected_prev_hash[:12]}..., got {record.get('prev_hash')[:12]}..."
+                        "error": err_msg,
+                        "message": err_msg
                     }
 
                 # Recompute record hash
@@ -195,11 +197,13 @@ class AuditLogger:
                 recomputed = hashlib.sha256(canonical_str.encode('utf-8')).hexdigest()
 
                 if recomputed != record.get("record_hash"):
+                    err_msg = f"Data integrity violation at event {record.get('event_id')}. Hash does not match content."
                     return {
                         "is_valid": False,
                         "corrupted_event_id": record.get("event_id"),
                         "index": idx,
-                        "error": f"Data integrity violation at event {record.get('event_id')}. Hash does not match content."
+                        "error": err_msg,
+                        "message": err_msg
                     }
 
                 expected_prev_hash = record["record_hash"]

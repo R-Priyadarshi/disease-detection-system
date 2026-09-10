@@ -366,6 +366,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="study-card-footer">
                         <span>${escapeHtml(study.study_time)}</span>
                         <div style="display: flex; align-items: center; gap: 6px;">
+                            <button type="button" class="btn-card-consult" data-consult-id="${study.study_id}" title="Open Clinical Consultation & Voice Dictation" onclick="event.stopPropagation()">🎙️ Consult</button>
                             <a href="/viewer?study=${encodeURIComponent(study.study_id)}" target="_blank" class="btn-card-ohif" title="Launch in OHIF Diagnostic Viewer" onclick="event.stopPropagation()">OHIF ↗</a>
                             <span>${escapeHtml(study.modality)}</span>
                         </div>
@@ -377,12 +378,28 @@ document.addEventListener('DOMContentLoaded', () => {
         // Attach click listeners to cards (avoiding clicks on checkbox or dismiss button)
         studyQueueList.querySelectorAll('.study-card').forEach(card => {
             card.addEventListener('click', (e) => {
-                if (e.target.closest('.card-select-wrap') || e.target.closest('.btn-card-dismiss')) {
+                if (e.target.closest('.card-select-wrap') || e.target.closest('.btn-card-dismiss') || e.target.closest('.btn-card-consult')) {
                     return;
                 }
                 const id = card.dataset.studyId;
                 const study = worklistStudies.find(s => s.study_id === id);
                 if (study) loadWorklistStudy(study);
+            });
+        });
+
+        // Attach click listeners to individual consult buttons
+        studyQueueList.querySelectorAll('.btn-card-consult').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const id = btn.dataset.consultId;
+                const study = worklistStudies.find(s => s.study_id === id);
+                if (study) {
+                    loadWorklistStudy(study);
+                    setTimeout(() => {
+                        const openReportBtn = document.getElementById('open-report-btn');
+                        if (openReportBtn) openReportBtn.click();
+                    }, 120);
+                }
             });
         });
 
@@ -918,6 +935,15 @@ document.addEventListener('DOMContentLoaded', () => {
         // Sign-Off Attestation: 'S'
         if (e.key === 's' || e.key === 'S') {
             executeSignoff();
+        }
+
+        // Clinical Consultation & Voice Report: 'R'
+        if (e.key === 'r' || e.key === 'R') {
+            const isEditing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+            if (!isEditing) {
+                const openReportBtn = document.getElementById('open-report-btn');
+                if (openReportBtn) openReportBtn.click();
+            }
         }
 
         // Navigate Studies in Worklist: Arrow Down / J
@@ -1931,6 +1957,13 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (err) {
                 console.error('Report generation error:', err);
             }
+        });
+    }
+
+    const bannerReportBtn = document.getElementById('banner-report-btn');
+    if (bannerReportBtn) {
+        bannerReportBtn.addEventListener('click', () => {
+            if (openReportBtn) openReportBtn.click();
         });
     }
 

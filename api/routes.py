@@ -1144,7 +1144,7 @@ async def verify_audit_trail():
         is_valid=res["is_valid"],
         total_events=res.get("total_events", 0),
         latest_hash=res.get("latest_hash"),
-        message=res["message"]
+        message=res.get("message") or res.get("error", "Audit integrity verification complete.")
     )
 
 
