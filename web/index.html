@@ -101,6 +101,13 @@
                         </svg>
                         DICOM Tags (D)
                     </button>
+                    <button type="button" class="tool-btn" id="open-pacs-hub-btn" style="border-color: #0284c7; color: #38bdf8;">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="2"/>
+                            <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>
+                        </svg>
+                        PACS & DICOMweb (W)
+                    </button>
                     <button type="button" class="tool-btn" id="reset-pacs-btn">Reset All</button>
                 </div>
             </div>
@@ -341,6 +348,24 @@
                                 </svg>
                                 <span id="signoff-btn-text">Sign Off & Attest (S)</span>
                             </button>
+                        </div>
+                    </div>
+
+                    <!-- AI Multi-Label Thoracic Pathology Panel (6 Conditions) -->
+                    <div class="multilabel-panel" id="multilabel-panel">
+                        <div class="multilabel-header">
+                            <div class="multilabel-title-group">
+                                <span class="multilabel-icon">🫁</span>
+                                <span class="multilabel-eyebrow">AI MULTI-LABEL THORACIC PATHOLOGY PANEL (6 CONDITIONS)</span>
+                            </div>
+                            <div class="multilabel-acuity-tag" id="multilabel-acuity-tag">COMPOSITE ACUITY: STAT CRITICAL</div>
+                        </div>
+                        <div class="multilabel-findings-strip" id="multilabel-findings-strip">
+                            <!-- Populated dynamically via app.js -->
+                        </div>
+                        <div class="multilabel-impression" id="multilabel-impression" style="display: none;">
+                            <span class="impression-label">CLINICAL IMPRESSION:</span>
+                            <span class="impression-text" id="multilabel-impression-text"></span>
                         </div>
                     </div>
 
@@ -629,6 +654,260 @@
                         <span id="confirm-action-icon">🗑️</span>
                         <span id="confirm-action-label">Purge Study</span>
                     </button>
+                </div>
+            </div>
+        </dialog>
+
+        <!-- 4. Enterprise PACS & DICOMweb™ Interoperability Hub Modal -->
+        <dialog id="pacs-hub-dialog" class="pacs-hub-modal">
+            <div class="modal-shell pacs-hub-shell">
+                <div class="modal-top">
+                    <div class="modal-title-cluster">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <span class="pacs-hub-pulse-dot"></span>
+                            <span class="modal-title">Enterprise PACS & DICOMweb™ Interoperability Hub</span>
+                        </div>
+                        <span class="dicom-tag-sub">DICOM PS 3.4 DIMSE (C-STORE, C-ECHO, C-FIND) • DICOM PS 3.18 REST (QIDO-RS, WADO-RS, STOW-RS)</span>
+                    </div>
+                    <button type="button" class="modal-x" id="close-pacs-hub-btn" aria-label="Close PACS Hub">&times;</button>
+                </div>
+
+                <div class="pacs-hub-tabs" role="tablist">
+                    <button type="button" class="pacs-hub-tab-btn active" data-pacs-tab="tab-pacs-network">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>
+                        DIMSE Network & SCU/SCP
+                    </button>
+                    <button type="button" class="pacs-hub-tab-btn" data-pacs-tab="tab-dicomweb">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                        DICOMweb™ REST Services
+                    </button>
+                    <button type="button" class="pacs-hub-tab-btn" data-pacs-tab="tab-cohort">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        Clinical Cohort Ingestion (6 Patients)
+                    </button>
+                </div>
+
+                <div class="modal-scroll pacs-hub-scroll">
+                    <!-- Tab 1: DIMSE Network & SCU/SCP -->
+                    <div class="pacs-tab-panel active" id="tab-pacs-network">
+                        <div class="pacs-status-banner">
+                            <div class="pacs-status-left">
+                                <span class="pacs-live-indicator"></span>
+                                <div>
+                                    <div class="pacs-listener-title">Active Local DICOM Storage SCP (Port 11112)</div>
+                                    <div class="pacs-listener-sub">AE Title: <code>ALVEON_PACS</code> • Host: <code>0.0.0.0</code> • SOP Classes: CR, DX, CT, MR Storage</div>
+                                </div>
+                            </div>
+                            <span class="pacs-badge-online">● LISTENING / READY</span>
+                        </div>
+
+                        <div class="pacs-two-col">
+                            <!-- C-ECHO Ping Box -->
+                            <div class="pacs-card">
+                                <div class="pacs-card-header">
+                                    <h4>📡 C-ECHO Verification SCU (Ping)</h4>
+                                    <span class="pacs-card-sub">Test DICOM node association & reachability</span>
+                                </div>
+                                <div class="pacs-form-row">
+                                    <label for="pacs-ping-ae">Remote AE Title</label>
+                                    <input type="text" id="pacs-ping-ae" value="ALVEON_PACS" class="pacs-input" spellcheck="false">
+                                </div>
+                                <div class="pacs-form-cols">
+                                    <div class="pacs-form-row">
+                                        <label for="pacs-ping-host">Target Host IP</label>
+                                        <input type="text" id="pacs-ping-host" value="127.0.0.1" class="pacs-input" spellcheck="false">
+                                    </div>
+                                    <div class="pacs-form-row">
+                                        <label for="pacs-ping-port">Target Port</label>
+                                        <input type="number" id="pacs-ping-port" value="11112" class="pacs-input">
+                                    </div>
+                                </div>
+                                <button type="button" class="btn-pacs-action" id="btn-pacs-ping">
+                                    <span>Execute C-ECHO Ping</span>
+                                </button>
+                                <div class="pacs-console-log" id="pacs-ping-log">Ready for C-ECHO verification...</div>
+                            </div>
+
+                            <!-- C-STORE Push Box -->
+                            <div class="pacs-card">
+                                <div class="pacs-card-header">
+                                    <h4>🚀 C-STORE Push SCU (Forward Study)</h4>
+                                    <span class="pacs-card-sub">Transmit active radiologic study to remote PACS</span>
+                                </div>
+                                <div class="pacs-form-row">
+                                    <label for="pacs-push-ae">Destination AE Title</label>
+                                    <input type="text" id="pacs-push-ae" value="ALVEON_PACS" class="pacs-input" spellcheck="false">
+                                </div>
+                                <div class="pacs-form-cols">
+                                    <div class="pacs-form-row">
+                                        <label for="pacs-push-host">Destination Host</label>
+                                        <input type="text" id="pacs-push-host" value="127.0.0.1" class="pacs-input" spellcheck="false">
+                                    </div>
+                                    <div class="pacs-form-row">
+                                        <label for="pacs-push-port">Destination Port</label>
+                                        <input type="number" id="pacs-push-port" value="11112" class="pacs-input">
+                                    </div>
+                                </div>
+                                <div class="pacs-active-study-meta" id="pacs-push-target-meta">
+                                    <span>Selected Study: <strong id="pacs-push-study-name">—</strong></span>
+                                </div>
+                                <button type="button" class="btn-pacs-action" id="btn-pacs-push">
+                                    <span>Forward Study via C-STORE</span>
+                                </button>
+                                <div class="pacs-console-log" id="pacs-push-log">Select study and click Forward...</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: DICOMweb REST Services -->
+                    <div class="pacs-tab-panel" id="tab-dicomweb">
+                        <div class="dicomweb-overview">
+                            <div class="dicomweb-intro">
+                                <h4>DICOM PS 3.18 Standard RESTful Web Services</h4>
+                                <p>Alveon PACS provides native zero-footprint web integration for web viewers, hospital EMRs, and AI pipelines.</p>
+                            </div>
+                        </div>
+
+                        <div class="dicomweb-endpoints-list">
+                            <!-- QIDO-RS -->
+                            <div class="dicomweb-endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="http-verb get">GET</span>
+                                    <span class="endpoint-path">/dicomweb/studies</span>
+                                    <span class="spec-tag">QIDO-RS (PS 3.18 § 10.6)</span>
+                                </div>
+                                <p class="endpoint-desc">Query studies with DICOM JSON Part 18 formatted metadata attributes and study counts.</p>
+                                <div class="endpoint-actions">
+                                    <a href="/dicomweb/studies" target="_blank" class="endpoint-btn">Inspect JSON in Browser ↗</a>
+                                    <button type="button" class="endpoint-btn copy-curl-btn" data-curl="curl -s http://127.0.0.1:8000/dicomweb/studies">Copy cURL</button>
+                                </div>
+                            </div>
+
+                            <!-- WADO-RS Rendered -->
+                            <div class="dicomweb-endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="http-verb get">GET</span>
+                                    <span class="endpoint-path">/dicomweb/studies/{studyUID}/series/{seriesUID}/instances/{sopUID}/rendered</span>
+                                    <span class="spec-tag">WADO-RS Rendered (PS 3.18 § 9.5)</span>
+                                </div>
+                                <p class="endpoint-desc">Retrieve server-side windowed/leveled high-fidelity radiologic JPEG frame (image/jpeg).</p>
+                                <div class="endpoint-actions">
+                                    <button type="button" class="endpoint-btn" id="btn-test-wado-rendered">Test Active Study Rendered Plate ↗</button>
+                                </div>
+                            </div>
+
+                            <!-- WADO-RS Native -->
+                            <div class="dicomweb-endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="http-verb get">GET</span>
+                                    <span class="endpoint-path">/dicomweb/studies/{studyUID}/series/{seriesUID}/instances/{sopUID}</span>
+                                    <span class="spec-tag">WADO-RS Native DICOM (PS 3.18 § 9.4)</span>
+                                </div>
+                                <p class="endpoint-desc">Download native Part 10 binary stream (application/dicom) for diagnostic display stations.</p>
+                                <div class="endpoint-actions">
+                                    <button type="button" class="endpoint-btn" id="btn-download-native-dicom">Download Part 10 Binary File</button>
+                                </div>
+                            </div>
+
+                            <!-- STOW-RS -->
+                            <div class="dicomweb-endpoint-card">
+                                <div class="endpoint-header">
+                                    <span class="http-verb post">POST</span>
+                                    <span class="endpoint-path">/dicomweb/studies</span>
+                                    <span class="spec-tag">STOW-RS (PS 3.18 § 10.5)</span>
+                                </div>
+                                <p class="endpoint-desc">Store multipart/related or application/dicom instances directly into the archive with automated triage indexing.</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: Clinical Cohort Ingestion -->
+                    <div class="pacs-tab-panel" id="tab-cohort">
+                        <div class="cohort-hero">
+                            <div class="cohort-hero-text">
+                                <h4>Emergency Clinical Thoracic Cohort (6 Cases)</h4>
+                                <p>Simulate a live hospital PACS transmission feed over network C-STORE (port 11112). Transmits 6 diverse clinical cases with distinctive thoracic radiomic findings, automated multi-label AI analysis, and real-time triage prioritization.</p>
+                            </div>
+                            <button type="button" class="btn-cohort-inject" id="btn-inject-cohort">
+                                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                <span>⚡ Transmit 6-Patient Cohort via C-STORE</span>
+                            </button>
+                        </div>
+
+                        <div class="cohort-grid" id="cohort-cards-grid">
+                            <div class="cohort-card stat">
+                                <div class="cohort-card-top">
+                                    <span class="cohort-prio-badge stat">🚨 STAT CRITICAL</span>
+                                    <span class="cohort-cond-tag">PNEUMOTHORAX</span>
+                                </div>
+                                <div class="cohort-card-name">Rose Hastings</div>
+                                <div class="cohort-card-meta">MRN-ER-901 • 29F • STAT ER Trauma</div>
+                                <div class="cohort-card-desc">Tension apical visceral pleural line with absent peripheral lung markings in right apex.</div>
+                            </div>
+                            <div class="cohort-card stat">
+                                <div class="cohort-card-top">
+                                    <span class="cohort-prio-badge stat">🚨 STAT CRITICAL</span>
+                                    <span class="cohort-cond-tag">PNEUMONIA / ARDS</span>
+                                </div>
+                                <div class="cohort-card-name">Marcus Garrison</div>
+                                <div class="cohort-card-meta">MRN-ER-902 • 64M • STAT ICU Transfer</div>
+                                <div class="cohort-card-desc">Bilateral dense alveolar consolidation and air bronchograms across lower lobes.</div>
+                            </div>
+                            <div class="cohort-card urgent">
+                                <div class="cohort-card-top">
+                                    <span class="cohort-prio-badge urgent">URGENT</span>
+                                    <span class="cohort-cond-tag">PLEURAL EFFUSION</span>
+                                </div>
+                                <div class="cohort-card-name">Sun-Hee Kim</div>
+                                <div class="cohort-card-meta">MRN-ER-903 • 52F • Urgent Pulmonology</div>
+                                <div class="cohort-card-desc">Blunting of the right costophrenic sulcus with meniscus sign and fluid tracking.</div>
+                            </div>
+                            <div class="cohort-card urgent">
+                                <div class="cohort-card-top">
+                                    <span class="cohort-prio-badge urgent">URGENT</span>
+                                    <span class="cohort-cond-tag">CARDIOMEGALY</span>
+                                </div>
+                                <div class="cohort-card-name">Patrick O'Connor</div>
+                                <div class="cohort-card-meta">MRN-ER-904 • 71M • Urgent Cardiology</div>
+                                <div class="cohort-card-desc">Cardiothoracic ratio (CTR) exceeding 0.58 with left ventricular apex elongation.</div>
+                            </div>
+                            <div class="cohort-card urgent">
+                                <div class="cohort-card-top">
+                                    <span class="cohort-prio-badge urgent">URGENT</span>
+                                    <span class="cohort-cond-tag">ATELECTASIS</span>
+                                </div>
+                                <div class="cohort-card-name">Tariq Al-Mansoor</div>
+                                <div class="cohort-card-meta">MRN-ER-905 • 45M • Post-Op Recovery</div>
+                                <div class="cohort-card-desc">Horizontal linear plate-like opacities and volume reduction in left lower base.</div>
+                            </div>
+                            <div class="cohort-card routine">
+                                <div class="cohort-card-top">
+                                    <span class="cohort-prio-badge routine">ROUTINE</span>
+                                    <span class="cohort-cond-tag">NORMAL</span>
+                                </div>
+                                <div class="cohort-card-name">Chloe Thompson</div>
+                                <div class="cohort-card-meta">MRN-ER-906 • 24F • Routine Pre-Op</div>
+                                <div class="cohort-card-desc">Clear bilateral pulmonary parenchymal margins and sharp costophrenic angles.</div>
+                            </div>
+                        </div>
+
+                        <div class="cohort-log" id="cohort-inject-log" style="display: none;">
+                            <div class="cohort-log-header">
+                                <span>C-STORE TRANSMISSION PIPELINE TELEMETRY</span>
+                                <span id="cohort-log-summary">Transmitting...</span>
+                            </div>
+                            <div class="cohort-log-body" id="cohort-log-stream"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-bottom">
+                    <div class="pacs-footer-status">
+                        <span>DIMSE: <strong>C-STORE / C-ECHO (Port 11112)</strong></span>
+                        <span>•</span>
+                        <span>DICOMweb: <strong>REST PS 3.18</strong></span>
+                    </div>
+                    <button type="button" class="btn-titanium" id="dismiss-pacs-hub-btn">Close Hub</button>
                 </div>
             </div>
         </dialog>

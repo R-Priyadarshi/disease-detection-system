@@ -1,11 +1,21 @@
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Body
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Body, Request, Response
+from fastapi.responses import StreamingResponse, JSONResponse
 from core.pdf_generator import generate_clinical_report_pdf
 from core.dicom_listener import get_dicom_scp
+from core.multilabel import get_multilabel_engine
+from core.dicomweb import (
+    dataset_to_dicom_json,
+    study_item_to_dicom_json,
+    study_item_to_pydicom,
+    parse_multipart_dicom,
+    render_dicom_frame
+)
+from core.pacs_client import get_pacs_client
 from pathlib import Path
 import numpy as np
 import tensorflow as tf
 import cv2
+import io
 import uuid
 import datetime
 import hashlib
@@ -30,7 +40,10 @@ from api.schemas import (
     SignoffRequest,
     SignoffResponse,
     BatchDeleteRequest,
-    BatchDeleteResponse
+    BatchDeleteResponse,
+    MultiLabelFindingItem,
+    PacsPingRequest,
+    PacsPushRequest
 )
 
 from core.model import get_model, PneumoniaCNNModel
@@ -42,6 +55,7 @@ router = APIRouter()
 _model: Optional[PneumoniaCNNModel] = None
 _gradcam: Optional[GradCAMGenerator] = None
 _WORKLIST_CACHE: Optional[List[WorklistStudyItem]] = None
+
 
 def get_engine():
     """Access or lazily initialize the preloaded model and Grad-CAM generator."""
@@ -107,16 +121,17 @@ async def predict_chest_xray(
         resized = cv2.resize(proc_gray, (settings.INPUT_WIDTH, settings.INPUT_HEIGHT), interpolation=cv2.INTER_AREA)
         tensor = resized.reshape(1, settings.INPUT_HEIGHT, settings.INPUT_WIDTH, 1).astype(np.float32) / settings.NORMALIZATION_SCALE
 
-        # 3. Forward Neural Classification
-        inference_result = model.predict_tensor(tensor)
-
-        # 4. Grad-CAM Synthesis with Anatomical Quadrant Zonation
+        # 3. Grad-CAM Synthesis with Anatomical Quadrant Zonation
         blended_bgr, heatmap_bgr, zonation = gradcam.generate_overlay(
             original_gray=proc_gray,
             tensor=tensor,
             colormap_name=colormap,
             alpha=float(np.clip(heatmap_alpha, 0.1, 0.9))
         )
+
+        # 4. Multi-Label Neural & Radiomic Diagnostic Classification
+        inference_result = model.predict_multilabel(tensor, proc_gray, zonation)
+        findings_objs = [MultiLabelFindingItem(**f) for f in inference_result["all_findings"]]
 
         # 5. High-Efficiency Base64 Encodings
         orig_b64 = preprocessor.to_base64_jpeg(proc_gray)
@@ -137,7 +152,12 @@ async def predict_chest_xray(
             original_image_b64=orig_b64,
             gradcam_overlay_b64=blended_b64,
             gradcam_heatmap_b64=heatmap_b64,
-            dicom_metadata=DicomMetadataModel(**dicom_meta)
+            dicom_metadata=DicomMetadataModel(**dicom_meta),
+            primary_finding=inference_result["primary_finding"],
+            primary_display_name=inference_result["primary_display_name"],
+            secondary_findings=inference_result["secondary_findings"],
+            findings=findings_objs,
+            clinical_impression=inference_result["clinical_impression"]
         )
 
     except HTTPException:
@@ -244,22 +264,16 @@ async def get_emergency_worklist():
         resized = cv2.resize(raw_gray, (settings.INPUT_WIDTH, settings.INPUT_HEIGHT), interpolation=cv2.INTER_AREA)
         tensor = resized.reshape(1, settings.INPUT_HEIGHT, settings.INPUT_WIDTH, 1).astype(np.float32) / settings.NORMALIZATION_SCALE
         
-        pred = model.predict_tensor(tensor)
-        blended_bgr, _, zonation = gradcam.generate_overlay(raw_gray, tensor, colormap_name="inferno", alpha=0.5)
+        _, _, zonation = gradcam.generate_overlay(raw_gray, tensor, colormap_name="inferno", alpha=0.5)
+        pred = model.predict_multilabel(tensor, raw_gray, zonation)
+        blended_bgr, _, _ = gradcam.generate_overlay(raw_gray, tensor, colormap_name="inferno", alpha=0.5)
 
         is_pneu = pred["is_pneumonia"]
         conf = pred["confidence_percentage"]
+        priority = pred["priority"]
+        rank = pred["priority_rank"]
 
-        # Acuity Priority Assignment
-        if is_pneu and conf >= 85.0:
-            priority = "STAT_CRITICAL"
-            rank = 1
-        elif is_pneu:
-            priority = "URGENT"
-            rank = 2
-        else:
-            priority = "ROUTINE"
-            rank = 3
+        findings_objs = [MultiLabelFindingItem(**f) for f in pred["all_findings"]]
 
         studies.append(WorklistStudyItem(
             study_id=spec["study_id"],
@@ -278,7 +292,10 @@ async def get_emergency_worklist():
             image_b64=preprocessor.to_base64_jpeg(raw_gray),
             gradcam_overlay_b64=preprocessor.to_base64_jpeg(blended_bgr),
             zonation=AnatomicalZonation(**zonation),
-            dicom_metadata=DicomMetadataModel(**dicom_meta)
+            dicom_metadata=DicomMetadataModel(**dicom_meta),
+            primary_finding=pred["primary_finding"],
+            secondary_findings=pred["secondary_findings"],
+            findings=findings_objs
         ))
 
     # Acuity Sort: Rank 1 (STAT) -> Rank 2 (URGENT) -> Rank 3 (ROUTINE)
@@ -317,21 +334,14 @@ async def batch_triage_radiographs(
             resized = cv2.resize(raw_gray, (settings.INPUT_WIDTH, settings.INPUT_HEIGHT), interpolation=cv2.INTER_AREA)
             tensor = resized.reshape(1, settings.INPUT_HEIGHT, settings.INPUT_WIDTH, 1).astype(np.float32) / settings.NORMALIZATION_SCALE
 
-            pred = model.predict_tensor(tensor)
-            blended_bgr, _, zonation = gradcam.generate_overlay(raw_gray, tensor, colormap_name="inferno", alpha=0.5)
+            _, _, zonation = gradcam.generate_overlay(raw_gray, tensor, colormap_name="inferno", alpha=0.5)
+            pred = model.predict_multilabel(tensor, raw_gray, zonation)
+            blended_bgr, _, _ = gradcam.generate_overlay(raw_gray, tensor, colormap_name="inferno", alpha=0.5)
 
             is_pneu = pred["is_pneumonia"]
             conf = pred["confidence_percentage"]
-
-            if is_pneu and conf >= 85.0:
-                prio = "STAT_CRITICAL"
-                rank = 1
-            elif is_pneu:
-                prio = "URGENT"
-                rank = 2
-            else:
-                prio = "ROUTINE"
-                rank = 3
+            prio = pred["priority"]
+            rank = pred["priority_rank"]
 
             # Clean patient name and MRN
             raw_pname = dicom_meta.get("patient_name")
@@ -344,6 +354,8 @@ async def batch_triage_radiographs(
                 clean_pname = f"PATIENT #{idx + 1}"
 
             study_id = f"ALV-BAT-{uuid.uuid4().hex[:6].upper()}"
+            findings_objs = [MultiLabelFindingItem(**item_f) for item_f in pred["all_findings"]]
+
             item = WorklistStudyItem(
                 study_id=study_id,
                 patient_mrn=dicom_meta.get("patient_id", f"MRN-{uuid.uuid4().hex[:5].upper()}"),
@@ -361,7 +373,10 @@ async def batch_triage_radiographs(
                 image_b64=preprocessor.to_base64_jpeg(raw_gray),
                 gradcam_overlay_b64=preprocessor.to_base64_jpeg(blended_bgr),
                 zonation=AnatomicalZonation(**zonation),
-                dicom_metadata=DicomMetadataModel(**dicom_meta)
+                dicom_metadata=DicomMetadataModel(**dicom_meta),
+                primary_finding=pred["primary_finding"],
+                secondary_findings=pred["secondary_findings"],
+                findings=findings_objs
             )
             triaged.append(item)
         except Exception:
@@ -555,6 +570,241 @@ async def trigger_dicom_echo():
         }
     res = scp.send_echo(host="127.0.0.1")
     return res
+
+# ==============================================================================
+# EXTERNAL PACS & DICOM INTEROPERABILITY ENDPOINTS
+# ==============================================================================
+
+@router.post("/api/v1/pacs/ping", tags=["External PACS & Connectivity"])
+async def ping_external_pacs_node(req: PacsPingRequest):
+    """
+    Executes a DICOM C-ECHO verification request to an external PACS or local listener.
+    """
+    client = get_pacs_client()
+    return client.ping(host=req.host, port=req.port, remote_ae=req.ae_title)
+
+@router.post("/api/v1/pacs/push", tags=["External PACS & Connectivity"])
+async def push_study_to_external_pacs(req: PacsPushRequest):
+    """
+    Transmits an existing triage study to an external PACS destination via C-STORE.
+    """
+    global _WORKLIST_CACHE
+    if not _WORKLIST_CACHE:
+        await get_emergency_worklist()
+    study = next((s for s in _WORKLIST_CACHE if s.study_id == req.study_id), None)
+    if not study:
+        raise HTTPException(status_code=404, detail=f"Study {req.study_id} not found in active triage worklist.")
+
+    ds = study_item_to_pydicom(study)
+    client = get_pacs_client()
+    return client.push_study(ds, host=req.host, port=req.port, remote_ae=req.ae_title)
+
+@router.post("/api/v1/pacs/inject-cohort", tags=["External PACS & Connectivity"])
+async def inject_external_pacs_cohort():
+    """
+    Generates and ingests a diverse 6-patient clinical cohort representing distinct
+    thoracic pathologies (Tension Pneumothorax, Lobar Pneumonia, Pleural Effusion,
+    Cardiomegaly, Atelectasis, Normal) into the live ER worklist.
+    """
+    from tests.test_external_pacs_cohort import generate_cohort_datasets
+    datasets = generate_cohort_datasets()
+    client = get_pacs_client()
+    results = []
+    for ds in datasets:
+        res = client.push_study(ds, host="127.0.0.1", port=11112, remote_ae="ALVEON_PACS")
+        results.append(res)
+    return {
+        "status": "success",
+        "cohort_count": len(results),
+        "results": results
+    }
+
+# ==============================================================================
+# DICOMweb REST SERVICES (DICOM PS 3.18 / QIDO-RS, WADO-RS, STOW-RS)
+# ==============================================================================
+
+def _find_study(identifier: str) -> Optional[WorklistStudyItem]:
+    global _WORKLIST_CACHE
+    if not _WORKLIST_CACHE:
+        return None
+    for s in _WORKLIST_CACHE:
+        uid = f"1.2.826.0.1.3680043.9.7123.{abs(hash(s.study_id)) % 1000000000}"
+        if s.study_id == identifier or uid == identifier:
+            return s
+    return None
+
+@router.get("/dicomweb/studies", tags=["DICOMweb REST Services (DICOM Part 18)"])
+async def qido_search_studies(
+    PatientID: Optional[str] = None,
+    PatientName: Optional[str] = None,
+    StudyDate: Optional[str] = None,
+    limit: int = 50,
+    offset: int = 0
+):
+    """
+    QIDO-RS (Query ID in DICOM Objects): Search studies conforming to DICOM Part 18 JSON.
+    """
+    global _WORKLIST_CACHE
+    if not _WORKLIST_CACHE:
+        await get_emergency_worklist()
+
+    matches = []
+    for s in _WORKLIST_CACHE:
+        if PatientID and PatientID.lower() not in s.patient_mrn.lower():
+            continue
+        if PatientName and PatientName.lower() not in s.patient_name.lower():
+            continue
+        matches.append(study_item_to_dicom_json(s))
+
+    return JSONResponse(
+        content=matches[offset:offset + limit],
+        media_type="application/dicom+json"
+    )
+
+@router.get("/dicomweb/studies/{study_uid}/series", tags=["DICOMweb REST Services (DICOM Part 18)"])
+async def qido_search_series(study_uid: str):
+    """
+    QIDO-RS: Returns series for a study.
+    """
+    study = _find_study(study_uid)
+    if not study:
+        raise HTTPException(status_code=404, detail="Study not found.")
+    doc = study_item_to_dicom_json(study)
+    series_doc = {
+        "0020000D": doc["0020000D"],
+        "0020000E": doc["0020000E"],
+        "00080060": doc["00080060"],
+        "00200011": doc["00200011"],
+        "0008103E": {"vr": "LO", "Value": ["Thoracic Radiograph Series"]}
+    }
+    return JSONResponse(content=[series_doc], media_type="application/dicom+json")
+
+@router.get("/dicomweb/studies/{study_uid}/series/{series_uid}/instances", tags=["DICOMweb REST Services (DICOM Part 18)"])
+async def qido_search_instances(study_uid: str, series_uid: str):
+    """
+    QIDO-RS: Returns instances for a series.
+    """
+    study = _find_study(study_uid)
+    if not study:
+        raise HTTPException(status_code=404, detail="Study not found.")
+    doc = study_item_to_dicom_json(study)
+    return JSONResponse(content=[doc], media_type="application/dicom+json")
+
+@router.get("/dicomweb/studies/{study_uid}/series/{series_uid}/instances/{instance_uid}", tags=["DICOMweb REST Services (DICOM Part 18)"])
+async def wado_retrieve_instance(study_uid: str, series_uid: str, instance_uid: str):
+    """
+    WADO-RS: Retrieves native binary DICOM instance.
+    """
+    study = _find_study(study_uid)
+    if not study:
+        raise HTTPException(status_code=404, detail="Instance not found.")
+    ds = study_item_to_pydicom(study)
+    bio = io.BytesIO()
+    ds.save_as(bio, write_like_original=False)
+    bio.seek(0)
+    return Response(content=bio.getvalue(), media_type="application/dicom")
+
+@router.get("/dicomweb/studies/{study_uid}/series/{series_uid}/instances/{instance_uid}/metadata", tags=["DICOMweb REST Services (DICOM Part 18)"])
+async def wado_retrieve_instance_metadata(study_uid: str, series_uid: str, instance_uid: str):
+    """
+    WADO-RS: Retrieves full DICOM JSON metadata for instance.
+    """
+    study = _find_study(study_uid)
+    if not study:
+        raise HTTPException(status_code=404, detail="Instance not found.")
+    doc = study_item_to_dicom_json(study)
+    return JSONResponse(content=[doc], media_type="application/dicom+json")
+
+@router.get("/dicomweb/studies/{study_uid}/series/{series_uid}/instances/{instance_uid}/rendered", tags=["DICOMweb REST Services (DICOM Part 18)"])
+async def wado_retrieve_rendered_instance(study_uid: str, series_uid: str, instance_uid: str):
+    """
+    WADO-RS: Retrieves windowed diagnostic rendered frame (JPEG).
+    """
+    study = _find_study(study_uid)
+    if not study:
+        raise HTTPException(status_code=404, detail="Instance not found.")
+    ds = study_item_to_pydicom(study)
+    jpg_bytes = render_dicom_frame(ds)
+    return Response(content=jpg_bytes, media_type="image/jpeg")
+
+@router.post("/dicomweb/studies", tags=["DICOMweb REST Services (DICOM Part 18)"])
+async def stow_store_instances(request: Request):
+    """
+    STOW-RS (Store Over the Web): Stores DICOM instances submitted via multipart/related
+    or raw application/dicom binary, executes multi-label AI triage, and updates worklist.
+    """
+    content_type = request.headers.get("content-type", "")
+    body = await request.body()
+    if not body:
+        raise HTTPException(status_code=400, detail="Empty request payload for STOW-RS.")
+
+    dicom_binaries = parse_multipart_dicom(body, content_type)
+    if not dicom_binaries:
+        raise HTTPException(status_code=400, detail="No valid DICOM instances extracted from STOW-RS payload.")
+
+    model, gradcam = get_engine()
+    ingested_count = 0
+
+    for raw_dcm in dicom_binaries:
+        try:
+            raw_gray, dicom_meta = preprocessor.load_image_or_dicom(raw_dcm, filename="stow.dcm")
+            resized = cv2.resize(raw_gray, (settings.INPUT_WIDTH, settings.INPUT_HEIGHT), interpolation=cv2.INTER_AREA)
+            tensor = resized.reshape(1, settings.INPUT_HEIGHT, settings.INPUT_WIDTH, 1).astype(np.float32) / settings.NORMALIZATION_SCALE
+
+            _, _, zonation = gradcam.generate_overlay(raw_gray, tensor, colormap_name="inferno", alpha=0.5)
+            multi_pred = model.predict_multilabel(tensor, raw_gray, zonation)
+            blended_bgr, _, _ = gradcam.generate_overlay(raw_gray, tensor, colormap_name="inferno", alpha=0.5)
+
+            study_id = f"ALV-STOW-{uuid.uuid4().hex[:6].upper()}"
+            findings_objs = [MultiLabelFindingItem(**item_f) for item_f in multi_pred["all_findings"]]
+
+            raw_pname = dicom_meta.get("patient_name", "STOW Patient")
+            clean_name = str(raw_pname).replace("^", ", ") if raw_pname else "STOW Patient"
+
+            item = WorklistStudyItem(
+                study_id=study_id,
+                patient_mrn=dicom_meta.get("patient_id", f"MRN-{uuid.uuid4().hex[:5].upper()}"),
+                patient_name=clean_name,
+                patient_age_sex=f"{dicom_meta.get('patient_age', '50Y')} / {dicom_meta.get('patient_sex', 'U')}",
+                study_time=datetime.datetime.now().strftime("%H:%M EST"),
+                priority=multi_pred["priority"],
+                priority_rank=multi_pred["priority_rank"],
+                diagnosis=multi_pred["diagnosis"],
+                is_pneumonia=multi_pred["is_pneumonia"],
+                confidence_percentage=multi_pred["confidence_percentage"],
+                dominant_zone=zonation.get("dominant_zone", "Right Lower Lobe"),
+                status="PENDING",
+                modality="DX",
+                image_b64=preprocessor.to_base64_jpeg(raw_gray),
+                gradcam_overlay_b64=preprocessor.to_base64_jpeg(blended_bgr),
+                zonation=AnatomicalZonation(**zonation),
+                dicom_metadata=DicomMetadataModel(**dicom_meta),
+                primary_finding=multi_pred["primary_finding"],
+                secondary_findings=multi_pred["secondary_findings"],
+                findings=findings_objs
+            )
+
+            global _WORKLIST_CACHE
+            if _WORKLIST_CACHE is None:
+                _WORKLIST_CACHE = []
+            _WORKLIST_CACHE.insert(0, item)
+            _WORKLIST_CACHE.sort(key=lambda s: (s.priority_rank, s.status == "SIGNED"))
+            ingested_count += 1
+        except Exception as e:
+            pass
+
+    return JSONResponse(
+        status_code=200,
+        content={
+            "00081199": {
+                "vr": "SQ",
+                "Value": [{"00081190": {"vr": "UR", "Value": ["/dicomweb/studies"]}}]
+            },
+            "status": "success",
+            "ingested_count": ingested_count
+        },
+        media_type="application/dicom+json"
+    )
 
 @router.get("/api/v1/samples", response_model=SamplesListResponse, tags=["PACS Verification Samples"])
 async def get_sample_radiographs():

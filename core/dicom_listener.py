@@ -86,27 +86,20 @@ class DicomScpService:
             raw_gray, dicom_meta = preprocessor.load_image_or_dicom(raw_bytes, filename=filename)
 
             # Deconvolve & predict
-            from api.routes import get_engine, _WORKLIST_CACHE, WorklistStudyItem, AnatomicalZonation, DicomMetadataModel
+            from api.routes import get_engine, _WORKLIST_CACHE, WorklistStudyItem, AnatomicalZonation, DicomMetadataModel, MultiLabelFindingItem
             model, gradcam = get_engine()
 
             resized = cv2.resize(raw_gray, (settings.INPUT_WIDTH, settings.INPUT_HEIGHT), interpolation=cv2.INTER_AREA)
             tensor = resized.reshape(1, settings.INPUT_HEIGHT, settings.INPUT_WIDTH, 1).astype(np.float32) / settings.NORMALIZATION_SCALE
 
-            pred = model.predict_tensor(tensor)
-            blended_bgr, _, zonation = gradcam.generate_overlay(raw_gray, tensor, colormap_name="inferno", alpha=0.5)
+            _, _, zonation = gradcam.generate_overlay(raw_gray, tensor, colormap_name="inferno", alpha=0.5)
+            multi_pred = model.predict_multilabel(tensor, raw_gray, zonation)
+            blended_bgr, _, _ = gradcam.generate_overlay(raw_gray, tensor, colormap_name="inferno", alpha=0.5)
 
-            is_pneu = pred["is_pneumonia"]
-            conf = pred["confidence_percentage"]
-
-            if is_pneu and conf >= 85.0:
-                prio = "STAT_CRITICAL"
-                rank = 1
-            elif is_pneu:
-                prio = "URGENT"
-                rank = 2
-            else:
-                prio = "ROUTINE"
-                rank = 3
+            is_pneu = multi_pred["is_pneumonia"]
+            conf = multi_pred["confidence_percentage"]
+            prio = multi_pred["priority"]
+            rank = multi_pred["priority_rank"]
 
             # Patient Name Cleaning
             raw_name = dicom_meta.get("patient_name", "ANONYMOUS PATIENT")
@@ -115,6 +108,8 @@ class DicomScpService:
                 clean_name = f"Inbound DICOM #{sop_uid[:6].upper()}"
 
             study_id = f"ALV-DCM-{uuid.uuid4().hex[:6].upper()}"
+            findings_objs = [MultiLabelFindingItem(**f) for f in multi_pred["all_findings"]]
+
             item = WorklistStudyItem(
                 study_id=study_id,
                 patient_mrn=dicom_meta.get("patient_id", f"MRN-{uuid.uuid4().hex[:5].upper()}"),
@@ -123,7 +118,7 @@ class DicomScpService:
                 study_time=datetime.datetime.now().strftime("%H:%M EST"),
                 priority=prio,
                 priority_rank=rank,
-                diagnosis=pred["diagnosis"],
+                diagnosis=multi_pred["diagnosis"],
                 is_pneumonia=is_pneu,
                 confidence_percentage=conf,
                 dominant_zone=zonation.get("dominant_zone", "Right Lower Lobe"),
@@ -132,7 +127,10 @@ class DicomScpService:
                 image_b64=preprocessor.to_base64_jpeg(raw_gray),
                 gradcam_overlay_b64=preprocessor.to_base64_jpeg(blended_bgr),
                 zonation=AnatomicalZonation(**zonation),
-                dicom_metadata=DicomMetadataModel(**dicom_meta)
+                dicom_metadata=DicomMetadataModel(**dicom_meta),
+                primary_finding=multi_pred["primary_finding"],
+                secondary_findings=multi_pred["secondary_findings"],
+                findings=findings_objs
             )
 
             # Update Worklist Cache

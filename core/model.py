@@ -108,6 +108,36 @@ class PneumoniaCNNModel:
             "latency_ms": latency_ms
         }
 
+    def predict_multilabel(
+        self,
+        tensor: np.ndarray,
+        raw_gray: np.ndarray,
+        zonation: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """
+        Executes full multi-label thoracic diagnostic evaluation across all 6
+        pathology classes (Pneumonia, Pneumothorax, Pleural Effusion, Cardiomegaly,
+        Atelectasis, and Normal).
+        """
+        base = self.predict_tensor(tensor)
+        from core.multilabel import get_multilabel_engine
+        multi_engine = get_multilabel_engine()
+        analysis = multi_engine.analyze_radiograph(raw_gray, base["probability"], zonation)
+
+        return {
+            **base,
+            "primary_finding": analysis["primary_finding"],
+            "primary_display_name": analysis["primary_display_name"],
+            "primary_confidence": analysis["primary_confidence"],
+            "is_pathology_present": analysis["is_pathology_present"],
+            "priority": analysis["priority"],
+            "priority_rank": analysis["priority_rank"],
+            "clinical_impression": analysis["clinical_impression"],
+            "secondary_findings": analysis["secondary_findings"],
+            "all_findings": analysis["all_findings"],
+            "detected_findings": analysis["detected_findings"]
+        }
+
 _model_instance: Optional[PneumoniaCNNModel] = None
 
 def get_model() -> PneumoniaCNNModel:
@@ -115,3 +145,4 @@ def get_model() -> PneumoniaCNNModel:
     if _model_instance is None:
         _model_instance = PneumoniaCNNModel()
     return _model_instance
+

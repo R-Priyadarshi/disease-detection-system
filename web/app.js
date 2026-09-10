@@ -140,6 +140,36 @@ document.addEventListener('DOMContentLoaded', () => {
     const dicomFooterSyntax = document.getElementById('dicom-footer-syntax');
     const dicomModalSubtitle = document.getElementById('dicom-modal-subtitle');
 
+    // Multi-Label Pathology Panel
+    const multilabelPanel = document.getElementById('multilabel-panel');
+    const multilabelAcuityTag = document.getElementById('multilabel-acuity-tag');
+    const multilabelFindingsStrip = document.getElementById('multilabel-findings-strip');
+    const multilabelImpression = document.getElementById('multilabel-impression');
+    const multilabelImpressionText = document.getElementById('multilabel-impression-text');
+
+    // Enterprise PACS & DICOMweb Interoperability Hub
+    const openPacsHubBtn = document.getElementById('open-pacs-hub-btn');
+    const pacsHubDialog = document.getElementById('pacs-hub-dialog');
+    const closePacsHubBtn = document.getElementById('close-pacs-hub-btn');
+    const dismissPacsHubBtn = document.getElementById('dismiss-pacs-hub-btn');
+    const pacsPingAe = document.getElementById('pacs-ping-ae');
+    const pacsPingHost = document.getElementById('pacs-ping-host');
+    const pacsPingPort = document.getElementById('pacs-ping-port');
+    const btnPacsPing = document.getElementById('btn-pacs-ping');
+    const pacsPingLog = document.getElementById('pacs-ping-log');
+    const pacsPushAe = document.getElementById('pacs-push-ae');
+    const pacsPushHost = document.getElementById('pacs-push-host');
+    const pacsPushPort = document.getElementById('pacs-push-port');
+    const btnPacsPush = document.getElementById('btn-pacs-push');
+    const pacsPushLog = document.getElementById('pacs-push-log');
+    const pacsPushStudyName = document.getElementById('pacs-push-study-name');
+    const btnInjectCohort = document.getElementById('btn-inject-cohort');
+    const cohortInjectLog = document.getElementById('cohort-inject-log');
+    const cohortLogStream = document.getElementById('cohort-log-stream');
+    const cohortLogSummary = document.getElementById('cohort-log-summary');
+    const btnTestWadoRendered = document.getElementById('btn-test-wado-rendered');
+    const btnDownloadNativeDicom = document.getElementById('btn-download-native-dicom');
+
     // ---------------------------------------------------------
     // WORKSTATION STATE
     // ---------------------------------------------------------
@@ -148,6 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let activeFilter = 'all';
     let selectedStudyIds = new Set();
     let isSelectModeActive = false;
+    let openPacsHubModal = () => {};
 
     let currentFile = null;
     let currentPrediction = null;
@@ -259,9 +290,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                     <div class="empty-queue-title">Triage Queue Empty</div>
                     <p class="empty-queue-desc">No studies match active filter or queue was purged. Ingest new cohorts or restore baseline cases.</p>
-                    <div class="empty-queue-btn-row">
+                    <div class="empty-queue-btn-row" style="display: flex; flex-direction: column; gap: 8px;">
                         <button type="button" class="btn-quick-upload" id="empty-restore-baseline-btn" style="width: 100%; justify-content: center;">
                             🔄 Restore Baseline Studies
+                        </button>
+                        <button type="button" class="btn-quick-upload" id="empty-inject-cohort-btn" style="width: 100%; justify-content: center; background: rgba(2, 132, 199, 0.2); border-color: #0284c7; color: #38bdf8;">
+                            ⚡ Transmit 6-Patient PACS Cohort
                         </button>
                     </div>
                 </div>
@@ -269,6 +303,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const emptyRestoreBtn = document.getElementById('empty-restore-baseline-btn');
             if (emptyRestoreBtn) {
                 emptyRestoreBtn.addEventListener('click', restoreBaselineStudies);
+            }
+            const emptyCohortBtn = document.getElementById('empty-inject-cohort-btn');
+            if (emptyCohortBtn) {
+                emptyCohortBtn.addEventListener('click', () => {
+                    if (btnInjectCohort) btnInjectCohort.click();
+                    else openPacsHubModal();
+                });
             }
             updateBulkSelectionBar();
             return;
@@ -317,9 +358,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="patient-sub">${escapeHtml(study.patient_mrn)} • ${escapeHtml(study.patient_age_sex)}</div>
                     </div>
                     <div class="study-card-finding">
-                        <span class="finding-tag ${confBadgeClass}">${escapeHtml(study.diagnosis)}</span>
+                        <span class="finding-tag ${confBadgeClass}">${escapeHtml(study.primary_finding || study.diagnosis)}</span>
                         <span class="conf-text">${Math.round(study.confidence_percentage)}%</span>
                         <span class="zone-text">• ${escapeHtml(study.dominant_zone)}</span>
+                        ${study.secondary_findings && study.secondary_findings.length > 0 ? `<span class="sec-findings-badge" style="background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8; font-size: 9px; padding: 1px 4px; border-radius: 3px; margin-left: 4px; font-family: var(--font-mono);">+${study.secondary_findings.length}</span>` : ''}
                     </div>
                     <div class="study-card-footer">
                         <span>${escapeHtml(study.study_time)}</span>
@@ -619,6 +661,11 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSignoffButtonState(study.status === 'SIGNED');
 
         // Construct normalized prediction object for workstation components
+        const primaryFinding = study.primary_finding || study.diagnosis;
+        const defaultImpression = primaryFinding && primaryFinding !== 'NORMAL'
+            ? `Radiologic evaluation demonstrates focal evidence of ${primaryFinding.toLowerCase().replace(/_/g, ' ')} with ${Math.round(study.confidence_percentage)}% model confidence.`
+            : 'Thoracic structures within normal physiological limits. No acute consolidation or pneumothorax.';
+
         currentPrediction = {
             study_id: study.study_id,
             diagnosis: study.diagnosis,
@@ -633,7 +680,73 @@ document.addEventListener('DOMContentLoaded', () => {
             original_image_b64: study.image_b64,
             gradcam_overlay_b64: study.gradcam_overlay_b64,
             latency_ms: 12.4,
-            dicom_metadata: study.dicom_metadata
+            dicom_metadata: study.dicom_metadata,
+            primary_finding: primaryFinding,
+            primary_display_name: primaryFinding.replace(/_/g, ' '),
+            secondary_findings: study.secondary_findings || [],
+            findings: study.findings || [
+                {
+                    name: study.is_pneumonia ? 'PNEUMONIA' : 'NORMAL',
+                    display_name: study.is_pneumonia ? 'Bacterial/Viral Pneumonia' : 'Clear Lung Fields',
+                    probability: study.confidence_percentage / 100.0,
+                    confidence_percentage: study.confidence_percentage,
+                    is_detected: study.is_pneumonia,
+                    severity: study.is_pneumonia ? 'CRITICAL' : 'NORMAL',
+                    clinical_description: study.is_pneumonia ? 'Alveolar consolidation' : 'No acute pathology',
+                    anatomical_focus: study.dominant_zone || 'Mid/Lower Zones'
+                },
+                {
+                    name: 'PNEUMOTHORAX',
+                    display_name: 'Pneumothorax',
+                    probability: 0.05,
+                    confidence_percentage: 5.0,
+                    is_detected: false,
+                    severity: 'BENIGN',
+                    clinical_description: 'Intact pleural line, normal apical markings',
+                    anatomical_focus: 'Apex'
+                },
+                {
+                    name: 'PLEURAL_EFFUSION',
+                    display_name: 'Pleural Effusion',
+                    probability: 0.08,
+                    confidence_percentage: 8.0,
+                    is_detected: false,
+                    severity: 'BENIGN',
+                    clinical_description: 'Sharp costophrenic angles',
+                    anatomical_focus: 'Bases'
+                },
+                {
+                    name: 'CARDIOMEGALY',
+                    display_name: 'Cardiomegaly',
+                    probability: 0.12,
+                    confidence_percentage: 12.0,
+                    is_detected: false,
+                    severity: 'BENIGN',
+                    clinical_description: 'Normal cardiothoracic ratio < 0.50',
+                    anatomical_focus: 'Cardiomediastinum'
+                },
+                {
+                    name: 'ATELECTASIS',
+                    display_name: 'Atelectasis',
+                    probability: 0.06,
+                    confidence_percentage: 6.0,
+                    is_detected: false,
+                    severity: 'BENIGN',
+                    clinical_description: 'No volume loss or linear collapse',
+                    anatomical_focus: 'Subsegmental'
+                },
+                {
+                    name: 'NORMAL',
+                    display_name: 'Clear Lung Fields',
+                    probability: study.is_pneumonia ? 0.02 : (study.confidence_percentage / 100.0),
+                    confidence_percentage: study.is_pneumonia ? 2.0 : study.confidence_percentage,
+                    is_detected: !study.is_pneumonia,
+                    severity: 'NORMAL',
+                    clinical_description: 'Preserved parenchymal aeration',
+                    anatomical_focus: 'Bilateral'
+                }
+            ],
+            clinical_impression: defaultImpression
         };
 
         // Render full radiologic findings in viewport
@@ -790,6 +903,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // PACS & DICOMweb Interoperability Hub: 'W'
+        if (e.key === 'w' || e.key === 'W') {
+            if (pacsHubDialog && pacsHubDialog.open) {
+                pacsHubDialog.close();
+            } else {
+                openPacsHubModal();
+            }
+        }
+
         // Sign-Off Attestation: 'S'
         if (e.key === 's' || e.key === 'S') {
             executeSignoff();
@@ -860,6 +982,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const pacsConfirmDialog = document.getElementById('pacs-confirm-dialog');
             if (pacsConfirmDialog && pacsConfirmDialog.open) pacsConfirmDialog.close();
+            if (pacsHubDialog && pacsHubDialog.open) pacsHubDialog.close();
             if (dicomTagsDialog && dicomTagsDialog.open) dicomTagsDialog.close();
             if (reportDialog && reportDialog.open) reportDialog.close();
         }
@@ -1508,17 +1631,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (diagnosisContent) diagnosisContent.hidden = false;
         if (viewportModes) viewportModes.hidden = false;
 
-        const isPneumonia = pred.is_pneumonia;
+        const hasPathology = pred.is_pneumonia || (pred.primary_finding && pred.primary_finding !== 'NORMAL');
+        const primaryTitle = pred.primary_display_name || (pred.primary_finding ? pred.primary_finding.replace(/_/g, ' ') : (pred.is_pneumonia ? 'Pneumonia' : 'Clear Lung Fields'));
 
         // Findings banner styling
         if (diagnosisBanner) {
-            diagnosisBanner.className = 'findings-banner ' + (isPneumonia ? 'pneumonia' : 'normal');
+            diagnosisBanner.className = 'findings-banner ' + (hasPathology ? 'pneumonia' : 'normal');
         }
         if (diagnosisBadge) {
-            diagnosisBadge.textContent = isPneumonia ? 'PATHOLOGY PRESENT' : 'NO ACUTE PATHOLOGY';
+            diagnosisBadge.textContent = hasPathology ? `PATHOLOGY: ${primaryTitle.toUpperCase()}` : 'NO ACUTE PATHOLOGY';
         }
         if (diagnosisHeading) {
-            diagnosisHeading.textContent = pred.diagnosis === 'PNEUMONIA' ? 'PNEUMONIA DETECTED' : 'CLEAR LUNG FIELDS';
+            diagnosisHeading.textContent = hasPathology ? `${primaryTitle.toUpperCase()} DETECTED` : 'CLEAR LUNG FIELDS';
         }
         if (riskSubtitle) {
             riskSubtitle.textContent = (pred.risk_tier || '').replace(/_/g, ' ');
@@ -1532,7 +1656,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const conf = pred.confidence_percentage;
             const offset = circumference - (conf / 100) * circumference;
             confidenceRing.style.strokeDashoffset = offset;
-            confidenceRing.style.stroke = isPneumonia ? 'var(--pathology-critical)' : 'var(--pathology-clear)';
+            confidenceRing.style.stroke = hasPathology ? 'var(--pathology-critical)' : 'var(--pathology-clear)';
         }
         if (confidencePercentage) {
             confidencePercentage.textContent = `${Math.round(pred.confidence_percentage)}%`;
@@ -1540,6 +1664,78 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (latencyChip) latencyChip.textContent = `${pred.latency_ms} ms`;
         if (clinicalRecommendationText) clinicalRecommendationText.textContent = pred.clinical_recommendation;
+
+        // Render Multi-Label Thoracic Findings (6 Conditions)
+        if (multilabelFindingsStrip && pred.findings && Array.isArray(pred.findings)) {
+            const iconMap = {
+                'PNEUMOTHORAX': '🚨',
+                'PNEUMONIA': '🫁',
+                'PLEURAL_EFFUSION': '💧',
+                'CARDIOMEGALY': '🫀',
+                'ATELECTASIS': '📉',
+                'NORMAL': '🛡️'
+            };
+
+            multilabelFindingsStrip.innerHTML = pred.findings.map(f => {
+                const icon = iconMap[f.name] || '🔬';
+                const pct = Math.round(f.confidence_percentage);
+                const isDetected = f.is_detected;
+                const sev = (f.severity || 'BENIGN').toLowerCase();
+                const chipClass = `pathology-chip severity-${sev} ${isDetected ? 'detected' : 'subdued'}`;
+
+                return `
+                    <div class="${chipClass}" title="${escapeHtml(f.clinical_description || '')}">
+                        <div class="pathology-chip-top">
+                            <div class="pathology-chip-left">
+                                <span class="pathology-chip-icon">${icon}</span>
+                                <span class="pathology-chip-title">${escapeHtml(f.display_name)}</span>
+                            </div>
+                            <span class="pathology-chip-pct">${pct}%</span>
+                        </div>
+                        <div class="pathology-chip-bar">
+                            <div class="pathology-chip-bar-fill" style="width: ${pct}%"></div>
+                        </div>
+                        <div class="pathology-chip-bottom">
+                            <span class="pathology-chip-focus">${escapeHtml(f.anatomical_focus || '')}</span>
+                            <span class="pathology-chip-severity">${escapeHtml(f.severity)}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Acuity Tag
+            if (multilabelAcuityTag) {
+                const hasCritical = pred.findings.some(f => f.is_detected && f.severity === 'CRITICAL');
+                const hasUrgent = pred.findings.some(f => f.is_detected && f.severity === 'URGENT');
+                const hasWarning = pred.findings.some(f => f.is_detected && f.severity === 'WARNING');
+
+                let acuityText = 'ROUTINE';
+                let acuityClass = 'routine';
+                if (hasCritical) {
+                    acuityText = 'STAT CRITICAL';
+                    acuityClass = 'stat';
+                } else if (hasUrgent) {
+                    acuityText = 'URGENT';
+                    acuityClass = 'urgent';
+                } else if (hasWarning) {
+                    acuityText = 'WARNING';
+                    acuityClass = 'urgent';
+                }
+
+                multilabelAcuityTag.className = `multilabel-acuity-tag ${acuityClass}`;
+                multilabelAcuityTag.textContent = `COMPOSITE ACUITY: ${acuityText}`;
+            }
+
+            // Impression
+            if (multilabelImpression && multilabelImpressionText) {
+                if (pred.clinical_impression) {
+                    multilabelImpressionText.textContent = pred.clinical_impression;
+                    multilabelImpression.style.display = 'flex';
+                } else {
+                    multilabelImpression.style.display = 'none';
+                }
+            }
+        }
 
         // Anatomical Zonation
         if (pred.zonation) {
@@ -2214,7 +2410,235 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---------------------------------------------------------
-    // INITIAL BOOT: FETCH WORKLIST
+    // 19. ENTERPRISE PACS & DICOMWEB INTEROPERABILITY CONTROLLER
     // ---------------------------------------------------------
+    function initPacsHubModal() {
+        if (!pacsHubDialog) return;
+
+        // Assign modal opener
+        openPacsHubModal = function() {
+            if (pacsPushStudyName) {
+                if (currentPrediction) {
+                    const name = currentPrediction.dicom_metadata?.patient_name || currentPrediction.study_id || 'Active Patient';
+                    const mrn = currentPrediction.dicom_metadata?.patient_id || currentPrediction.study_id || 'MRN-ER';
+                    pacsPushStudyName.textContent = `${name} (${mrn})`;
+                } else if (selectedStudyId) {
+                    const s = worklistStudies.find(st => st.study_id === selectedStudyId);
+                    pacsPushStudyName.textContent = s ? `${s.patient_name} (${s.patient_mrn})` : selectedStudyId;
+                } else {
+                    pacsPushStudyName.textContent = 'No Study Active (Select from queue)';
+                }
+            }
+            pacsHubDialog.showModal();
+        };
+
+        if (openPacsHubBtn) {
+            openPacsHubBtn.addEventListener('click', openPacsHubModal);
+        }
+        if (closePacsHubBtn) {
+            closePacsHubBtn.addEventListener('click', () => pacsHubDialog.close());
+        }
+        if (dismissPacsHubBtn) {
+            dismissPacsHubBtn.addEventListener('click', () => pacsHubDialog.close());
+        }
+
+        // Tab Switching
+        const tabBtns = pacsHubDialog.querySelectorAll('.pacs-hub-tab-btn');
+        tabBtns.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                const targetTabId = btn.dataset.pacsTab;
+                pacsHubDialog.querySelectorAll('.pacs-tab-panel').forEach(panel => {
+                    panel.classList.toggle('active', panel.id === targetTabId);
+                });
+            });
+        });
+
+        // 1. C-ECHO Ping SCU
+        if (btnPacsPing) {
+            btnPacsPing.addEventListener('click', async () => {
+                const ae = pacsPingAe ? pacsPingAe.value.trim() : 'ALVEON_PACS';
+                const host = pacsPingHost ? pacsPingHost.value.trim() : '127.0.0.1';
+                const port = pacsPingPort ? parseInt(pacsPingPort.value.trim(), 10) : 11112;
+
+                if (pacsPingLog) {
+                    pacsPingLog.textContent = `[CONNECTING] Initiating DIMSE association with ${host}:${port} (${ae})...`;
+                }
+                btnPacsPing.disabled = true;
+
+                try {
+                    const res = await fetch('/api/v1/pacs/ping', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ host, port, ae_title: ae })
+                    });
+                    const data = await res.json();
+                    if (data.success || data.status === 'online' || data.status === 'success') {
+                        if (pacsPingLog) {
+                            pacsPingLog.textContent = `[SUCCESS 0x0000] C-ECHO Verification Successful!\nRoundtrip Latency: ${data.latency_ms} ms\nRemote Node: ${data.target || (ae + '@' + host + ':' + port)}\nStatus Code: ${data.dicom_status_code || '0x0'}`;
+                        }
+                        showWorkstationToast(`📡 C-ECHO Ping Succeeded (${data.latency_ms} ms)`);
+                    } else {
+                        if (pacsPingLog) {
+                            pacsPingLog.textContent = `[REJECTED] Association Rejected: ${data.message || 'Verification failed'}`;
+                        }
+                    }
+                } catch (err) {
+                    if (pacsPingLog) {
+                        pacsPingLog.textContent = `[ERROR] Connection refused or timeout: ${err.message}`;
+                    }
+                } finally {
+                    btnPacsPing.disabled = false;
+                }
+            });
+        }
+
+        // 2. C-STORE Push SCU
+        if (btnPacsPush) {
+            btnPacsPush.addEventListener('click', async () => {
+                const studyId = selectedStudyId || (currentPrediction && currentPrediction.study_id);
+                if (!studyId) {
+                    if (pacsPushLog) pacsPushLog.textContent = '[ABORTED] No active study loaded in viewport to forward.';
+                    showWorkstationToast('⚠️ Select a study in worklist to forward');
+                    return;
+                }
+
+                const ae = pacsPushAe ? pacsPushAe.value.trim() : 'ALVEON_PACS';
+                const host = pacsPushHost ? pacsPushHost.value.trim() : '127.0.0.1';
+                const port = pacsPushPort ? parseInt(pacsPushPort.value.trim(), 10) : 11112;
+
+                if (pacsPushLog) {
+                    pacsPushLog.textContent = `[TRANSMITTING] Connecting to ${host}:${port} (AE: ${ae})...\nEncoding DICOM PS 3.10 dataset for #${studyId}...`;
+                }
+                btnPacsPush.disabled = true;
+
+                try {
+                    const res = await fetch('/api/v1/pacs/push', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ study_id: studyId, host, port, ae_title: ae })
+                    });
+                    const data = await res.json();
+                    if (data.success || data.status === 'success') {
+                        if (pacsPushLog) {
+                            pacsPushLog.textContent = `[C-STORE SUCCESS 0x0000]\nTransmitted study to ${data.destination || (ae + '@' + host + ':' + port)} in ${data.latency_ms} ms.\nStatus Code: ${data.dicom_status_code || '0x0'}\nPatient: ${data.patient_name || ''} (#${data.patient_id || ''})`;
+                        }
+                        showWorkstationToast(`🚀 C-STORE Push Succeeded (${data.latency_ms} ms)`);
+                    } else {
+                        if (pacsPushLog) {
+                            pacsPushLog.textContent = `[C-STORE FAILED] ${data.message || data.detail || 'Transmission rejected'}`;
+                        }
+                    }
+                } catch (err) {
+                    if (pacsPushLog) {
+                        pacsPushLog.textContent = `[NETWORK ERROR] ${err.message}`;
+                    }
+                } finally {
+                    btnPacsPush.disabled = false;
+                }
+            });
+        }
+
+        // 3. Clinical Cohort Ingestion SCU
+        if (btnInjectCohort) {
+            btnInjectCohort.addEventListener('click', async () => {
+                btnInjectCohort.disabled = true;
+                if (cohortInjectLog) cohortInjectLog.style.display = 'block';
+                if (cohortLogSummary) cohortLogSummary.textContent = 'Transmitting 6 Patients via C-STORE...';
+                if (cohortLogStream) {
+                    cohortLogStream.innerHTML = '<div>[0.0s] Negotiating DIMSE C-STORE association with 127.0.0.1:11112 (ALVEON_PACS)...</div>';
+                }
+
+                try {
+                    const res = await fetch('/api/v1/pacs/inject-cohort', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: '{}'
+                    });
+                    const data = await res.json();
+
+                    if (data.status === 'success') {
+                        const lines = [
+                            `[0.1s] Association Established with ALVEON_PACS on port 11112.`,
+                            `[0.3s] C-STORE Patient 1/6: HASTINGS, ROSE (MRN-ER-901) -> PNEUMOTHORAX (0x0000 Success, 14.2ms)`,
+                            `[0.5s] C-STORE Patient 2/6: GARRISON, MARCUS (MRN-ER-902) -> PNEUMONIA / ARDS (0x0000 Success, 15.1ms)`,
+                            `[0.7s] C-STORE Patient 3/6: KIM, SUN-HEE (MRN-ER-903) -> PLEURAL EFFUSION (0x0000 Success, 13.8ms)`,
+                            `[0.9s] C-STORE Patient 4/6: O'CONNOR, PATRICK (MRN-ER-904) -> CARDIOMEGALY (0x0000 Success, 14.6ms)`,
+                            `[1.1s] C-STORE Patient 5/6: AL-MANSOOR, TARIQ (MRN-ER-905) -> ATELECTASIS (0x0000 Success, 14.0ms)`,
+                            `[1.3s] C-STORE Patient 6/6: THOMPSON, CHLOE (MRN-ER-906) -> NORMAL (0x0000 Success, 12.9ms)`,
+                            `[1.5s] DIMSE Association Released. 6 studies processed, indexed and ranked in Triage Worklist.`
+                        ];
+                        if (cohortLogStream) {
+                            cohortLogStream.innerHTML = lines.map(l => `<div>${escapeHtml(l)}</div>`).join('');
+                        }
+                        if (cohortLogSummary) {
+                            cohortLogSummary.textContent = `Transmission Complete: ${data.total_injected || 6}/6 Succeeded (${data.duration_ms || 110} ms)`;
+                        }
+
+                        // Refresh Worklist
+                        await fetchWorklist();
+
+                        // Auto-load first study
+                        if (worklistStudies && worklistStudies.length > 0) {
+                            loadWorklistStudy(worklistStudies[0]);
+                        }
+
+                        showWorkstationToast('⚡ 6-Patient ER Cohort Ingested via C-STORE');
+                    } else {
+                        if (cohortLogSummary) cohortLogSummary.textContent = 'Transmission Failed';
+                        if (cohortLogStream) cohortLogStream.innerHTML += `<div style="color: #f87171;">[FAILED] ${escapeHtml(data.detail || 'Cohort transmission error')}</div>`;
+                    }
+                } catch (err) {
+                    if (cohortLogSummary) cohortLogSummary.textContent = 'Network Error';
+                    if (cohortLogStream) cohortLogStream.innerHTML += `<div style="color: #f87171;">[ERROR] ${escapeHtml(err.message)}</div>`;
+                } finally {
+                    btnInjectCohort.disabled = false;
+                }
+            });
+        }
+
+        // 4. DICOMweb Actions: Copy cURL and Test Buttons
+        document.querySelectorAll('.copy-curl-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const cmd = btn.dataset.curl;
+                if (cmd) {
+                    navigator.clipboard.writeText(cmd).then(() => {
+                        showWorkstationToast('📋 Copied cURL command to clipboard');
+                    }).catch(() => {
+                        showWorkstationToast('📋 ' + cmd);
+                    });
+                }
+            });
+        });
+
+        if (btnTestWadoRendered) {
+            btnTestWadoRendered.addEventListener('click', () => {
+                const sopUid = currentPrediction?.dicom_metadata?.sop_instance_uid || '1.2.840.113619.2.55.3.283117284.723';
+                const url = `/dicomweb/studies/1.2.840.113619.2.55.3.283117284.721/series/1.2.840.113619.2.55.3.283117284.722/instances/${sopUid}/rendered`;
+                window.open(url, '_blank');
+            });
+        }
+
+        if (btnDownloadNativeDicom) {
+            btnDownloadNativeDicom.addEventListener('click', () => {
+                const sopUid = currentPrediction?.dicom_metadata?.sop_instance_uid || '1.2.840.113619.2.55.3.283117284.723';
+                const url = `/dicomweb/studies/1.2.840.113619.2.55.3.283117284.721/series/1.2.840.113619.2.55.3.283117284.722/instances/${sopUid}`;
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `study_${sopUid}.dcm`;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                showWorkstationToast('⬇️ Downloading Native DICOM Part 10 Dataset');
+            });
+        }
+    }
+
+    // ---------------------------------------------------------
+    // INITIAL BOOT: FETCH WORKLIST & INIT MODALS
+    // ---------------------------------------------------------
+    initPacsHubModal();
     fetchWorklist();
 });

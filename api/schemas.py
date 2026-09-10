@@ -43,10 +43,20 @@ class DicomMetadataModel(BaseModel):
     transfer_syntax_uid: str = "1.2.840.10008.1.2.1"
     sop_instance_uid: Optional[str] = None
 
+class MultiLabelFindingItem(BaseModel):
+    name: str = Field(..., description="Standard pathology identifier (e.g. PNEUMOTHORAX, PNEUMONIA)")
+    display_name: str = Field(..., description="Human-readable clinical finding title")
+    probability: float = Field(..., description="Independent sigmoid probability [0.0, 1.0]")
+    confidence_percentage: float = Field(..., description="Calibrated confidence [0.0, 100.0]%")
+    is_detected: bool = Field(..., description="True if probability exceeds clinical decision threshold")
+    severity: str = Field(..., description="'CRITICAL', 'URGENT', 'WARNING', 'BENIGN', or 'NORMAL'")
+    clinical_description: str
+    anatomical_focus: str
+
 class PredictionResponse(BaseModel):
     status: str = "success"
     filename: str
-    diagnosis: str = Field(..., description="'PNEUMONIA' or 'NORMAL'")
+    diagnosis: str = Field(..., description="'PNEUMONIA' or 'NORMAL' (backward compatible)")
     is_pneumonia: bool
     probability: float = Field(..., description="Raw model sigmoid output [0.0, 1.0]")
     confidence_percentage: float = Field(..., description="Confidence score [0.0, 100.0]%")
@@ -59,6 +69,11 @@ class PredictionResponse(BaseModel):
     gradcam_overlay_b64: Optional[str] = None
     gradcam_heatmap_b64: Optional[str] = None
     dicom_metadata: Optional[DicomMetadataModel] = None
+    primary_finding: Optional[str] = None
+    primary_display_name: Optional[str] = None
+    secondary_findings: Optional[List[str]] = None
+    findings: Optional[List[MultiLabelFindingItem]] = None
+    clinical_impression: Optional[str] = None
 
 class WorklistStudyItem(BaseModel):
     study_id: str
@@ -78,6 +93,26 @@ class WorklistStudyItem(BaseModel):
     gradcam_overlay_b64: Optional[str] = None
     zonation: Optional[AnatomicalZonation] = None
     dicom_metadata: Optional[DicomMetadataModel] = None
+    primary_finding: Optional[str] = None
+    secondary_findings: Optional[List[str]] = None
+    findings: Optional[List[MultiLabelFindingItem]] = None
+
+class PacsNodeConfig(BaseModel):
+    name: str = "Local PACS Listener"
+    host: str = "127.0.0.1"
+    port: int = 11112
+    ae_title: str = "ALVEON_PACS"
+
+class PacsPingRequest(BaseModel):
+    host: str = "127.0.0.1"
+    port: int = 11112
+    ae_title: str = "ALVEON_PACS"
+
+class PacsPushRequest(BaseModel):
+    study_id: str
+    host: str = "127.0.0.1"
+    port: int = 11112
+    ae_title: str = "ALVEON_PACS"
 
 class WorklistResponse(BaseModel):
     status: str = "success"
@@ -88,6 +123,7 @@ class WorklistResponse(BaseModel):
 
 class SignoffRequest(BaseModel):
     study_id: str
+
     physician_name: str = "Dr. Attending Radiologist, MD"
     physician_license: str = "ABR-984210"
     clinical_notes: Optional[str] = "Radiologic findings verified. Alveolar consolidation confirmed on Grad-CAM localization."

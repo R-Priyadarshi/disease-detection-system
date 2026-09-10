@@ -239,10 +239,11 @@ def generate_clinical_report_pdf(report_data: Dict[str, Any]) -> io.BytesIO:
     # 4. Diagnostic Findings & Anatomical Zonation
     diagnosis = report_data.get('diagnosis', 'PNEUMONIA' if is_pneumonia else 'NORMAL')
     diag_badge_color = '#ef4444' if is_pneumonia else '#10b981'
+    primary_finding = report_data.get('primary_finding', diagnosis)
 
     findings_header = [
         [
-            Paragraph(f"<b>PRIMARY DIAGNOSTIC INFERENCE:</b> <font color='{diag_badge_color}'><b>{diagnosis}</b></font> ({round(confidence, 1)}% Confidence)", style_section_heading),
+            Paragraph(f"<b>PRIMARY DIAGNOSTIC INFERENCE:</b> <font color='{diag_badge_color}'><b>{primary_finding}</b></font> ({round(confidence, 1)}% Confidence)", style_section_heading),
             Paragraph(f"<b>DOMINANT ZONE:</b> {report_data.get('dominant_zone', 'Right Lower Lobe')}", ParagraphStyle('DomZ', parent=style_section_heading, alignment=TA_RIGHT))
         ]
     ]
@@ -255,6 +256,46 @@ def generate_clinical_report_pdf(report_data: Dict[str, Any]) -> io.BytesIO:
         ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
     ]))
     story.append(f_table)
+
+    # Multi-Label Findings Ledger Table (if findings available)
+    raw_findings = report_data.get('findings', [])
+    if raw_findings:
+        multi_table_data = [
+            [
+                Paragraph("<b>Pathology Finding</b>", style_table_header),
+                Paragraph("<b>Probability</b>", style_table_header),
+                Paragraph("<b>Acuity Severity</b>", style_table_header),
+                Paragraph("<b>Diagnostic Status</b>", style_table_header),
+                Paragraph("<b>Anatomical Distribution</b>", style_table_header)
+            ]
+        ]
+        for f in raw_findings[:5]:
+            f_dict = f.model_dump() if hasattr(f, 'model_dump') else (f.dict() if hasattr(f, 'dict') else f)
+            p_val = round(f_dict.get('probability', 0.0) * 100, 1)
+            sev = f_dict.get('severity', 'BENIGN')
+            sev_color = '#ef4444' if sev == 'CRITICAL' else ('#f59e0b' if sev == 'URGENT' else '#10b981')
+            det = "POSITIVE" if f_dict.get('is_detected') else "EXCLUDED"
+            det_color = '#ef4444' if f_dict.get('is_detected') else '#64748b'
+            multi_table_data.append([
+                Paragraph(f"<b>{f_dict.get('display_name', f_dict.get('name'))}</b>", style_table_cell),
+                Paragraph(f"{p_val}%", style_table_cell),
+                Paragraph(f"<font color='{sev_color}'><b>{sev}</b></font>", style_table_cell),
+                Paragraph(f"<font color='{det_color}'><b>{det}</b></font>", style_table_cell),
+                Paragraph(f_dict.get('anatomical_focus', 'Bilateral'), style_table_cell)
+            ])
+        multi_table = Table(multi_table_data, colWidths=[140, 65, 80, 85, 170])
+        multi_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e293b')),
+            ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+            ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e2e8f0')),
+            ('TOPPADDING', (0, 0), (-1, -1), 2),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 2),
+            ('LEFTPADDING', (0, 0), (-1, -1), 5),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 5),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        story.append(multi_table)
+        story.append(Spacer(1, 6))
 
     zonation = report_data.get('zonation', {})
     if hasattr(zonation, 'model_dump'):
