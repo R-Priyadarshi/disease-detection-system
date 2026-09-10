@@ -1,42 +1,52 @@
-import os
-import uuid
-import datetime
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from pathlib import Path
-from typing import Optional
 import numpy as np
 import tensorflow as tf
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
-from fastapi.responses import JSONResponse
+import cv2
+import uuid
+import datetime
+import hashlib
+from typing import List, Dict, Any, Optional
 
 from core.config import settings
-from core.model import get_model, PneumoniaCNNModel
 from core.preprocessor import preprocessor, ImagePreprocessingError
-from core.gradcam import GradCAMGenerator
 from core.sample_generator import ensure_sample_assets
+from core.dicom_handler import is_dicom_bytes, parse_dicom_file
 from api.schemas import (
-    HealthResponse,
     PredictionResponse,
-    AnatomicalZonation,
+    HealthResponse,
     SamplesListResponse,
     SampleItem,
     ClinicalReportRequest,
     ClinicalReportResponse,
-    ErrorResponse
+    AnatomicalZonation,
+    DicomMetadataModel,
+    WorklistResponse,
+    WorklistStudyItem,
+    BatchTriageResponse,
+    SignoffRequest,
+    SignoffResponse
 )
+
+from core.model import get_model, PneumoniaCNNModel
+from core.gradcam import GradCAMGenerator
 
 router = APIRouter()
 
+# In-memory singletons and triage worklist cache
 _model: Optional[PneumoniaCNNModel] = None
 _gradcam: Optional[GradCAMGenerator] = None
+_WORKLIST_CACHE: Optional[List[WorklistStudyItem]] = None
 
 def get_engine():
+    """Access or lazily initialize the preloaded model and Grad-CAM generator."""
     global _model, _gradcam
     if _model is None:
         _model = get_model()
         _gradcam = GradCAMGenerator(_model)
     return _model, _gradcam
 
-@router.get("/health", response_model=HealthResponse, tags=["System Diagnostics"])
+@router.get("/health", response_model=HealthResponse, tags=["Diagnostics & System Health"])
 async def healthcheck():
     """Returns engine diagnostics, hardware acceleration, and system status."""
     model, _ = get_engine()
@@ -55,51 +65,61 @@ async def healthcheck():
 
 @router.post("/api/v1/predict", response_model=PredictionResponse, tags=["Radiologic Classification"])
 async def predict_chest_xray(
-    file: UploadFile = File(..., description="Chest radiograph file (JPEG, PNG, WEBP, TIFF)"),
+    file: UploadFile = File(..., description="Chest radiograph or binary DICOM (.dcm, .jpg, .png, .tif)"),
     apply_clahe: bool = Form(False, description="Apply CLAHE contrast enhancement for soft tissue visualization"),
     colormap: str = Form("inferno", description="Medical colormap: inferno (default), viridis, plasma, hot, jet"),
     heatmap_alpha: float = Form(0.45, description="Grad-CAM overlay blending opacity [0.1, 0.9]")
 ):
     """
-    Evaluates a thoracic radiograph, executes forward neural pass, calculates
-    pulmonary anatomical zonation distribution, and synthesizes Grad-CAM heatmaps.
+    Evaluates a thoracic radiograph or native 16-bit DICOM file, executes forward neural pass,
+    calculates pulmonary anatomical zonation, auto-extracts clinical DICOM tags,
+    and synthesizes intensity-weighted Grad-CAM heatmaps.
     """
     model, gradcam = get_engine()
 
-    valid_extensions = {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff"}
+    valid_extensions = {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".dcm", ".dicom"}
     file_ext = Path(file.filename or "upload.jpg").suffix.lower()
-    if file_ext not in valid_extensions and file.content_type and not file.content_type.startswith("image/"):
+    if file_ext not in valid_extensions and file.content_type and not (file.content_type.startswith("image/") or "dicom" in file.content_type):
         raise HTTPException(
             status_code=400,
-            detail=f"Unsupported format '{file_ext}'. Please upload standard medical images (JPEG, PNG, TIFF)."
+            detail=f"Unsupported format '{file_ext}'. Please upload standard radiographs or binary DICOM (.dcm)."
         )
 
     try:
-        image_bytes = await file.read()
-        if len(image_bytes) == 0:
+        raw_bytes = await file.read()
+        if len(raw_bytes) == 0:
             raise HTTPException(status_code=400, detail="Uploaded file buffer is empty.")
 
-        # 1. Medical preprocessing & normalization
-        tensor, raw_gray = preprocessor.prepare_tensor(image_bytes, apply_clahe=apply_clahe)
+        # 1. Seamless DICOM or Standard Radiograph Ingestion
+        raw_gray, dicom_meta = preprocessor.load_image_or_dicom(raw_bytes, filename=file.filename)
 
-        # 2. Forward inference pass
+        # 2. Medical Preprocessing & Tensor Normalization
+        if apply_clahe:
+            proc_gray = preprocessor.apply_clahe(raw_gray)
+        else:
+            proc_gray = raw_gray
+
+        resized = cv2.resize(proc_gray, (settings.INPUT_WIDTH, settings.INPUT_HEIGHT), interpolation=cv2.INTER_AREA)
+        tensor = resized.reshape(1, settings.INPUT_HEIGHT, settings.INPUT_WIDTH, 1).astype(np.float32) / settings.NORMALIZATION_SCALE
+
+        # 3. Forward Neural Classification
         inference_result = model.predict_tensor(tensor)
 
-        # 3. Grad-CAM synthesis with chosen medical colormap & zonation
+        # 4. Grad-CAM Synthesis with Anatomical Quadrant Zonation
         blended_bgr, heatmap_bgr, zonation = gradcam.generate_overlay(
-            original_gray=raw_gray,
+            original_gray=proc_gray,
             tensor=tensor,
             colormap_name=colormap,
             alpha=float(np.clip(heatmap_alpha, 0.1, 0.9))
         )
 
-        # 4. High-efficiency base64 encoding
-        orig_b64 = preprocessor.to_base64_jpeg(raw_gray)
+        # 5. High-Efficiency Base64 Encodings
+        orig_b64 = preprocessor.to_base64_jpeg(proc_gray)
         blended_b64 = preprocessor.to_base64_jpeg(blended_bgr)
         heatmap_b64 = preprocessor.to_base64_jpeg(heatmap_bgr)
 
         return PredictionResponse(
-            filename=file.filename or "radiograph.jpg",
+            filename=file.filename or "radiograph.dcm",
             diagnosis=inference_result["diagnosis"],
             is_pneumonia=inference_result["is_pneumonia"],
             probability=inference_result["probability"],
@@ -111,7 +131,8 @@ async def predict_chest_xray(
             zonation=AnatomicalZonation(**zonation),
             original_image_b64=orig_b64,
             gradcam_overlay_b64=blended_b64,
-            gradcam_heatmap_b64=heatmap_b64
+            gradcam_heatmap_b64=heatmap_b64,
+            dicom_metadata=DicomMetadataModel(**dicom_meta)
         )
 
     except HTTPException:
@@ -121,43 +142,321 @@ async def predict_chest_xray(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Inference execution error: {str(e)}")
 
+@router.get("/api/v1/worklist", response_model=WorklistResponse, tags=["Emergency Triage & Worklist"])
+async def get_emergency_worklist():
+    """
+    Serves the live Emergency Department Triage Worklist, automatically sorted
+    by clinical acuity with STAT / CRITICAL consolidation cases at the top.
+    """
+    global _WORKLIST_CACHE
+    if _WORKLIST_CACHE is not None:
+        stat_cnt = sum(1 for s in _WORKLIST_CACHE if s.priority == "STAT_CRITICAL")
+        pend_cnt = sum(1 for s in _WORKLIST_CACHE if s.status == "PENDING")
+        return WorklistResponse(
+            total_cases=len(_WORKLIST_CACHE),
+            stat_critical_count=stat_cnt,
+            pending_count=pend_cnt,
+            studies=_WORKLIST_CACHE
+        )
+
+    ensure_sample_assets()
+    samples_dir = settings.SAMPLES_DIR
+    model, gradcam = get_engine()
+
+    # Define 5 realistic emergency patient cohort studies
+    cohort_specs = [
+        {
+            "study_id": "ALV-STAT-09",
+            "file": samples_dir / "sample_stat_pneumonia.dcm",
+            "patient_mrn": "MRN-90214",
+            "patient_name": "VANCE^ELEANOR",
+            "patient_age_sex": "48Y / F",
+            "study_time": "14:28 EST",
+            "clinical_hx": "Sudden onset dyspnea, pyrexia 39.1C, productive rusty sputum.",
+            "status": "PENDING",
+            "modality": "DX (16-bit)"
+        },
+        {
+            "study_id": "ALV-STAT-02",
+            "file": samples_dir / "sample_pneumonia.jpg",
+            "patient_mrn": "MRN-88410",
+            "patient_name": "KOVACS^LASZLO",
+            "patient_age_sex": "71Y / M",
+            "study_time": "14:15 EST",
+            "clinical_hx": "Post-fall hip pain, tachypneic in ER bay 4, O2 sat 88%.",
+            "status": "PENDING",
+            "modality": "CR"
+        },
+        {
+            "study_id": "ALV-URG-15",
+            "file": samples_dir / "sample_pneumonia.jpg",
+            "patient_mrn": "MRN-72390",
+            "patient_name": "PATEL^SUNITA",
+            "patient_age_sex": "36Y / F",
+            "study_time": "13:50 EST",
+            "clinical_hx": "Persistent dry cough x 10 days, pleuritic left-sided pain.",
+            "status": "PENDING",
+            "modality": "CR"
+        },
+        {
+            "study_id": "ALV-CHK-42",
+            "file": samples_dir / "sample_clear_normal.dcm",
+            "patient_mrn": "MRN-64219",
+            "patient_name": "MERCER^THOMAS",
+            "patient_age_sex": "52Y / M",
+            "study_time": "13:30 EST",
+            "clinical_hx": "Pre-operative elective surgical screening (Cholecystectomy).",
+            "status": "SIGNED",
+            "modality": "DX (16-bit)"
+        },
+        {
+            "study_id": "ALV-CHK-88",
+            "file": samples_dir / "sample_normal.jpg",
+            "patient_mrn": "MRN-55102",
+            "patient_name": "CHEN^WEI",
+            "patient_age_sex": "29Y / F",
+            "study_time": "13:05 EST",
+            "clinical_hx": "Routine annual occupational health screening.",
+            "status": "PENDING",
+            "modality": "CR"
+        }
+    ]
+
+    studies: List[WorklistStudyItem] = []
+
+    for spec in cohort_specs:
+        file_path = spec["file"]
+        if not file_path.exists():
+            continue
+
+        raw_bytes = file_path.read_bytes()
+        raw_gray, dicom_meta = preprocessor.load_image_or_dicom(raw_bytes, filename=file_path.name)
+        
+        # Override metadata with spec if necessary
+        dicom_meta["patient_id"] = spec["patient_mrn"]
+        dicom_meta["patient_name"] = spec["patient_name"]
+
+        resized = cv2.resize(raw_gray, (settings.INPUT_WIDTH, settings.INPUT_HEIGHT), interpolation=cv2.INTER_AREA)
+        tensor = resized.reshape(1, settings.INPUT_HEIGHT, settings.INPUT_WIDTH, 1).astype(np.float32) / settings.NORMALIZATION_SCALE
+        
+        pred = model.predict_tensor(tensor)
+        blended_bgr, _, zonation = gradcam.generate_overlay(raw_gray, tensor, colormap_name="inferno", alpha=0.5)
+
+        is_pneu = pred["is_pneumonia"]
+        conf = pred["confidence_percentage"]
+
+        # Acuity Priority Assignment
+        if is_pneu and conf >= 85.0:
+            priority = "STAT_CRITICAL"
+            rank = 1
+        elif is_pneu:
+            priority = "URGENT"
+            rank = 2
+        else:
+            priority = "ROUTINE"
+            rank = 3
+
+        studies.append(WorklistStudyItem(
+            study_id=spec["study_id"],
+            patient_mrn=spec["patient_mrn"],
+            patient_name=spec["patient_name"],
+            patient_age_sex=spec["patient_age_sex"],
+            study_time=spec["study_time"],
+            priority=priority,
+            priority_rank=rank,
+            diagnosis=pred["diagnosis"],
+            is_pneumonia=is_pneu,
+            confidence_percentage=conf,
+            dominant_zone=zonation.get("dominant_zone", "Right Lower Lobe"),
+            status=spec["status"],
+            modality=spec["modality"],
+            image_b64=preprocessor.to_base64_jpeg(raw_gray),
+            gradcam_overlay_b64=preprocessor.to_base64_jpeg(blended_bgr),
+            zonation=AnatomicalZonation(**zonation),
+            dicom_metadata=DicomMetadataModel(**dicom_meta)
+        ))
+
+    # Acuity Sort: Rank 1 (STAT) -> Rank 2 (URGENT) -> Rank 3 (ROUTINE)
+    studies.sort(key=lambda s: (s.priority_rank, s.status == "SIGNED"))
+    _WORKLIST_CACHE = studies
+
+    stat_cnt = sum(1 for s in studies if s.priority == "STAT_CRITICAL")
+    pend_cnt = sum(1 for s in studies if s.status == "PENDING")
+
+    return WorklistResponse(
+        total_cases=len(studies),
+        stat_critical_count=stat_cnt,
+        pending_count=pend_cnt,
+        studies=studies
+    )
+
+@router.post("/api/v1/batch/triage", response_model=BatchTriageResponse, tags=["Emergency Triage & Worklist"])
+async def batch_triage_radiographs(
+    files: List[UploadFile] = File(..., description="Multiple radiographs or DICOM files for cohort triage")
+):
+    """
+    Ingests a cohort of chest radiographs/DICOM files simultaneously,
+    executes concurrent CADe evaluation, auto-sorts by acuity severity,
+    and inserts them dynamically into the triage queue.
+    """
+    model, gradcam = get_engine()
+    triaged: List[WorklistStudyItem] = []
+
+    for idx, f in enumerate(files):
+        try:
+            raw_bytes = await f.read()
+            if len(raw_bytes) == 0:
+                continue
+
+            raw_gray, dicom_meta = preprocessor.load_image_or_dicom(raw_bytes, filename=f.filename)
+            resized = cv2.resize(raw_gray, (settings.INPUT_WIDTH, settings.INPUT_HEIGHT), interpolation=cv2.INTER_AREA)
+            tensor = resized.reshape(1, settings.INPUT_HEIGHT, settings.INPUT_WIDTH, 1).astype(np.float32) / settings.NORMALIZATION_SCALE
+
+            pred = model.predict_tensor(tensor)
+            blended_bgr, _, zonation = gradcam.generate_overlay(raw_gray, tensor, colormap_name="inferno", alpha=0.5)
+
+            is_pneu = pred["is_pneumonia"]
+            conf = pred["confidence_percentage"]
+
+            if is_pneu and conf >= 85.0:
+                prio = "STAT_CRITICAL"
+                rank = 1
+            elif is_pneu:
+                prio = "URGENT"
+                rank = 2
+            else:
+                prio = "ROUTINE"
+                rank = 3
+
+            study_id = f"ALV-BAT-{uuid.uuid4().hex[:6].upper()}"
+            item = WorklistStudyItem(
+                study_id=study_id,
+                patient_mrn=dicom_meta.get("patient_id", f"MRN-{uuid.uuid4().hex[:5].upper()}"),
+                patient_name=dicom_meta.get("patient_name", f"STUDY_{f.filename or idx}"),
+                patient_age_sex=f"{dicom_meta.get('patient_age', '50Y')} / {dicom_meta.get('patient_sex', 'U')}",
+                study_time=datetime.datetime.now().strftime("%H:%M EST"),
+                priority=prio,
+                priority_rank=rank,
+                diagnosis=pred["diagnosis"],
+                is_pneumonia=is_pneu,
+                confidence_percentage=conf,
+                dominant_zone=zonation.get("dominant_zone", "Right Lower Lobe"),
+                status="PENDING",
+                modality="DX" if dicom_meta.get("is_dicom") else "CR",
+                image_b64=preprocessor.to_base64_jpeg(raw_gray),
+                gradcam_overlay_b64=preprocessor.to_base64_jpeg(blended_bgr),
+                zonation=AnatomicalZonation(**zonation),
+                dicom_metadata=DicomMetadataModel(**dicom_meta)
+            )
+            triaged.append(item)
+        except Exception:
+            continue
+
+    # Sort triaged cases with STAT_CRITICAL first
+    triaged.sort(key=lambda s: s.priority_rank)
+
+    # Insert into global cache
+    global _WORKLIST_CACHE
+    if _WORKLIST_CACHE is None:
+        _WORKLIST_CACHE = []
+    _WORKLIST_CACHE = triaged + _WORKLIST_CACHE
+    _WORKLIST_CACHE.sort(key=lambda s: (s.priority_rank, s.status == "SIGNED"))
+
+    stat_count = sum(1 for s in triaged if s.priority == "STAT_CRITICAL")
+
+    return BatchTriageResponse(
+        total_ingested=len(triaged),
+        critical_stat_count=stat_count,
+        triaged_studies=triaged
+    )
+
+@router.post("/api/v1/signoff", response_model=SignoffResponse, tags=["Emergency Triage & Worklist"])
+async def signoff_study(req: SignoffRequest):
+    """
+    Registers a radiologist's electronic verification signature,
+    updates the study status to 'SIGNED', and generates an SHA-256 audit stamp.
+    """
+    global _WORKLIST_CACHE
+    timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    audit_data = f"{req.study_id}:{req.physician_license}:{timestamp}"
+    audit_hash = hashlib.sha256(audit_data.encode()).hexdigest()[:16].upper()
+
+    if _WORKLIST_CACHE:
+        for s in _WORKLIST_CACHE:
+            if s.study_id == req.study_id:
+                s.status = "SIGNED"
+                break
+
+    return SignoffResponse(
+        status="success",
+        study_id=req.study_id,
+        timestamp=timestamp,
+        physician_signature=f"Electronically signed by {req.physician_name} ({req.physician_license})",
+        signoff_badge="VERIFIED & SIGNED",
+        audit_hash=audit_hash
+    )
+
 @router.get("/api/v1/samples", response_model=SamplesListResponse, tags=["PACS Verification Samples"])
 async def get_sample_radiographs():
-    """Serves calibrated verification radiographs for rapid clinical validation."""
+    """Serves calibrated verification radiographs and native DICOM files."""
     ensure_sample_assets()
     samples_dir = settings.SAMPLES_DIR
 
     normal_path = samples_dir / "sample_normal.jpg"
     pneumonia_path = samples_dir / "sample_pneumonia.jpg"
+    dicom_stat_path = samples_dir / "sample_stat_pneumonia.dcm"
+    dicom_clear_path = samples_dir / "sample_clear_normal.dcm"
 
     samples = []
-    if normal_path.exists():
-        raw_norm = preprocessor.load_image(str(normal_path))
-        norm_b64 = preprocessor.to_base64_jpeg(raw_norm)
+    if dicom_stat_path.exists():
+        raw_dcm, _ = preprocessor.load_image_or_dicom(dicom_stat_path.read_bytes(), filename="stat.dcm")
         samples.append(SampleItem(
-            id="sample_normal",
-            title="Calibrated Normal Film",
+            id="sample_stat_dicom",
+            title="STAT Native DICOM (16-bit) - Vance, E.",
+            expected_condition="PNEUMONIA",
+            description="Native 16-bit uncompressed chest DICOM with dense alveolar airspace consolidation in right lung.",
+            image_b64=preprocessor.to_base64_jpeg(raw_dcm),
+            is_dicom=True
+        ))
+
+    if dicom_clear_path.exists():
+        raw_dcm_c, _ = preprocessor.load_image_or_dicom(dicom_clear_path.read_bytes(), filename="clear.dcm")
+        samples.append(SampleItem(
+            id="sample_clear_dicom",
+            title="Routine Native DICOM (16-bit) - Mercer, T.",
             expected_condition="NORMAL",
-            description="Clear bilateral pulmonary parenchyma, sharp costophrenic recesses, normal mediastinal silhouette.",
-            image_b64=norm_b64
+            description="Native 16-bit uncompressed chest DICOM with sharp costophrenic recesses and clear lung fields.",
+            image_b64=preprocessor.to_base64_jpeg(raw_dcm_c),
+            is_dicom=True
         ))
 
     if pneumonia_path.exists():
         raw_pneu = preprocessor.load_image(str(pneumonia_path))
-        pneu_b64 = preprocessor.to_base64_jpeg(raw_pneu)
         samples.append(SampleItem(
             id="sample_pneumonia",
-            title="Consolidative Infiltrate Film",
+            title="Consolidative Infiltrate Film (JPEG)",
             expected_condition="PNEUMONIA",
             description="Dense alveolar airspace consolidation localized predominantly in right lower/mid pulmonary zone.",
-            image_b64=pneu_b64
+            image_b64=preprocessor.to_base64_jpeg(raw_pneu),
+            is_dicom=False
+        ))
+
+    if normal_path.exists():
+        raw_norm = preprocessor.load_image(str(normal_path))
+        samples.append(SampleItem(
+            id="sample_normal",
+            title="Calibrated Normal Film (JPEG)",
+            expected_condition="NORMAL",
+            description="Clear bilateral pulmonary parenchyma, sharp costophrenic recesses, normal mediastinal silhouette.",
+            image_b64=preprocessor.to_base64_jpeg(raw_norm),
+            is_dicom=False
         ))
 
     return SamplesListResponse(samples=samples)
 
 @router.post("/api/v1/report", response_model=ClinicalReportResponse, tags=["Consultation Reporting"])
 async def generate_clinical_report(report_data: ClinicalReportRequest):
-    """Formats an official, hospital-grade radiology consultation note."""
+    """Formats an official, hospital-grade radiology consultation note with accession tracking."""
     report_id = f"ALV-{uuid.uuid4().hex[:8].upper()}"
     timestamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 

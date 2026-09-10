@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ALVEON | Thoracic Diagnostic Intelligence & Clinical PACS</title>
-    <meta name="description" content="ALVEON is a hospital-grade thoracic radiograph diagnostic suite featuring high-resolution Grad-CAM explainability and calibrated pulmonary zonation.">
+    <meta name="description" content="ALVEON is an institutional thoracic radiograph diagnostic suite featuring native 16-bit DICOM ingestion, emergency triage prioritization, and Grad-CAM explainability.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -18,10 +18,8 @@
                 <!-- Bespoke Sculpted Optical Aperture Logo -->
                 <div class="alveon-emblem" id="alveon-emblem" aria-hidden="true">
                     <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" class="emblem-svg">
-                        <!-- Interlocking Thoracic Arcs -->
                         <path d="M12 28C8.5 24 8 16 14 10C20 4 28 8 28 14" stroke="#e2e8f0" stroke-width="1.75" stroke-linecap="round"/>
                         <path d="M28 12C31.5 16 32 24 26 30C20 36 12 32 12 26" stroke="#94a3b8" stroke-width="1.75" stroke-linecap="round"/>
-                        <!-- Focal Laser Reticle -->
                         <circle cx="20" cy="20" r="2.5" fill="#f8fafc"/>
                         <line x1="20" y1="6" x2="20" y2="10" stroke="#64748b" stroke-width="1"/>
                         <line x1="20" y1="30" x2="20" y2="34" stroke="#64748b" stroke-width="1"/>
@@ -34,7 +32,7 @@
                         <span class="brand-name">ALVEON</span>
                         <span class="brand-badge">THORACIC PACS</span>
                     </div>
-                    <span class="brand-subtext">Precision Radiographic Diagnostic & Pathological Intelligence Suite</span>
+                    <span class="brand-subtext">Precision Radiographic Diagnostic & Emergency Triage Suite</span>
                 </div>
             </div>
 
@@ -42,7 +40,7 @@
             <div class="telemetry-bar" id="telemetry-bar">
                 <div class="telemetry-item">
                     <span class="telemetry-label">STATION</span>
-                    <span class="telemetry-val" id="telemetry-station">ONLINE</span>
+                    <span class="telemetry-val" id="telemetry-station">ACTIVE / CALIBRATED</span>
                 </div>
                 <div class="telemetry-divider"></div>
                 <div class="telemetry-item">
@@ -52,7 +50,7 @@
                 <div class="telemetry-divider"></div>
                 <div class="telemetry-item">
                     <span class="telemetry-label">DIAGNOSTIC ENGINE</span>
-                    <span class="telemetry-val" id="engine-status">KERAS 3 • AVX2</span>
+                    <span class="telemetry-val" id="engine-status">TF 2.21.0 • CPU (Optimized AVX2)</span>
                 </div>
             </div>
         </header>
@@ -86,7 +84,7 @@
             </div>
 
             <div class="toolbar-group">
-                <span class="toolbar-title">INSPECTION</span>
+                <span class="toolbar-title">INSPECTION & METADATA</span>
                 <div class="pill-group">
                     <button type="button" class="tool-btn" id="loupe-toggle-btn">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
@@ -95,7 +93,13 @@
                             <line x1="11" y1="8" x2="11" y2="14"/>
                             <line x1="8" y1="11" x2="14" y2="11"/>
                         </svg>
-                        2.5x Loupe Reticle
+                        2.5x Loupe
+                    </button>
+                    <button type="button" class="tool-btn" id="open-dicom-tags-btn">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 6h16M4 12h16M4 18h7"/>
+                        </svg>
+                        DICOM Tags (D)
                     </button>
                     <button type="button" class="tool-btn" id="reset-pacs-btn">Reset All</button>
                 </div>
@@ -104,87 +108,118 @@
 
         <!-- Main Radiologic Layout Grid -->
         <main class="workstation-grid">
-            <!-- Left Workspace: Study Ingestion & Radiologic Parameters -->
+            <!-- Left Workspace: Dual Mode Emergency Triage Worklist & Ingestion -->
             <section class="workstation-panel ingestion-panel" id="ingestion-panel">
-                <div class="panel-cap">
-                    <h2 class="panel-cap-title">STUDY INGESTION</h2>
-                    <span class="cap-tag">DICOM / CR / DR</span>
+                <!-- Navigation Tabs between Worklist and Ingestion -->
+                <div class="panel-mode-switcher">
+                    <button type="button" class="panel-mode-tab active" id="tab-btn-worklist">
+                        <span class="prio-dot-pulse"></span>
+                        ER Triage Queue (<span id="worklist-stat-badge">3 STAT</span>)
+                    </button>
+                    <button type="button" class="panel-mode-tab" id="tab-btn-ingest">
+                        Study Ingest & Drop
+                    </button>
                 </div>
 
-                <!-- Precision Drop Zone -->
-                <div class="pacs-dropzone" id="drop-zone" role="button" tabindex="0" aria-label="Upload Radiograph File">
-                    <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.webp,.tiff" hidden>
-                    <div class="dropzone-inner">
-                        <div class="dropzone-reticle">
-                            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
-                                <path d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
-                            </svg>
-                        </div>
-                        <div class="drop-text-primary">Ingest Thoracic Radiograph</div>
-                        <div class="drop-text-secondary">Drag & Drop Image or Click to Browse Local Files</div>
-                        <button type="button" class="btn-titanium" id="browse-btn">Select From File System</button>
+                <!-- 1. LIVE EMERGENCY TRIAGE WORKLIST CONTAINER -->
+                <div class="triage-worklist-container" id="triage-worklist-container">
+                    <!-- Triage Filter Bar -->
+                    <div class="triage-filter-bar">
+                        <button type="button" class="triage-filter-pill active" data-filter="all">All (<span id="count-all">5</span>)</button>
+                        <button type="button" class="triage-filter-pill stat-pill" data-filter="stat">🚨 STAT (<span id="count-stat">3</span>)</button>
+                        <button type="button" class="triage-filter-pill" data-filter="pending">Pending (<span id="count-pending">4</span>)</button>
+                        <button type="button" class="triage-filter-pill" data-filter="signed">Signed (<span id="count-signed">1</span>)</button>
+                    </div>
+
+                    <!-- Dynamic Study Queue List -->
+                    <div class="study-queue-scroll" id="study-queue-list">
+                        <!-- Populated dynamically via app.js -->
+                    </div>
+
+                    <div class="worklist-kbd-hint">
+                        <span>Navigate: <kbd>↑</kbd> <kbd>↓</kbd></span>
+                        <span>Tags: <kbd>D</kbd></span>
+                        <span>Sign: <kbd>S</kbd></span>
                     </div>
                 </div>
 
-                <!-- Instant PACS Verification Callsets -->
-                <div class="callsets-module">
-                    <span class="submodule-title">PACS VERIFICATION PROTOCOLS</span>
-                    <div class="callset-list">
-                        <button type="button" class="callset-card" id="sample-normal-btn" data-sample="sample_normal">
-                            <div class="callset-indicator normal"></div>
-                            <div class="callset-details">
-                                <div class="callset-name">Protocol 01: Clear Lung Fields</div>
-                                <div class="callset-sub">Acellular parenchyma, clear costophrenic sulci</div>
+                <!-- 2. STUDY INGESTION & PARAMETERS (Hidden when Worklist active) -->
+                <div class="study-ingestion-container" id="study-ingestion-container" hidden>
+                    <!-- Precision Multi-file / DICOM Drop Zone -->
+                    <div class="pacs-dropzone" id="drop-zone" role="button" tabindex="0" aria-label="Upload Radiograph or DICOM File">
+                        <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.webp,.tiff,.dcm,.dicom" multiple hidden>
+                        <div class="dropzone-inner">
+                            <div class="dropzone-reticle">
+                                <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <path d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                                </svg>
                             </div>
-                        </button>
-                        <button type="button" class="callset-card" id="sample-pneumonia-btn" data-sample="sample_pneumonia">
-                            <div class="callset-indicator pneumonia"></div>
-                            <div class="callset-details">
-                                <div class="callset-name">Protocol 02: Consolidative Pneumonia</div>
-                                <div class="callset-sub">Dense alveolar airspace opacity with infiltrates</div>
+                            <div class="drop-text-primary">Ingest DICOM / Radiograph</div>
+                            <div class="drop-text-secondary">Drag & Drop .dcm, .jpg, .png (Single or Batch)</div>
+                            <button type="button" class="btn-titanium" id="browse-btn">Browse Local Files</button>
+                        </div>
+                    </div>
+
+                    <!-- Verification Protocols / Sample Selectors -->
+                    <div class="callsets-module">
+                        <span class="submodule-title">PACS CALIBRATION PROTOCOLS</span>
+                        <div class="callset-list">
+                            <button type="button" class="callset-card" id="sample-stat-dcm-btn" data-sample="sample_stat_dicom">
+                                <div class="callset-indicator pneumonia"></div>
+                                <div class="callset-details">
+                                    <div class="callset-name">STAT Native DICOM (16-bit)</div>
+                                    <div class="callset-sub">Vance, E. • Alveolar opacification</div>
+                                </div>
+                            </button>
+                            <button type="button" class="callset-card" id="sample-clear-dcm-btn" data-sample="sample_clear_dicom">
+                                <div class="callset-indicator normal"></div>
+                                <div class="callset-details">
+                                    <div class="callset-name">Routine Native DICOM (16-bit)</div>
+                                    <div class="callset-sub">Mercer, T. • Clear parenchyma</div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- W/L Contrast Sliders -->
+                    <div class="sliders-module">
+                        <span class="submodule-title">EXPOSURE & SENSITIVITY CALIBRATION</span>
+                        <div class="slider-item">
+                            <div class="slider-label-row">
+                                <span>Window Width (Contrast Range)</span>
+                                <span class="mono-num" id="ww-val">100%</span>
                             </div>
-                        </button>
+                            <input type="range" id="contrast-slider" min="50" max="250" value="100">
+                        </div>
+                        <div class="slider-item">
+                            <div class="slider-label-row">
+                                <span>Window Level (Brightness)</span>
+                                <span class="mono-num" id="wl-val">100%</span>
+                            </div>
+                            <input type="range" id="brightness-slider" min="50" max="200" value="100">
+                        </div>
+                        <div class="slider-item">
+                            <div class="slider-label-row">
+                                <span>Thermal Blend Opacity</span>
+                                <span class="mono-num" id="opacity-val">50%</span>
+                            </div>
+                            <input type="range" id="heatmap-opacity" min="10" max="90" value="50">
+                        </div>
                     </div>
-                </div>
 
-                <!-- W/L Sliders -->
-                <div class="sliders-module">
-                    <span class="submodule-title">EXPOSURE & SENSITIVITY CALIBRATION</span>
-                    <div class="slider-item">
-                        <div class="slider-label-row">
-                            <span>Window Width (Contrast Range)</span>
-                            <span class="mono-num" id="ww-val">100%</span>
-                        </div>
-                        <input type="range" id="contrast-slider" min="50" max="250" value="100">
-                    </div>
-                    <div class="slider-item">
-                        <div class="slider-label-row">
-                            <span>Window Level (Brightness)</span>
-                            <span class="mono-num" id="wl-val">100%</span>
-                        </div>
-                        <input type="range" id="brightness-slider" min="50" max="200" value="100">
-                    </div>
-                    <div class="slider-item">
-                        <div class="slider-label-row">
-                            <span>Grad-CAM Thermal Transparency</span>
-                            <span class="mono-num" id="opacity-val">50%</span>
-                        </div>
-                        <input type="range" id="heatmap-opacity" min="10" max="90" value="50">
-                    </div>
+                    <!-- Execute Analysis CTA -->
+                    <button type="button" class="btn-master" id="analyze-btn" disabled>
+                        <span class="spinner-ring" id="analyze-spinner" hidden></span>
+                        <span id="analyze-btn-text">Execute Diagnostic Neural Sweep</span>
+                    </button>
                 </div>
-
-                <!-- Master Execution CTA -->
-                <button type="button" class="btn-master" id="analyze-btn" disabled>
-                    <span class="spinner-ring" id="analyze-spinner" hidden></span>
-                    <span id="analyze-btn-text">Execute Diagnostic Neural Sweep</span>
-                </button>
             </section>
 
             <!-- Right Workspace: Radiologic Viewport & Pathological Analysis -->
             <section class="workstation-panel viewport-panel" id="viewport-panel">
                 <div class="panel-cap">
                     <h2 class="panel-cap-title">RADIOLOGIC VIEWPORT & PATHOLOGY LOCALIZATION</h2>
-                    <div class="viewport-modes" id="viewport-modes" hidden>
+                    <div class="viewport-modes" id="viewport-modes">
                         <button type="button" class="view-mode-btn active" data-mode="split">Split Wipe</button>
                         <button type="button" class="view-mode-btn" data-mode="side">Dual Screen</button>
                         <button type="button" class="view-mode-btn" data-mode="heatmap">Thermal Only</button>
@@ -193,7 +228,7 @@
                 </div>
 
                 <!-- Empty State -->
-                <div class="pacs-empty-state" id="empty-state">
+                <div class="pacs-empty-state" id="empty-state" hidden>
                     <div class="empty-reticle">
                         <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.25">
                             <circle cx="12" cy="12" r="10"/>
@@ -202,7 +237,7 @@
                         </svg>
                     </div>
                     <h3>Radiologic Plate Standby</h3>
-                    <p>Select a verification study or ingest a clinical DICOM/radiograph from the left console to commence CADe diagnostic inference and Grad-CAM thermal localization.</p>
+                    <p>Select any patient study from the Emergency Triage Worklist on the left to review diagnostic inference and Grad-CAM thermal localization.</p>
                 </div>
 
                 <!-- Analysis Shimmer State -->
@@ -225,11 +260,11 @@
                 </div>
 
                 <!-- Active Radiologic Viewport -->
-                <div class="pacs-viewport-wrapper" id="diagnosis-content" hidden>
+                <div class="pacs-viewport-wrapper" id="diagnosis-content">
                     <!-- Diagnostic Findings Banner -->
                     <div class="findings-banner" id="diagnosis-banner">
                         <div class="banner-left">
-                            <div class="finding-badge" id="diagnosis-badge">PATHOLOGY DETECTED</div>
+                            <div class="finding-badge" id="diagnosis-badge">PATHOLOGY PRESENT</div>
                             <div class="finding-text">
                                 <h3 class="finding-title" id="diagnosis-heading">PNEUMONIA DETECTED</h3>
                                 <span class="finding-sub" id="risk-subtitle">High-Confidence Alveolar Consolidation</span>
@@ -242,9 +277,15 @@
                                     <circle class="dpi-ring-bg" stroke="rgba(255,255,255,0.08)" stroke-width="5" fill="transparent" r="25" cx="30" cy="30"/>
                                     <circle class="dpi-ring-val" id="confidence-ring" stroke="#e11d48" stroke-width="5" stroke-linecap="round" fill="transparent" r="25" cx="30" cy="30"/>
                                 </svg>
-                                <span class="dpi-percent" id="confidence-percentage">98%</span>
+                                <span class="dpi-percent" id="confidence-percentage">100%</span>
                             </div>
-                            <div class="latency-box" id="latency-chip">42 ms</div>
+                            <div class="latency-box" id="latency-chip">14.2 ms</div>
+                            <button type="button" class="btn-signoff" id="btn-signoff">
+                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                                    <polyline points="20 6 9 17 4 12"/>
+                                </svg>
+                                <span id="signoff-btn-text">Sign Off & Attest (S)</span>
+                            </button>
                         </div>
                     </div>
 
@@ -252,23 +293,24 @@
                     <div class="dicom-viewport" id="dicom-viewport">
                         <!-- 4-Corner DICOM HUD Markers -->
                         <div class="hud-corner top-left">
-                            <div>PATIENT: #ALV-8942</div>
-                            <div>STUDY: CHEST PA ERECT</div>
+                            <div id="hud-patient-id">PATIENT: #MRN-90214</div>
+                            <div id="hud-patient-name">NAME: VANCE^ELEANOR</div>
+                            <button type="button" class="hud-action-tag" id="hud-tag-trigger">DICOM TAGS ↗</button>
                         </div>
                         <div class="hud-corner top-right">
-                            <div>MATRIX: 150x150 mm</div>
-                            <div>SCALE: 0.85 mm/px</div>
+                            <div id="hud-modality">MODALITY: DX (16-bit)</div>
+                            <div id="hud-sensor">125 kVp • 14 ms</div>
                         </div>
                         <div class="hud-corner bottom-left">
                             <div id="hud-wl-display">W: 1500  L: -600</div>
                             <div id="hud-loupe-display">LOUPE: OFF</div>
                         </div>
                         <div class="hud-corner bottom-right">
-                            <div>ALVEON v2.5</div>
-                            <div>16-BIT GSDF</div>
+                            <div>ALVEON PACS v2.5</div>
+                            <div id="hud-study-status">STATUS: PENDING</div>
                         </div>
 
-                        <!-- Split Comparison Canvas -->
+                        <!-- Split Comparison Canvas with CSS clip-path -->
                         <div class="split-frame" id="split-slider-wrapper">
                             <img id="view-underlay" class="plate-img" alt="Grad-CAM Thermal Layer">
                             <div class="split-curtain" id="split-clipped">
@@ -313,28 +355,28 @@
                             <div class="zone-bar-wrap">
                                 <div class="zone-label-row">
                                     <span>Right Upper Lobe (RUL)</span>
-                                    <span class="mono-num" id="zone-rul-val">12%</span>
+                                    <span class="mono-num" id="zone-rul-val">8%</span>
                                 </div>
                                 <div class="zone-progress"><div class="zone-fill" id="zone-rul-fill"></div></div>
                             </div>
                             <div class="zone-bar-wrap">
                                 <div class="zone-label-row">
                                     <span>Right Lower Lobe (RLL)</span>
-                                    <span class="mono-num" id="zone-rll-val">74%</span>
+                                    <span class="mono-num" id="zone-rll-val">49%</span>
                                 </div>
                                 <div class="zone-progress"><div class="zone-fill" id="zone-rll-fill"></div></div>
                             </div>
                             <div class="zone-bar-wrap">
                                 <div class="zone-label-row">
                                     <span>Left Upper Lobe (LUL)</span>
-                                    <span class="mono-num" id="zone-lul-val">8%</span>
+                                    <span class="mono-num" id="zone-lul-val">6%</span>
                                 </div>
                                 <div class="zone-progress"><div class="zone-fill" id="zone-lul-fill"></div></div>
                             </div>
                             <div class="zone-bar-wrap">
                                 <div class="zone-label-row">
                                     <span>Left Lower Lobe (LLL)</span>
-                                    <span class="mono-num" id="zone-lll-val">6%</span>
+                                    <span class="mono-num" id="zone-lll-val">37%</span>
                                 </div>
                                 <div class="zone-progress"><div class="zone-fill" id="zone-lll-fill"></div></div>
                             </div>
@@ -378,16 +420,14 @@
             </section>
         </main>
 
-        <!-- Official ALVEON Clinical Consultation Report Modal -->
+        <!-- 1. Official ALVEON Clinical Consultation Report Modal -->
         <dialog id="report-dialog" class="alveon-modal">
             <div class="modal-shell">
                 <div class="modal-top">
                     <span class="modal-title">ALVEON Radiology Consultation Suite</span>
                     <button type="button" class="modal-x" id="close-modal-btn" aria-label="Close modal">&times;</button>
                 </div>
-                <div class="modal-scroll" id="modal-report-container">
-                    <!-- Dynamic HTML from API -->
-                </div>
+                <div class="modal-scroll" id="modal-report-container"></div>
                 <div class="modal-bottom">
                     <button type="button" class="btn-titanium" id="modal-cancel-btn">Dismiss</button>
                     <button type="button" class="btn-master" id="modal-print-btn" style="width: auto; padding: 10px 20px;">
@@ -398,6 +438,40 @@
                         </svg>
                         Print / Export Official Consultation Note
                     </button>
+                </div>
+            </div>
+        </dialog>
+
+        <!-- 2. DICOM Group/Element Header Tag Inspector Modal -->
+        <dialog id="dicom-tags-dialog" class="alveon-modal">
+            <div class="modal-shell dicom-inspector-shell">
+                <div class="modal-top">
+                    <div class="modal-title-cluster">
+                        <span class="modal-title">DICOM File Meta Information & Clinical Attributes</span>
+                        <span class="dicom-tag-sub" id="dicom-modal-subtitle">PS 3.6 Standard Data Dictionary • Explicit VR</span>
+                    </div>
+                    <button type="button" class="modal-x" id="close-dicom-modal-btn" aria-label="Close modal">&times;</button>
+                </div>
+                <div class="modal-scroll dicom-inspector-scroll">
+                    <table class="dicom-tag-table">
+                        <thead>
+                            <tr>
+                                <th>TAG (GRP, ELEM)</th>
+                                <th>VR</th>
+                                <th>DESCRIPTION</th>
+                                <th>VALUE</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dicom-tags-tbody">
+                            <!-- Populated dynamically via app.js -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="modal-bottom">
+                    <div class="dicom-audit-footer">
+                        <span>TRANSFER SYNTAX: <strong id="dicom-footer-syntax">Explicit VR Little Endian</strong></span>
+                    </div>
+                    <button type="button" class="btn-titanium" id="dismiss-dicom-btn">Close Inspector</button>
                 </div>
             </div>
         </dialog>

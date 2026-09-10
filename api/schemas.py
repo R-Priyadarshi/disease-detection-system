@@ -17,6 +17,32 @@ class AnatomicalZonation(BaseModel):
     left_lower_lobe_pct: float = Field(..., description="Left lower quadrant opacity percentage")
     dominant_zone: str = Field(..., description="Anatomical zone with highest radiographic activation")
 
+class DicomMetadataModel(BaseModel):
+    is_dicom: bool = True
+    patient_id: str = "ALV-STAT-09"
+    patient_name: str = "Anonymous Patient"
+    patient_age: str = "048Y"
+    patient_sex: str = "F"
+    study_date: str = "20260910"
+    study_time: str = "143000"
+    modality: str = "DX"
+    body_part_examined: str = "CHEST"
+    view_position: str = "PA"
+    kvp: str = "125 kVp"
+    exposure_time: str = "14 ms"
+    tube_current: str = "300 mA"
+    institution_name: str = "ALVEON Regional Medical Center"
+    station_name: str = "STAT-PACS-01"
+    photometric_interpretation: str = "MONOCHROME2"
+    window_center: int = 128
+    window_width: int = 256
+    rows: int = 150
+    columns: int = 150
+    bits_allocated: int = 16
+    bits_stored: int = 12
+    transfer_syntax_uid: str = "1.2.840.10008.1.2.1"
+    sop_instance_uid: Optional[str] = None
+
 class PredictionResponse(BaseModel):
     status: str = "success"
     filename: str
@@ -32,6 +58,53 @@ class PredictionResponse(BaseModel):
     original_image_b64: str
     gradcam_overlay_b64: Optional[str] = None
     gradcam_heatmap_b64: Optional[str] = None
+    dicom_metadata: Optional[DicomMetadataModel] = None
+
+class WorklistStudyItem(BaseModel):
+    study_id: str
+    patient_mrn: str
+    patient_name: str
+    patient_age_sex: str
+    study_time: str
+    priority: str = Field(..., description="'STAT_CRITICAL', 'URGENT', or 'ROUTINE'")
+    priority_rank: int = Field(..., description="1 = STAT, 2 = Urgent, 3 = Routine")
+    diagnosis: str
+    is_pneumonia: bool
+    confidence_percentage: float
+    dominant_zone: str
+    status: str = Field("PENDING", description="'PENDING' or 'SIGNED'")
+    modality: str = "DX"
+    image_b64: str
+    gradcam_overlay_b64: Optional[str] = None
+    zonation: Optional[AnatomicalZonation] = None
+    dicom_metadata: Optional[DicomMetadataModel] = None
+
+class WorklistResponse(BaseModel):
+    status: str = "success"
+    total_cases: int
+    stat_critical_count: int
+    pending_count: int
+    studies: List[WorklistStudyItem]
+
+class SignoffRequest(BaseModel):
+    study_id: str
+    physician_name: str = "Dr. Attending Radiologist, MD"
+    physician_license: str = "ABR-984210"
+    clinical_notes: Optional[str] = "Radiologic findings verified. Alveolar consolidation confirmed on Grad-CAM localization."
+
+class SignoffResponse(BaseModel):
+    status: str = "success"
+    study_id: str
+    timestamp: str
+    physician_signature: str
+    signoff_badge: str
+    audit_hash: str
+
+class BatchTriageResponse(BaseModel):
+    status: str = "success"
+    total_ingested: int
+    critical_stat_count: int
+    triaged_studies: List[WorklistStudyItem]
 
 class SampleItem(BaseModel):
     id: str
@@ -39,6 +112,7 @@ class SampleItem(BaseModel):
     expected_condition: str
     description: str
     image_b64: str
+    is_dicom: bool = False
 
 class SamplesListResponse(BaseModel):
     status: str = "success"
@@ -59,6 +133,7 @@ class ClinicalReportRequest(BaseModel):
     zonation: Optional[Dict[str, Any]] = None
     original_image_b64: str
     gradcam_overlay_b64: str
+    dicom_metadata: Optional[Dict[str, Any]] = None
 
 class ClinicalReportResponse(BaseModel):
     status: str = "success"
