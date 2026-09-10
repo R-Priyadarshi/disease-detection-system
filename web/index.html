@@ -3,283 +3,400 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PneumoScan AI - Clinical Chest Radiograph Diagnostics & Grad-CAM Explainability</title>
-    <meta name="description" content="Production-grade AI diagnostic platform for rapid pneumonia detection and thermal Grad-CAM explainability in chest X-rays.">
+    <title>ALVEON | Thoracic Diagnostic Intelligence & Clinical PACS</title>
+    <meta name="description" content="ALVEON is a hospital-grade thoracic radiograph diagnostic suite featuring high-resolution Grad-CAM explainability and calibrated pulmonary zonation.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <div class="app-container">
-        <!-- Top Navigation / Header -->
-        <header class="app-header" id="main-header">
-            <div class="brand-group">
-                <div class="logo-badge" id="logo-badge">
-                    <svg class="pulse-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+    <div class="workstation-container">
+        <!-- Top Institutional Header -->
+        <header class="pacs-header" id="pacs-header">
+            <div class="brand-cluster">
+                <!-- Bespoke Sculpted Optical Aperture Logo -->
+                <div class="alveon-emblem" id="alveon-emblem" aria-hidden="true">
+                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" class="emblem-svg">
+                        <!-- Interlocking Thoracic Arcs -->
+                        <path d="M12 28C8.5 24 8 16 14 10C20 4 28 8 28 14" stroke="#e2e8f0" stroke-width="1.75" stroke-linecap="round"/>
+                        <path d="M28 12C31.5 16 32 24 26 30C20 36 12 32 12 26" stroke="#94a3b8" stroke-width="1.75" stroke-linecap="round"/>
+                        <!-- Focal Laser Reticle -->
+                        <circle cx="20" cy="20" r="2.5" fill="#f8fafc"/>
+                        <line x1="20" y1="6" x2="20" y2="10" stroke="#64748b" stroke-width="1"/>
+                        <line x1="20" y1="30" x2="20" y2="34" stroke="#64748b" stroke-width="1"/>
+                        <line x1="6" y1="20" x2="10" y2="20" stroke="#64748b" stroke-width="1"/>
+                        <line x1="30" y1="20" x2="34" y2="20" stroke="#64748b" stroke-width="1"/>
                     </svg>
                 </div>
-                <div>
-                    <h1 class="brand-title">PneumoScan <span class="accent-text">AI</span></h1>
-                    <p class="brand-subtitle">Deep Radiographic Pulmonary Diagnostic System</p>
+                <div class="brand-titles">
+                    <div class="brand-row">
+                        <span class="brand-name">ALVEON</span>
+                        <span class="brand-badge">THORACIC PACS</span>
+                    </div>
+                    <span class="brand-subtext">Precision Radiographic Diagnostic & Pathological Intelligence Suite</span>
                 </div>
             </div>
 
-            <div class="system-status-pill" id="system-status">
-                <span class="status-dot online"></span>
-                <span id="status-text">Model Active • TensorFlow CNN</span>
+            <!-- PACS Telemetry HUD -->
+            <div class="telemetry-bar" id="telemetry-bar">
+                <div class="telemetry-item">
+                    <span class="telemetry-label">STATION</span>
+                    <span class="telemetry-val" id="telemetry-station">ONLINE</span>
+                </div>
+                <div class="telemetry-divider"></div>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">STANDARD</span>
+                    <span class="telemetry-val">DICOM GSDF-14</span>
+                </div>
+                <div class="telemetry-divider"></div>
+                <div class="telemetry-item">
+                    <span class="telemetry-label">DIAGNOSTIC ENGINE</span>
+                    <span class="telemetry-val" id="engine-status">KERAS 3 • AVX2</span>
+                </div>
             </div>
         </header>
 
-        <!-- Main Grid Workspace -->
-        <main class="main-layout">
-            <!-- Left Column: Input Studio & Radiology Tools -->
-            <section class="panel input-panel" id="input-section" aria-labelledby="input-heading">
-                <div class="panel-header">
-                    <h2 id="input-heading" class="panel-title">
-                        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                            <polyline points="17 8 12 3 7 8"/>
-                            <line x1="12" y1="3" x2="12" y2="15"/>
+        <!-- Radiology PACS Master Controls Toolbar -->
+        <nav class="pacs-toolbar" id="pacs-toolbar" aria-label="Radiology PACS Tools">
+            <div class="toolbar-group">
+                <span class="toolbar-title">WINDOW / LEVEL</span>
+                <div class="pill-group" id="wl-presets">
+                    <button type="button" class="tool-btn active" data-wl="default">Standard Film</button>
+                    <button type="button" class="tool-btn" data-wl="lung">Lung Parenchyma</button>
+                    <button type="button" class="tool-btn" data-wl="bone">Bone Cortical</button>
+                    <button type="button" class="tool-btn" id="btn-invert" data-wl="invert">Invert (I)</button>
+                    <button type="button" class="tool-btn" id="btn-clahe" data-wl="clahe">CLAHE Filter</button>
+                </div>
+            </div>
+
+            <div class="toolbar-group">
+                <span class="toolbar-title">THERMAL COLORMAP</span>
+                <div class="pill-group" id="colormap-selectors">
+                    <button type="button" class="colormap-pill active" data-color="inferno">
+                        <span class="colormap-indicator inferno"></span> Inferno
+                    </button>
+                    <button type="button" class="colormap-pill" data-color="viridis">
+                        <span class="colormap-indicator viridis"></span> Viridis
+                    </button>
+                    <button type="button" class="colormap-pill" data-color="plasma">
+                        <span class="colormap-indicator plasma"></span> Plasma
+                    </button>
+                </div>
+            </div>
+
+            <div class="toolbar-group">
+                <span class="toolbar-title">INSPECTION</span>
+                <div class="pill-group">
+                    <button type="button" class="tool-btn" id="loupe-toggle-btn">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            <line x1="11" y1="8" x2="11" y2="14"/>
+                            <line x1="8" y1="11" x2="14" y2="11"/>
                         </svg>
-                        Radiograph Ingestion
-                    </h2>
-                    <span class="badge">DICOM & Standard Imaging</span>
+                        2.5x Loupe Reticle
+                    </button>
+                    <button type="button" class="tool-btn" id="reset-pacs-btn">Reset All</button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Radiologic Layout Grid -->
+        <main class="workstation-grid">
+            <!-- Left Workspace: Study Ingestion & Radiologic Parameters -->
+            <section class="workstation-panel ingestion-panel" id="ingestion-panel">
+                <div class="panel-cap">
+                    <h2 class="panel-cap-title">STUDY INGESTION</h2>
+                    <span class="cap-tag">DICOM / CR / DR</span>
                 </div>
 
-                <!-- Drag and Drop Zone -->
-                <div class="drop-zone" id="drop-zone" tabindex="0" role="button" aria-label="Upload Chest X-ray image">
+                <!-- Precision Drop Zone -->
+                <div class="pacs-dropzone" id="drop-zone" role="button" tabindex="0" aria-label="Upload Radiograph File">
                     <input type="file" id="file-input" accept=".jpg,.jpeg,.png,.webp,.tiff" hidden>
-                    <div class="drop-zone-content">
-                        <div class="upload-icon-wrapper">
-                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
-                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
-                                <circle cx="8.5" cy="8.5" r="1.5"/>
-                                <polyline points="21 15 16 10 5 21"/>
+                    <div class="dropzone-inner">
+                        <div class="dropzone-reticle">
+                            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M4 16v1a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                             </svg>
                         </div>
-                        <p class="drop-primary">Drag & drop chest radiograph here</p>
-                        <p class="drop-secondary">Supports JPEG, PNG, WEBP, TIFF (Auto-normalized)</p>
-                        <button type="button" class="btn btn-secondary" id="browse-btn">Browse Files</button>
+                        <div class="drop-text-primary">Ingest Thoracic Radiograph</div>
+                        <div class="drop-text-secondary">Drag & Drop Image or Click to Browse Local Files</div>
+                        <button type="button" class="btn-titanium" id="browse-btn">Select From File System</button>
                     </div>
                 </div>
 
-                <!-- Instant Demo Samples -->
-                <div class="samples-section">
-                    <span class="section-label">Instant Verification Samples</span>
-                    <div class="sample-chips-grid">
-                        <button type="button" class="sample-chip" id="sample-normal-btn" data-sample="sample_normal">
-                            <span class="chip-status-dot normal"></span>
-                            <span class="chip-title">Normal Clear Lung</span>
+                <!-- Instant PACS Verification Callsets -->
+                <div class="callsets-module">
+                    <span class="submodule-title">PACS VERIFICATION PROTOCOLS</span>
+                    <div class="callset-list">
+                        <button type="button" class="callset-card" id="sample-normal-btn" data-sample="sample_normal">
+                            <div class="callset-indicator normal"></div>
+                            <div class="callset-details">
+                                <div class="callset-name">Protocol 01: Clear Lung Fields</div>
+                                <div class="callset-sub">Acellular parenchyma, clear costophrenic sulci</div>
+                            </div>
                         </button>
-                        <button type="button" class="sample-chip" id="sample-pneumonia-btn" data-sample="sample_pneumonia">
-                            <span class="chip-status-dot pneumonia"></span>
-                            <span class="chip-title">Consolidative Pneumonia</span>
+                        <button type="button" class="callset-card" id="sample-pneumonia-btn" data-sample="sample_pneumonia">
+                            <div class="callset-indicator pneumonia"></div>
+                            <div class="callset-details">
+                                <div class="callset-name">Protocol 02: Consolidative Pneumonia</div>
+                                <div class="callset-sub">Dense alveolar airspace opacity with infiltrates</div>
+                            </div>
                         </button>
                     </div>
                 </div>
 
-                <!-- Radiology Visual Filters -->
-                <div class="radiology-controls">
-                    <span class="section-label">Radiology Enhancement Filters</span>
-                    <div class="controls-row">
-                        <label class="toggle-control" id="clahe-toggle-label">
-                            <input type="checkbox" id="clahe-toggle">
-                            <span class="toggle-switch"></span>
-                            <span class="toggle-text">CLAHE Contrast Equalization</span>
-                        </label>
-                        <label class="toggle-control" id="invert-toggle-label">
-                            <input type="checkbox" id="invert-toggle">
-                            <span class="toggle-switch"></span>
-                            <span class="toggle-text">Negative Monochromatic Invert</span>
-                        </label>
-                    </div>
-
-                    <div class="slider-control">
-                        <div class="slider-header">
-                            <label for="heatmap-opacity">Grad-CAM Thermal Opacity</label>
-                            <span id="opacity-val" class="mono-value">55%</span>
+                <!-- W/L Sliders -->
+                <div class="sliders-module">
+                    <span class="submodule-title">EXPOSURE & SENSITIVITY CALIBRATION</span>
+                    <div class="slider-item">
+                        <div class="slider-label-row">
+                            <span>Window Width (Contrast Range)</span>
+                            <span class="mono-num" id="ww-val">100%</span>
                         </div>
-                        <input type="range" id="heatmap-opacity" min="10" max="90" value="55">
+                        <input type="range" id="contrast-slider" min="50" max="250" value="100">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-label-row">
+                            <span>Window Level (Brightness)</span>
+                            <span class="mono-num" id="wl-val">100%</span>
+                        </div>
+                        <input type="range" id="brightness-slider" min="50" max="200" value="100">
+                    </div>
+                    <div class="slider-item">
+                        <div class="slider-label-row">
+                            <span>Grad-CAM Thermal Transparency</span>
+                            <span class="mono-num" id="opacity-val">50%</span>
+                        </div>
+                        <input type="range" id="heatmap-opacity" min="10" max="90" value="50">
                     </div>
                 </div>
 
-                <!-- Analysis CTA -->
-                <button type="button" class="btn btn-primary" id="analyze-btn" disabled>
-                    <span class="btn-spinner" id="analyze-spinner" hidden></span>
-                    <span id="analyze-btn-text">Execute Diagnostic Neural Scan</span>
+                <!-- Master Execution CTA -->
+                <button type="button" class="btn-master" id="analyze-btn" disabled>
+                    <span class="spinner-ring" id="analyze-spinner" hidden></span>
+                    <span id="analyze-btn-text">Execute Diagnostic Neural Sweep</span>
                 </button>
             </section>
 
-            <!-- Right Column: Interactive Diagnostic Workspace -->
-            <section class="panel results-panel" id="results-section" aria-labelledby="results-heading">
-                <div class="panel-header">
-                    <h2 id="results-heading" class="panel-title">
-                        <svg class="header-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M2 12h5l3 5 4-10 3 5h5"/>
-                        </svg>
-                        Diagnostic Analysis & Explainability
-                    </h2>
-                    <div class="view-toggles" id="view-toggles" hidden>
-                        <button type="button" class="toggle-btn active" data-view="split" id="split-view-btn">Split Wipe</button>
-                        <button type="button" class="toggle-btn" data-view="side" id="side-view-btn">Side-by-Side</button>
-                        <button type="button" class="toggle-btn" data-view="heatmap" id="heat-view-btn">Heatmap</button>
-                        <button type="button" class="toggle-btn" data-view="original" id="orig-view-btn">Original</button>
+            <!-- Right Workspace: Radiologic Viewport & Pathological Analysis -->
+            <section class="workstation-panel viewport-panel" id="viewport-panel">
+                <div class="panel-cap">
+                    <h2 class="panel-cap-title">RADIOLOGIC VIEWPORT & PATHOLOGY LOCALIZATION</h2>
+                    <div class="viewport-modes" id="viewport-modes" hidden>
+                        <button type="button" class="view-mode-btn active" data-mode="split">Split Wipe</button>
+                        <button type="button" class="view-mode-btn" data-mode="side">Dual Screen</button>
+                        <button type="button" class="view-mode-btn" data-mode="heatmap">Thermal Only</button>
+                        <button type="button" class="view-mode-btn" data-mode="original">Film Only</button>
                     </div>
                 </div>
 
-                <!-- Empty State Placeholder -->
-                <div class="empty-state" id="empty-state">
-                    <div class="empty-icon-pulse">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <!-- Empty State -->
+                <div class="pacs-empty-state" id="empty-state">
+                    <div class="empty-reticle">
+                        <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.25">
                             <circle cx="12" cy="12" r="10"/>
-                            <line x1="12" y1="8" x2="12" y2="12"/>
-                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                            <line x1="12" y1="2" x2="12" y2="22"/>
+                            <line x1="2" y1="12" x2="22" y2="12"/>
                         </svg>
                     </div>
-                    <h3>Awaiting Radiograph Ingestion</h3>
-                    <p>Upload a chest radiograph or choose a verification sample from the left panel to execute neural feature classification and Grad-CAM localization.</p>
+                    <h3>Radiologic Plate Standby</h3>
+                    <p>Select a verification study or ingest a clinical DICOM/radiograph from the left console to commence CADe diagnostic inference and Grad-CAM thermal localization.</p>
                 </div>
 
-                <!-- Loading State Shimmer -->
-                <div class="loading-state" id="loading-state" hidden>
-                    <div class="scanner-line"></div>
-                    <div class="loading-steps">
-                        <div class="step active" id="step-1">
-                            <span class="step-dot"></span>
-                            <span>Normalizing Radiographic Matrix (150x150x1)...</span>
+                <!-- Analysis Shimmer State -->
+                <div class="pacs-loading-state" id="loading-state" hidden>
+                    <div class="pacs-laser-scan"></div>
+                    <div class="loading-telemetry">
+                        <div class="hud-phase active">
+                            <span class="phase-indicator"></span>
+                            <span>Deconvolving Radiographic Tensor (150x150x1 GSDF)...</span>
                         </div>
-                        <div class="step" id="step-2">
-                            <span class="step-dot"></span>
-                            <span>Extracting 319K Spatial Convolution Features...</span>
+                        <div class="hud-phase">
+                            <span class="phase-indicator"></span>
+                            <span>Computing 319,329 Convolutional Synaptic Weights...</span>
                         </div>
-                        <div class="step" id="step-3">
-                            <span class="step-dot"></span>
-                            <span>Synthesizing Grad-CAM Activation Heatmap...</span>
+                        <div class="hud-phase">
+                            <span class="phase-indicator"></span>
+                            <span>Backpropagating Gradient Loss w.r.t conv2d_2 Features...</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- Active Diagnosis Container -->
-                <div class="diagnosis-content" id="diagnosis-content" hidden>
-                    <!-- Diagnosis Status Ribbon -->
-                    <div class="diagnosis-banner" id="diagnosis-banner">
+                <!-- Active Radiologic Viewport -->
+                <div class="pacs-viewport-wrapper" id="diagnosis-content" hidden>
+                    <!-- Diagnostic Findings Banner -->
+                    <div class="findings-banner" id="diagnosis-banner">
                         <div class="banner-left">
-                            <span class="status-indicator-badge" id="diagnosis-badge">ANALYZED</span>
-                            <div>
-                                <h3 class="diagnosis-title" id="diagnosis-heading">PNEUMONIA DETECTED</h3>
-                                <p class="risk-subtitle" id="risk-subtitle">High Confidence Pulmonary Consolidation</p>
+                            <div class="finding-badge" id="diagnosis-badge">PATHOLOGY DETECTED</div>
+                            <div class="finding-text">
+                                <h3 class="finding-title" id="diagnosis-heading">PNEUMONIA DETECTED</h3>
+                                <span class="finding-sub" id="risk-subtitle">High-Confidence Alveolar Consolidation</span>
                             </div>
                         </div>
 
                         <div class="banner-right">
-                            <div class="confidence-circle-wrap">
-                                <svg class="progress-ring" width="68" height="68">
-                                    <circle class="progress-ring__circle-bg" stroke="#1e293b" stroke-width="6" fill="transparent" r="28" cx="34" cy="34"/>
-                                    <circle class="progress-ring__circle" id="confidence-ring" stroke="#06b6d4" stroke-width="6" stroke-linecap="round" fill="transparent" r="28" cx="34" cy="34"/>
+                            <div class="dpi-gauge">
+                                <svg class="dpi-ring" width="60" height="60">
+                                    <circle class="dpi-ring-bg" stroke="rgba(255,255,255,0.08)" stroke-width="5" fill="transparent" r="25" cx="30" cy="30"/>
+                                    <circle class="dpi-ring-val" id="confidence-ring" stroke="#e11d48" stroke-width="5" stroke-linecap="round" fill="transparent" r="25" cx="30" cy="30"/>
                                 </svg>
-                                <span class="confidence-label" id="confidence-percentage">98%</span>
+                                <span class="dpi-percent" id="confidence-percentage">98%</span>
                             </div>
-                            <span class="latency-chip" id="latency-chip">35ms</span>
+                            <div class="latency-box" id="latency-chip">42 ms</div>
                         </div>
                     </div>
 
-                    <!-- Visual Comparison Canvas -->
-                    <div class="viewer-container" id="viewer-container">
-                        <!-- Split Wipe Slider View -->
-                        <div class="split-slider-wrapper" id="split-slider-wrapper">
-                            <img id="view-underlay" class="viewer-img" alt="Grad-CAM Overlay">
-                            <div class="split-clipped" id="split-clipped">
-                                <img id="view-overlay" class="viewer-img" alt="Original Radiograph">
+                    <!-- PACS Image Canvas Viewport with DICOM HUD -->
+                    <div class="dicom-viewport" id="dicom-viewport">
+                        <!-- 4-Corner DICOM HUD Markers -->
+                        <div class="hud-corner top-left">
+                            <div>PATIENT: #ALV-8942</div>
+                            <div>STUDY: CHEST PA ERECT</div>
+                        </div>
+                        <div class="hud-corner top-right">
+                            <div>MATRIX: 150x150 mm</div>
+                            <div>SCALE: 0.85 mm/px</div>
+                        </div>
+                        <div class="hud-corner bottom-left">
+                            <div id="hud-wl-display">W: 1500  L: -600</div>
+                            <div id="hud-loupe-display">LOUPE: OFF</div>
+                        </div>
+                        <div class="hud-corner bottom-right">
+                            <div>ALVEON v2.5</div>
+                            <div>16-BIT GSDF</div>
+                        </div>
+
+                        <!-- Split Comparison Canvas -->
+                        <div class="split-frame" id="split-slider-wrapper">
+                            <img id="view-underlay" class="plate-img" alt="Grad-CAM Thermal Layer">
+                            <div class="split-curtain" id="split-clipped">
+                                <img id="view-overlay" class="plate-img" alt="Raw Radiograph">
                             </div>
-                            <div class="slider-handle" id="slider-handle">
-                                <div class="handle-line"></div>
-                                <div class="handle-button">
-                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="15 18 9 12 15 6"/>
-                                        <polyline points="9 18 3 12 9 6"/>
+                            <!-- Handle Line -->
+                            <div class="split-divider" id="slider-handle">
+                                <div class="reticle-handle">
+                                    <svg viewBox="0 0 16 16" width="12" height="12" fill="#fff">
+                                        <polygon points="5,8 0,4 0,12"/>
+                                        <polygon points="11,8 16,4 16,12"/>
                                     </svg>
                                 </div>
                             </div>
-                            <div class="overlay-badge left">Grad-CAM Heatmap</div>
-                            <div class="overlay-badge right">Raw Radiograph</div>
                         </div>
 
-                        <!-- Side by Side View -->
-                        <div class="side-by-side-wrapper" id="side-by-side-wrapper" hidden>
-                            <div class="side-panel">
-                                <span class="side-label">Original Radiograph</span>
-                                <img id="side-orig" class="side-img" alt="Original">
+                        <!-- Side-by-Side Dual View -->
+                        <div class="dual-frame" id="side-by-side-wrapper" hidden>
+                            <div class="dual-screen">
+                                <span class="screen-tag">PRE-PROCESSED FILM</span>
+                                <img id="side-orig" class="dual-img" alt="Original">
                             </div>
-                            <div class="side-panel">
-                                <span class="side-label">Grad-CAM Localization</span>
-                                <img id="side-heatmap" class="side-img" alt="Grad-CAM">
+                            <div class="dual-screen">
+                                <span class="screen-tag">GRAD-CAM ACTIVATION MAP</span>
+                                <img id="side-heatmap" class="dual-img" alt="Grad-CAM">
+                            </div>
+                        </div>
+
+                        <!-- 2.5x Magnifying Loupe Overlay -->
+                        <div class="loupe-lens" id="loupe-lens" hidden>
+                            <div class="loupe-crosshair"></div>
+                        </div>
+                    </div>
+
+                    <!-- Anatomical Pulmonary Quadrant Zonation Module -->
+                    <div class="zonation-module" id="zonation-module">
+                        <div class="zonation-header">
+                            <span class="submodule-title">ANATOMICAL PULMONARY QUADRANT CONCENTRATION</span>
+                            <span class="dominant-chip" id="dominant-zone-chip">Dominant: Right Lower Lobe</span>
+                        </div>
+                        <div class="zonation-grid">
+                            <div class="zone-bar-wrap">
+                                <div class="zone-label-row">
+                                    <span>Right Upper Lobe (RUL)</span>
+                                    <span class="mono-num" id="zone-rul-val">12%</span>
+                                </div>
+                                <div class="zone-progress"><div class="zone-fill" id="zone-rul-fill"></div></div>
+                            </div>
+                            <div class="zone-bar-wrap">
+                                <div class="zone-label-row">
+                                    <span>Right Lower Lobe (RLL)</span>
+                                    <span class="mono-num" id="zone-rll-val">74%</span>
+                                </div>
+                                <div class="zone-progress"><div class="zone-fill" id="zone-rll-fill"></div></div>
+                            </div>
+                            <div class="zone-bar-wrap">
+                                <div class="zone-label-row">
+                                    <span>Left Upper Lobe (LUL)</span>
+                                    <span class="mono-num" id="zone-lul-val">8%</span>
+                                </div>
+                                <div class="zone-progress"><div class="zone-fill" id="zone-lul-fill"></div></div>
+                            </div>
+                            <div class="zone-bar-wrap">
+                                <div class="zone-label-row">
+                                    <span>Left Lower Lobe (LLL)</span>
+                                    <span class="mono-num" id="zone-lll-val">6%</span>
+                                </div>
+                                <div class="zone-progress"><div class="zone-fill" id="zone-lll-fill"></div></div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Clinical Findings & Actions -->
-                    <div class="clinical-box" id="clinical-box">
-                        <div class="clinical-icon">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <!-- Clinical Findings Guidance & Consultation Actions -->
+                    <div class="clinical-findings-box">
+                        <div class="findings-icon">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/>
+                            </svg>
+                        </div>
+                        <div class="findings-text-content">
+                            <h4>Pathological Evaluation & Impression</h4>
+                            <p id="clinical-recommendation-text">High likelihood of consolidative pneumonia detected with localized alveolar opacification.</p>
+                        </div>
+                    </div>
+
+                    <!-- PACS Export Bar -->
+                    <div class="pacs-actions">
+                        <button type="button" class="btn-titanium" id="open-report-btn">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                                 <polyline points="14 2 14 8 20 8"/>
                                 <line x1="16" y1="13" x2="8" y2="13"/>
                                 <line x1="16" y1="17" x2="8" y2="17"/>
                             </svg>
-                        </div>
-                        <div>
-                            <h4>Radiological Impression & Findings</h4>
-                            <p id="clinical-recommendation-text">High likelihood of pulmonary consolidation/infiltrate detected. Immediate clinical review recommended.</p>
-                        </div>
-                    </div>
-
-                    <!-- Action Bar -->
-                    <div class="action-bar">
-                        <button type="button" class="btn btn-secondary" id="open-report-btn">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                <polyline points="14 2 14 8 20 8"/>
-                                <line x1="16" y1="13" x2="8" y2="13"/>
-                                <line x1="16" y1="17" x2="8" y2="17"/>
-                            </svg>
-                            Generate Clinical Report
+                            Generate Formal Consultation Report
                         </button>
-                        <button type="button" class="btn btn-secondary" id="download-overlay-btn">
-                            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                        <button type="button" class="btn-titanium" id="download-overlay-btn">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
                                 <polyline points="7 10 12 15 17 10"/>
                                 <line x1="12" y1="15" x2="12" y2="3"/>
                             </svg>
-                            Export Heatmap
+                            Export Radiographic Plate
                         </button>
                     </div>
                 </div>
             </section>
         </main>
 
-        <!-- Clinical Consultation Printable Report Dialog -->
-        <dialog id="report-dialog" class="report-modal">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h2>Radiology Consultation Summary</h2>
-                    <button type="button" class="close-btn" id="close-modal-btn" aria-label="Close dialog">&times;</button>
+        <!-- Official ALVEON Clinical Consultation Report Modal -->
+        <dialog id="report-dialog" class="alveon-modal">
+            <div class="modal-shell">
+                <div class="modal-top">
+                    <span class="modal-title">ALVEON Radiology Consultation Suite</span>
+                    <button type="button" class="modal-x" id="close-modal-btn" aria-label="Close modal">&times;</button>
                 </div>
-
-                <div class="modal-body" id="modal-report-container">
-                    <!-- Injected dynamically from API -->
+                <div class="modal-scroll" id="modal-report-container">
+                    <!-- Dynamic HTML from API -->
                 </div>
-
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" id="modal-cancel-btn">Dismiss</button>
-                    <button type="button" class="btn btn-primary" id="modal-print-btn">
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                <div class="modal-bottom">
+                    <button type="button" class="btn-titanium" id="modal-cancel-btn">Dismiss</button>
+                    <button type="button" class="btn-master" id="modal-print-btn" style="width: auto; padding: 10px 20px;">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
                             <polyline points="6 9 6 2 18 2 18 9"/>
                             <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/>
                             <rect x="6" y="14" width="12" height="8"/>
                         </svg>
-                        Print / Save Consultation PDF
+                        Print / Export Official Consultation Note
                     </button>
                 </div>
             </div>

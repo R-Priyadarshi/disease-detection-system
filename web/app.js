@@ -1,22 +1,17 @@
 /**
- * PneumoScan AI - Web Diagnostic Client
- * Handles file ingestion, API communications, interactive split slider,
- * radiology filters, and clinical report modal generation.
+ * ALVEON THORACIC PACS - Clinical Workstation Engine
+ * Implements interactive Window/Level, 2.5x Inspection Loupe,
+ * Multi-Colormap Grad-CAM, Anatomical Zonation, and PACS Reporting.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-    // DOM Elements
-    const dropZone = document.getElementById('drop-zone');
+    // DOM Cache
     const fileInput = document.getElementById('file-input');
+    const dropZone = document.getElementById('drop-zone');
     const browseBtn = document.getElementById('browse-btn');
     const analyzeBtn = document.getElementById('analyze-btn');
     const analyzeSpinner = document.getElementById('analyze-spinner');
     const analyzeBtnText = document.getElementById('analyze-btn-text');
-
-    const claheToggle = document.getElementById('clahe-toggle');
-    const invertToggle = document.getElementById('invert-toggle');
-    const heatmapOpacitySlider = document.getElementById('heatmap-opacity');
-    const opacityValLabel = document.getElementById('opacity-val');
 
     const sampleNormalBtn = document.getElementById('sample-normal-btn');
     const samplePneumoniaBtn = document.getElementById('sample-pneumonia-btn');
@@ -24,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const emptyState = document.getElementById('empty-state');
     const loadingState = document.getElementById('loading-state');
     const diagnosisContent = document.getElementById('diagnosis-content');
-    const viewToggles = document.getElementById('view-toggles');
+    const viewportModes = document.getElementById('viewport-modes');
 
     const diagnosisBanner = document.getElementById('diagnosis-banner');
     const diagnosisBadge = document.getElementById('diagnosis-badge');
@@ -35,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const latencyChip = document.getElementById('latency-chip');
     const clinicalRecommendationText = document.getElementById('clinical-recommendation-text');
 
+    const dicomViewport = document.getElementById('dicom-viewport');
     const splitSliderWrapper = document.getElementById('split-slider-wrapper');
     const splitClipped = document.getElementById('split-clipped');
     const sliderHandle = document.getElementById('slider-handle');
@@ -44,6 +40,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const sideBySideWrapper = document.getElementById('side-by-side-wrapper');
     const sideOrig = document.getElementById('side-orig');
     const sideHeatmap = document.getElementById('side-heatmap');
+    const loupeLens = document.getElementById('loupe-lens');
+    const loupeToggleBtn = document.getElementById('loupe-toggle-btn');
+    const hudLoupeDisplay = document.getElementById('hud-loupe-display');
+    const hudWlDisplay = document.getElementById('hud-wl-display');
+
+    const contrastSlider = document.getElementById('contrast-slider');
+    const brightnessSlider = document.getElementById('brightness-slider');
+    const heatmapOpacitySlider = document.getElementById('heatmap-opacity');
+    const wwVal = document.getElementById('ww-val');
+    const wlVal = document.getElementById('wl-val');
+    const opacityVal = document.getElementById('opacity-val');
+
+    const zoneRulVal = document.getElementById('zone-rul-val');
+    const zoneRulFill = document.getElementById('zone-rul-fill');
+    const zoneRllVal = document.getElementById('zone-rll-val');
+    const zoneRllFill = document.getElementById('zone-rll-fill');
+    const zoneLulVal = document.getElementById('zone-lul-val');
+    const zoneLulFill = document.getElementById('zone-lul-fill');
+    const zoneLllVal = document.getElementById('zone-lll-val');
+    const zoneLllFill = document.getElementById('zone-lll-fill');
+    const dominantZoneChip = document.getElementById('dominant-zone-chip');
 
     const openReportBtn = document.getElementById('open-report-btn');
     const downloadOverlayBtn = document.getElementById('download-overlay-btn');
@@ -53,28 +70,32 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalPrintBtn = document.getElementById('modal-print-btn');
     const modalReportContainer = document.getElementById('modal-report-container');
 
-    // State Variables
+    // Workstation State
     let currentFile = null;
     let currentPrediction = null;
     let isDraggingSlider = false;
     let currentViewMode = 'split';
+    let isLoupeActive = false;
+    let isInverted = false;
+    let isClaheActive = false;
+    let selectedColormap = 'inferno';
 
-    // 1. Initial Health Check
+    // 1. Initial Health & Engine Check
     async function checkSystemHealth() {
         try {
             const res = await fetch('/health');
             if (res.ok) {
                 const data = await res.json();
-                const statusText = document.getElementById('status-text');
-                statusText.textContent = `Model Online • ${data.device} • TF ${data.tensorflow_version}`;
+                document.getElementById('engine-status').textContent = `TF ${data.tensorflow_version} • ${data.device}`;
+                document.getElementById('telemetry-station').textContent = 'ACTIVE / CALIBRATED';
             }
         } catch (err) {
-            console.warn('Backend offline or initializing:', err);
+            console.warn('Backend initializing...', err);
         }
     }
     checkSystemHealth();
 
-    // 2. File Selection & Drag-and-Drop Handlers
+    // 2. Study Ingestion & File Drag-and-Drop
     browseBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         fileInput.click();
@@ -82,16 +103,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     dropZone.addEventListener('click', () => fileInput.click());
 
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, (e) => {
+    ['dragenter', 'dragover'].forEach(name => {
+        dropZone.addEventListener(name, (e) => {
             e.preventDefault();
             e.stopPropagation();
             dropZone.classList.add('dragover');
         });
     });
 
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, (e) => {
+    ['dragleave', 'drop'].forEach(name => {
+        dropZone.addEventListener(name, (e) => {
             e.preventDefault();
             e.stopPropagation();
             dropZone.classList.remove('dragover');
@@ -100,26 +121,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
     dropZone.addEventListener('drop', (e) => {
         const files = e.dataTransfer.files;
-        if (files.length > 0) {
-            handleFileSelected(files[0]);
-        }
+        if (files.length > 0) handleFileSelected(files[0]);
     });
 
     fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            handleFileSelected(e.target.files[0]);
-        }
+        if (e.target.files.length > 0) handleFileSelected(e.target.files[0]);
     });
 
     function handleFileSelected(file) {
         currentFile = file;
         analyzeBtn.disabled = false;
-        dropZone.querySelector('.drop-primary').textContent = `Selected: ${file.name}`;
-        dropZone.querySelector('.drop-secondary').textContent = `${(file.size / 1024).toFixed(1)} KB • Ready for neural analysis`;
-        dropZone.style.borderColor = 'var(--primary)';
+        dropZone.querySelector('.drop-text-primary').textContent = `STUDY: ${file.name}`;
+        dropZone.querySelector('.drop-text-secondary').textContent = `${(file.size / 1024).toFixed(1)} KB • Ingested into PACS Memory`;
+        dropZone.style.borderColor = 'var(--titanium-200)';
     }
 
-    // 3. Sample Radiograph Handlers
+    // 3. PACS Verification Callsets (Samples)
     async function loadSample(sampleId) {
         try {
             setLoading(true);
@@ -128,7 +145,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const sample = data.samples.find(s => s.id === sampleId);
             if (!sample) return;
 
-            // Convert Base64 data URL to Blob File
             const response = await fetch(sample.image_b64);
             const blob = await response.blob();
             const file = new File([blob], `${sampleId}.jpg`, { type: 'image/jpeg' });
@@ -136,8 +152,8 @@ document.addEventListener('DOMContentLoaded', () => {
             handleFileSelected(file);
             await executeAnalysis();
         } catch (err) {
-            console.error('Failed to load sample:', err);
-            alert('Failed to load verification sample: ' + err.message);
+            console.error('Callset ingestion error:', err);
+            alert('PACS Verification Error: ' + err.message);
         } finally {
             setLoading(false);
         }
@@ -146,33 +162,127 @@ document.addEventListener('DOMContentLoaded', () => {
     sampleNormalBtn.addEventListener('click', () => loadSample('sample_normal'));
     samplePneumoniaBtn.addEventListener('click', () => loadSample('sample_pneumonia'));
 
-    // 4. Radiology Filter Controls
-    invertToggle.addEventListener('change', () => {
-        const filterVal = invertToggle.checked ? 'invert(1)' : 'none';
-        viewUnderlay.style.filter = filterVal;
-        viewOverlay.style.filter = filterVal;
-        sideOrig.style.filter = filterVal;
-        sideHeatmap.style.filter = filterVal;
-    });
+    // 4. Window / Level Contrast & Presets
+    function updateVisualFilters() {
+        const contrast = contrastSlider.value;
+        const brightness = brightnessSlider.value;
+        const invert = isInverted ? 100 : 0;
+
+        wwVal.textContent = `${contrast}%`;
+        wlVal.textContent = `${brightness}%`;
+
+        const filterStyle = `contrast(${contrast}%) brightness(${brightness}%) invert(${invert}%)`;
+        viewUnderlay.style.filter = filterStyle;
+        viewOverlay.style.filter = filterStyle;
+        sideOrig.style.filter = filterStyle;
+        sideHeatmap.style.filter = filterStyle;
+
+        hudWlDisplay.textContent = `W: ${Math.round(contrast * 15)} L: ${Math.round((brightness - 100) * 10 - 600)}`;
+    }
+
+    contrastSlider.addEventListener('input', updateVisualFilters);
+    brightnessSlider.addEventListener('input', updateVisualFilters);
 
     heatmapOpacitySlider.addEventListener('input', (e) => {
-        const val = e.target.value;
-        opacityValLabel.textContent = `${val}%`;
+        opacityVal.textContent = `${e.target.value}%`;
     });
 
     heatmapOpacitySlider.addEventListener('change', () => {
-        if (currentFile && currentPrediction) {
-            executeAnalysis();
+        if (currentFile && currentPrediction) executeAnalysis();
+    });
+
+    // Window/Level Preset Buttons
+    document.querySelectorAll('#wl-presets .tool-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const wl = btn.dataset.wl;
+            if (wl === 'invert') {
+                isInverted = !isInverted;
+                btn.classList.toggle('active', isInverted);
+                updateVisualFilters();
+                return;
+            }
+            if (wl === 'clahe') {
+                isClaheActive = !isClaheActive;
+                btn.classList.toggle('active', isClaheActive);
+                if (currentFile && currentPrediction) executeAnalysis();
+                return;
+            }
+
+            document.querySelectorAll('#wl-presets .tool-btn:not(#btn-invert):not(#btn-clahe)')
+                .forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            if (wl === 'default') {
+                contrastSlider.value = 100;
+                brightnessSlider.value = 100;
+            } else if (wl === 'lung') {
+                contrastSlider.value = 160;
+                brightnessSlider.value = 95;
+            } else if (wl === 'bone') {
+                contrastSlider.value = 210;
+                brightnessSlider.value = 80;
+            }
+            updateVisualFilters();
+        });
+    });
+
+    // Colormap Switcher
+    document.querySelectorAll('#colormap-selectors .colormap-pill').forEach(pill => {
+        pill.addEventListener('click', () => {
+            document.querySelectorAll('#colormap-selectors .colormap-pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            selectedColormap = pill.dataset.color;
+            if (currentFile && currentPrediction) executeAnalysis();
+        });
+    });
+
+    // Keyboard Shortcuts (I = Invert)
+    window.addEventListener('keydown', (e) => {
+        if (e.key === 'i' || e.key === 'I') {
+            document.getElementById('btn-invert').click();
         }
     });
 
-    claheToggle.addEventListener('change', () => {
-        if (currentFile && currentPrediction) {
-            executeAnalysis();
-        }
+    // 5. Interactive 2.5x Inspection Loupe
+    loupeToggleBtn.addEventListener('click', () => {
+        isLoupeActive = !isLoupeActive;
+        loupeToggleBtn.classList.toggle('active', isLoupeActive);
+        hudLoupeDisplay.textContent = isLoupeActive ? 'LOUPE: 2.5x' : 'LOUPE: OFF';
+        loupeLens.hidden = !isLoupeActive;
     });
 
-    // 5. Analysis Execution
+    dicomViewport.addEventListener('mousemove', (e) => {
+        if (!isLoupeActive || !currentPrediction) return;
+
+        const rect = dicomViewport.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Position loupe centered at cursor
+        loupeLens.style.left = `${x - 65}px`;
+        loupeLens.style.top = `${y - 65}px`;
+
+        // 2.5x Zoom calculation
+        const zoom = 2.5;
+        const bgWidth = rect.width * zoom;
+        const bgHeight = rect.height * zoom;
+        const bgX = -(x * zoom - 65);
+        const bgY = -(y * zoom - 65);
+
+        loupeLens.style.backgroundImage = `url(${currentPrediction.gradcam_overlay_b64})`;
+        loupeLens.style.backgroundSize = `${bgWidth}px ${bgHeight}px`;
+        loupeLens.style.backgroundPosition = `${bgX}px ${bgY}px`;
+    });
+
+    dicomViewport.addEventListener('mouseleave', () => {
+        if (isLoupeActive) loupeLens.hidden = true;
+    });
+
+    dicomViewport.addEventListener('mouseenter', () => {
+        if (isLoupeActive && currentPrediction) loupeLens.hidden = false;
+    });
+
+    // 6. Master Diagnostic Sweep (Inference)
     analyzeBtn.addEventListener('click', executeAnalysis);
 
     async function executeAnalysis() {
@@ -181,7 +291,8 @@ document.addEventListener('DOMContentLoaded', () => {
         setLoading(true);
         const formData = new FormData();
         formData.append('file', currentFile);
-        formData.append('apply_clahe', claheToggle.checked);
+        formData.append('apply_clahe', isClaheActive);
+        formData.append('colormap', selectedColormap);
         formData.append('heatmap_alpha', heatmapOpacitySlider.value / 100.0);
 
         try {
@@ -192,15 +303,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (!res.ok) {
                 const errData = await res.json();
-                throw new Error(errData.detail || 'Prediction failed');
+                throw new Error(errData.detail || 'Diagnostic execution failed');
             }
 
             const data = await res.json();
             currentPrediction = data;
             renderDiagnosisResults(data);
         } catch (err) {
-            console.error('Analysis error:', err);
-            alert('Analysis Error: ' + err.message);
+            console.error('Sweep failure:', err);
+            alert('Diagnostic Sweep Error: ' + err.message);
         } finally {
             setLoading(false);
         }
@@ -209,7 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setLoading(isLoading) {
         analyzeBtn.disabled = isLoading;
         analyzeSpinner.hidden = !isLoading;
-        analyzeBtnText.textContent = isLoading ? 'Processing Neural Scan...' : 'Execute Diagnostic Neural Scan';
+        analyzeBtnText.textContent = isLoading ? 'Executing Synaptic Sweep...' : 'Execute Diagnostic Neural Sweep';
 
         if (isLoading) {
             emptyState.hidden = true;
@@ -220,23 +331,23 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 6. Render Diagnosis Results
+    // 7. Render Radiologic Findings
     function renderDiagnosisResults(pred) {
         emptyState.hidden = true;
         loadingState.hidden = true;
         diagnosisContent.hidden = false;
-        viewToggles.hidden = false;
+        viewportModes.hidden = false;
 
         const isPneumonia = pred.is_pneumonia;
 
-        // Banner styling
-        diagnosisBanner.className = 'diagnosis-banner ' + (isPneumonia ? 'pneumonia' : 'normal');
-        diagnosisBadge.textContent = isPneumonia ? 'POSITIVE' : 'NEGATIVE';
+        // Findings banner
+        diagnosisBanner.className = 'findings-banner ' + (isPneumonia ? 'pneumonia' : 'normal');
+        diagnosisBadge.textContent = isPneumonia ? 'PATHOLOGY PRESENT' : 'NO ACUTE PATHOLOGY';
         diagnosisHeading.textContent = pred.diagnosis === 'PNEUMONIA' ? 'PNEUMONIA DETECTED' : 'CLEAR LUNG FIELDS';
         riskSubtitle.textContent = pred.risk_tier.replace(/_/g, ' ');
 
-        // Animated Confidence Circle Ring
-        const radius = 28;
+        // Circular DPI Gauge
+        const radius = 25;
         const circumference = 2 * Math.PI * radius;
         confidenceRing.style.strokeDasharray = `${circumference} ${circumference}`;
 
@@ -244,13 +355,26 @@ document.addEventListener('DOMContentLoaded', () => {
         confidencePercentage.textContent = `${Math.round(conf)}%`;
         const offset = circumference - (conf / 100) * circumference;
         confidenceRing.style.strokeDashoffset = offset;
-        confidenceRing.style.stroke = isPneumonia ? 'var(--status-pneumonia)' : 'var(--status-normal)';
+        confidenceRing.style.stroke = isPneumonia ? 'var(--pathology-critical)' : 'var(--pathology-clear)';
 
-        latencyChip.textContent = `${pred.latency_ms}ms`;
+        latencyChip.textContent = `${pred.latency_ms} ms`;
         clinicalRecommendationText.textContent = pred.clinical_recommendation;
 
-        // Image Viewer Sources
-        // Underlay: Grad-CAM Overlay; Overlay: Raw Radiograph (clipped by split wipe)
+        // Anatomical Zonation Progress
+        if (pred.zonation) {
+            const z = pred.zonation;
+            zoneRulVal.textContent = `${z.right_upper_lobe_pct}%`;
+            zoneRulFill.style.width = `${z.right_upper_lobe_pct}%`;
+            zoneRllVal.textContent = `${z.right_lower_lobe_pct}%`;
+            zoneRllFill.style.width = `${z.right_lower_lobe_pct}%`;
+            zoneLulVal.textContent = `${z.left_upper_lobe_pct}%`;
+            zoneLulFill.style.width = `${z.left_upper_lobe_pct}%`;
+            zoneLllVal.textContent = `${z.left_lower_lobe_pct}%`;
+            zoneLllFill.style.width = `${z.left_lower_lobe_pct}%`;
+            dominantZoneChip.textContent = `Dominant Opacity: ${z.dominant_zone}`;
+        }
+
+        // Image Sources
         viewUnderlay.src = pred.gradcam_overlay_b64;
         viewOverlay.src = pred.original_image_b64;
 
@@ -259,20 +383,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
         resetSplitSlider();
         applyViewMode(currentViewMode);
+        updateVisualFilters();
     }
 
-    // 7. Interactive Split Slider Logic
-    function resetSplitSlider() {
-        setSplitPosition(50);
-    }
+    // 8. Interactive Split Slider
+    function resetSplitSlider() { setSplitPosition(50); }
 
-    function setSplitPosition(percentage) {
-        const clamped = Math.max(5, Math.min(95, percentage));
+    function setSplitPosition(pct) {
+        const clamped = Math.max(5, Math.min(95, pct));
         splitClipped.style.width = `${clamped}%`;
         sliderHandle.style.left = `${clamped}%`;
     }
 
     function onPointerDown(e) {
+        if (isLoupeActive) return; // Don't drag if loupe is active
         isDraggingSlider = true;
         updateSliderFromEvent(e);
     }
@@ -282,9 +406,7 @@ document.addEventListener('DOMContentLoaded', () => {
         updateSliderFromEvent(e);
     }
 
-    function onPointerUp() {
-        isDraggingSlider = false;
-    }
+    function onPointerUp() { isDraggingSlider = false; }
 
     function updateSliderFromEvent(e) {
         const rect = splitSliderWrapper.getBoundingClientRect();
@@ -304,13 +426,12 @@ document.addEventListener('DOMContentLoaded', () => {
     window.addEventListener('touchmove', onPointerMove, { passive: true });
     window.addEventListener('touchend', onPointerUp);
 
-    // 8. View Mode Toggles
-    const toggleButtons = viewToggles.querySelectorAll('.toggle-btn');
-    toggleButtons.forEach(btn => {
+    // 9. Viewport Mode Toggles
+    document.querySelectorAll('#viewport-modes .view-mode-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            toggleButtons.forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('#viewport-modes .view-mode-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            currentViewMode = btn.dataset.view;
+            currentViewMode = btn.dataset.mode;
             applyViewMode(currentViewMode);
         });
     });
@@ -339,16 +460,35 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // 9. Clinical Consultation Report Modal
+    // Reset All Workstation Settings
+    document.getElementById('reset-pacs-btn').addEventListener('click', () => {
+        contrastSlider.value = 100;
+        brightnessSlider.value = 100;
+        isInverted = false;
+        isClaheActive = false;
+        isLoupeActive = false;
+        loupeLens.hidden = true;
+        document.getElementById('btn-invert').classList.remove('active');
+        document.getElementById('btn-clahe').classList.remove('active');
+        loupeToggleBtn.classList.remove('active');
+        hudLoupeDisplay.textContent = 'LOUPE: OFF';
+        updateVisualFilters();
+        resetSplitSlider();
+    });
+
+    // 10. Official PACS Consultation Report
     openReportBtn.addEventListener('click', async () => {
         if (!currentPrediction) return;
 
         try {
             const reportPayload = {
+                patient_id: "ALV-2026-X84",
+                patient_name: "Patient Anonymous",
                 diagnosis: currentPrediction.diagnosis,
                 confidence_percentage: currentPrediction.confidence_percentage,
                 risk_tier: currentPrediction.risk_tier,
                 clinical_recommendation: currentPrediction.clinical_recommendation,
+                zonation: currentPrediction.zonation,
                 original_image_b64: currentPrediction.original_image_b64,
                 gradcam_overlay_b64: currentPrediction.gradcam_overlay_b64
             };
@@ -365,7 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 reportDialog.showModal();
             }
         } catch (err) {
-            console.error('Failed to generate report:', err);
+            console.error('Report error:', err);
         }
     });
 
@@ -373,12 +513,12 @@ document.addEventListener('DOMContentLoaded', () => {
     modalCancelBtn.addEventListener('click', () => reportDialog.close());
     modalPrintBtn.addEventListener('click', () => window.print());
 
-    // 10. Download Overlay Image
+    // 11. Export Radiographic Plate
     downloadOverlayBtn.addEventListener('click', () => {
         if (!currentPrediction) return;
-        const link = document.createElement('a');
-        link.href = currentPrediction.gradcam_overlay_b64;
-        link.download = `gradcam_${currentPrediction.diagnosis.toLowerCase()}_xray.jpg`;
-        link.click();
+        const a = document.createElement('a');
+        a.href = currentPrediction.gradcam_overlay_b64;
+        a.download = `ALVEON_${currentPrediction.diagnosis.toUpperCase()}_DICOM_PLATE.jpg`;
+        a.click();
     });
 });

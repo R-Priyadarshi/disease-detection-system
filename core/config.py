@@ -5,8 +5,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 @dataclass(frozen=True)
 class Settings:
-    PROJECT_NAME: str = "Chest X-Ray Pneumonia Diagnostic Intelligence"
-    PROJECT_VERSION: str = "2.0.0"
+    PROJECT_NAME: str = "ALVEON"
+    PROJECT_FULL_TITLE: str = "ALVEON — Thoracic Diagnostic Intelligence & Clinical PACS"
+    PROJECT_VERSION: str = "2.5.0"
     
     # Model parameters
     MODEL_WEIGHTS_PATH: Path = BASE_DIR / "TESTCNN.hdf5"
@@ -15,7 +16,6 @@ class Settings:
     INPUT_CHANNELS: int = 1
     
     # Training Normalization scale compatibility
-    # Original training notebook normalized using X / 225.0
     NORMALIZATION_SCALE: float = 225.0
     
     # Clinical decision thresholds
