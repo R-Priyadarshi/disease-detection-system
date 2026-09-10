@@ -530,6 +530,54 @@
                 </div>
             </div>
         </dialog>
+
+        <!-- 3. Enterprise PACS Clinical Action Confirmation Dialog -->
+        <dialog id="pacs-confirm-dialog" class="pacs-confirm-modal">
+            <div class="confirm-modal-shell">
+                <div class="confirm-modal-header">
+                    <div class="confirm-icon-wrap" id="confirm-modal-icon-wrap">
+                        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" id="confirm-modal-svg">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                        </svg>
+                    </div>
+                    <div class="confirm-header-text">
+                        <span class="confirm-eyebrow" id="confirm-modal-eyebrow">ER TRIAGE PURGE CONFIRMATION</span>
+                        <h3 class="confirm-title" id="confirm-modal-title">Purge Study Records?</h3>
+                    </div>
+                    <button type="button" class="confirm-modal-x" id="confirm-modal-x-btn" aria-label="Cancel and close">&times;</button>
+                </div>
+                <div class="confirm-modal-body">
+                    <p class="confirm-desc" id="confirm-modal-desc">
+                        Are you sure you want to purge the selected study from the Emergency Triage Worklist?
+                    </p>
+                    <div class="confirm-target-card" id="confirm-target-card" style="display: none;">
+                        <div class="target-card-accent"></div>
+                        <div class="target-card-content">
+                            <div class="target-card-name" id="confirm-target-name">Patient Name</div>
+                            <div class="target-card-meta" id="confirm-target-meta">MRN • Age • Modality</div>
+                        </div>
+                    </div>
+                    <div class="confirm-warning-notice">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <span>Active neural inference, Grad-CAM overlays, and cached PACS records will be purged immediately.</span>
+                    </div>
+                </div>
+                <div class="confirm-modal-footer">
+                    <button type="button" class="btn-confirm-cancel" id="confirm-cancel-btn">Cancel (Esc)</button>
+                    <button type="button" class="btn-confirm-danger" id="confirm-action-btn">
+                        <span id="confirm-action-icon">🗑️</span>
+                        <span id="confirm-action-label">Purge Study</span>
+                    </button>
+                </div>
+            </div>
+        </dialog>
     </div>
 
     <script src="/static/app.js"></script>

@@ -357,11 +357,109 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const id = btn.dataset.deleteId;
-                deleteStudy(id);
+                deleteStudy(id, true);
             });
         });
 
         updateBulkSelectionBar();
+    }
+
+    // ---------------------------------------------------------
+    // ENTERPRISE PACS CONFIRMATION MODAL SYSTEM
+    // ---------------------------------------------------------
+    function showPacsConfirmModal({
+        eyebrow = "ER TRIAGE PURGE CONFIRMATION",
+        title = "Purge Study Records?",
+        desc = "Are you sure you want to purge the selected study from the Emergency Triage Worklist?",
+        targetName = null,
+        targetMeta = null,
+        confirmLabel = "Purge Study",
+        confirmIcon = "🗑️",
+        isDanger = true
+    } = {}) {
+        return new Promise((resolve) => {
+            const dialog = document.getElementById('pacs-confirm-dialog');
+            if (!dialog || typeof dialog.showModal !== 'function') {
+                resolve(window.confirm(`${title}\n\n${desc}`));
+                return;
+            }
+
+            const elEyebrow = document.getElementById('confirm-modal-eyebrow');
+            const elTitle = document.getElementById('confirm-modal-title');
+            const elDesc = document.getElementById('confirm-modal-desc');
+            const elCard = document.getElementById('confirm-target-card');
+            const elTargetName = document.getElementById('confirm-target-name');
+            const elTargetMeta = document.getElementById('confirm-target-meta');
+            const elActionIcon = document.getElementById('confirm-action-icon');
+            const elActionLabel = document.getElementById('confirm-action-label');
+            const elActionBtn = document.getElementById('confirm-action-btn');
+            const cancelBtn = document.getElementById('confirm-cancel-btn');
+            const closeXBtn = document.getElementById('confirm-modal-x-btn');
+
+            if (elEyebrow) elEyebrow.textContent = eyebrow;
+            if (elTitle) elTitle.textContent = title;
+            if (elDesc) elDesc.textContent = desc;
+            if (elActionIcon) elActionIcon.textContent = confirmIcon;
+            if (elActionLabel) elActionLabel.textContent = confirmLabel;
+
+            if (targetName && elCard) {
+                elCard.style.display = 'flex';
+                if (elTargetName) elTargetName.textContent = targetName;
+                if (elTargetMeta) elTargetMeta.textContent = targetMeta || '';
+            } else if (elCard) {
+                elCard.style.display = 'none';
+            }
+
+            let cleanup = () => {};
+
+            const onConfirm = () => {
+                cleanup();
+                dialog.close();
+                resolve(true);
+            };
+
+            const onCancel = () => {
+                cleanup();
+                dialog.close();
+                resolve(false);
+            };
+
+            const onKeyDown = (e) => {
+                if (e.key === 'Escape') {
+                    e.preventDefault();
+                    onCancel();
+                } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    onConfirm();
+                }
+            };
+
+            const onBackdropClick = (e) => {
+                const rect = dialog.getBoundingClientRect();
+                const isInDialog = (rect.top <= e.clientY && e.clientY <= rect.top + rect.height
+                  && rect.left <= e.clientX && e.clientX <= rect.left + rect.width);
+                if (!isInDialog) {
+                    onCancel();
+                }
+            };
+
+            cleanup = () => {
+                if (elActionBtn) elActionBtn.removeEventListener('click', onConfirm);
+                if (cancelBtn) cancelBtn.removeEventListener('click', onCancel);
+                if (closeXBtn) closeXBtn.removeEventListener('click', onCancel);
+                dialog.removeEventListener('keydown', onKeyDown);
+                dialog.removeEventListener('click', onBackdropClick);
+            };
+
+            if (elActionBtn) elActionBtn.addEventListener('click', onConfirm, { once: true });
+            if (cancelBtn) cancelBtn.addEventListener('click', onCancel, { once: true });
+            if (closeXBtn) closeXBtn.addEventListener('click', onCancel, { once: true });
+            dialog.addEventListener('keydown', onKeyDown);
+            dialog.addEventListener('click', onBackdropClick);
+
+            dialog.showModal();
+            if (elActionBtn) elActionBtn.focus();
+        });
     }
 
     function updateBulkSelectionBar() {
@@ -419,9 +517,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function deleteStudy(studyId) {
+    async function deleteStudy(studyId, promptConfirm = false) {
         const studyIndex = worklistStudies.findIndex(s => s.study_id === studyId);
         if (studyIndex === -1) return;
+        const study = worklistStudies[studyIndex];
+
+        if (promptConfirm) {
+            const confirmed = await showPacsConfirmModal({
+                eyebrow: "ER TRIAGE STUDY REMOVAL",
+                title: "Remove Study from Queue?",
+                desc: `Are you sure you want to remove the examination for ${escapeHtml(study.patient_name)} from active queue memory?`,
+                targetName: study.patient_name,
+                targetMeta: `${study.patient_mrn} • ${study.priority === 'STAT_CRITICAL' ? '🚨 STAT CRITICAL' : study.priority} • ${escapeHtml(study.diagnosis)} (${Math.round(study.confidence_percentage)}%)`,
+                confirmLabel: "Remove Study",
+                confirmIcon: "🗑️"
+            });
+            if (!confirmed) return;
+        }
+
         const removed = worklistStudies.splice(studyIndex, 1)[0];
         selectedStudyIds.delete(studyId);
 
@@ -696,13 +809,15 @@ document.addEventListener('DOMContentLoaded', () => {
                     bulkPurgeSelectedBtn.click();
                 } else if (selectedStudyId) {
                     e.preventDefault();
-                    deleteStudy(selectedStudyId);
+                    deleteStudy(selectedStudyId, true);
                 }
             }
         }
 
         // Escape closes modals
         if (e.key === 'Escape') {
+            const pacsConfirmDialog = document.getElementById('pacs-confirm-dialog');
+            if (pacsConfirmDialog && pacsConfirmDialog.open) pacsConfirmDialog.close();
             if (dicomTagsDialog && dicomTagsDialog.open) dicomTagsDialog.close();
             if (reportDialog && reportDialog.open) reportDialog.close();
         }
@@ -995,7 +1110,21 @@ document.addEventListener('DOMContentLoaded', () => {
             if (idsToDelete.length === 0) return;
 
             const count = idsToDelete.length;
-            const confirmed = window.confirm(`Purge ${count} selected study ${count === 1 ? 'record' : 'records'} from triage queue?`);
+            const singleStudy = count === 1 ? worklistStudies.find(s => s.study_id === idsToDelete[0]) : null;
+
+            const confirmed = await showPacsConfirmModal({
+                eyebrow: count === 1 ? "ER TRIAGE STUDY PURGE" : "BATCH PURGE CONFIRMATION",
+                title: count === 1 ? "Purge Study from Queue?" : `Purge ${count} Selected Studies?`,
+                desc: count === 1
+                    ? `Are you sure you want to purge the selected examination for ${escapeHtml(singleStudy?.patient_name || 'this patient')} from the emergency triage queue?`
+                    : `Are you sure you want to purge all ${count} selected radiologic examinations from active triage queue memory? This action cannot be undone.`,
+                targetName: count === 1 ? (singleStudy?.patient_name || 'Selected Study') : `${count} Selected Studies`,
+                targetMeta: count === 1
+                    ? `${singleStudy?.patient_mrn || ''} • ${singleStudy?.priority === 'STAT_CRITICAL' ? '🚨 STAT CRITICAL' : (singleStudy?.priority || 'ROUTINE')} • ${singleStudy?.diagnosis || ''}`
+                    : `Batch cohort deletion • ${worklistStudies.filter(s => idsToDelete.includes(s.study_id) && s.priority === 'STAT_CRITICAL').length} STAT cases selected`,
+                confirmLabel: count === 1 ? "Purge Study" : `Purge ${count} Studies`,
+                confirmIcon: "🗑️"
+            });
             if (!confirmed) return;
 
             try {
@@ -1038,7 +1167,17 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             const total = worklistStudies.length;
-            const confirmed = window.confirm(`Purge ALL ${total} studies from ER triage queue?`);
+            const statCount = worklistStudies.filter(s => s.priority === 'STAT_CRITICAL').length;
+
+            const confirmed = await showPacsConfirmModal({
+                eyebrow: "COMPLETE TRIAGE QUEUE PURGE",
+                title: `Purge All ${total} Studies?`,
+                desc: `Are you sure you want to purge ALL ${total} cases from the active Emergency Triage Queue? All radiograph pixels, native DICOM datasets, and Grad-CAM neural activations will be removed from workstation memory.`,
+                targetName: `ENTIRE ER TRIAGE QUEUE (${total} CASES)`,
+                targetMeta: `Complete Worklist Wipe • ${statCount} STAT critical cases queued`,
+                confirmLabel: `Purge All ${total} Studies`,
+                confirmIcon: "🚨"
+            });
             if (!confirmed) return;
 
             try {
