@@ -1,31 +1,84 @@
-import tensorflow as tf
-from tensorflow import keras 
-from tensorflow.keras import Sequential
-from tensorflow.keras.layers import Dense,Conv2D,MaxPool2D,Flatten,BatchNormalization,Dropout
+#!/usr/bin/env python3
+"""
+Pneumonia Detection CLI & Inference Engine
+Backward-compatible and production-grade inference script with Grad-CAM visualization.
+"""
+
+import sys
+import argparse
+from pathlib import Path
 import cv2
 import numpy as np
-file="TESTCNN.hdf5"
 
+from core.config import settings
+from core.model import get_model
+from core.preprocessor import preprocessor
+from core.gradcam import GradCAMGenerator
 
-model1=Sequential()
+def predict(fileimg: str, apply_clahe: bool = False, save_gradcam_path: str = None) -> bool:
+    """
+    Evaluates a single chest radiograph.
+    
+    Args:
+        fileimg: Path to the radiograph image
+        apply_clahe: Whether to apply CLAHE contrast enhancement
+        save_gradcam_path: Optional path to export Grad-CAM overlay image
+        
+    Returns:
+        bool: True if Pneumonia detected, False if Normal
+    """
+    model = get_model()
+    gradcam = GradCAMGenerator(model)
 
-model1.add(Conv2D(16,(3,3),activation='relu',input_shape=(150,150,1)))
-model1.add(MaxPool2D((2,2)))
-model1.add(Conv2D(32,(3,3),activation='relu'))
-model1.add(MaxPool2D((2,2)))
-model1.add(Conv2D(64,(3,3),activation='relu'))
-model1.add(MaxPool2D((2,2)))
-model1.add(Flatten())
-model1.add(Dense(16,activation='relu'))
-model1.add(BatchNormalization(axis=1))
-model1.add(Dense(1,activation='sigmoid'))
-model1.load_weights(file)
+    tensor, raw_gray = preprocessor.prepare_tensor(fileimg, apply_clahe=apply_clahe)
+    res = model.predict_tensor(tensor)
 
-def predict(fileimg):
-    img_arr=cv2.imread(fileimg,cv2.IMREAD_GRAYSCALE)
-    new_img=cv2.resize(img_arr ,(150,150),interpolation=cv2.INTER_AREA)
-    test=np.reshape(new_img,(1,150,150,1))
-    prob=model1.predict(test)
-    result=prob>0.5
-    print(result)
-    return result
+    print(f"\n==========================================")
+    print(f"DIAGNOSTIC REPORT: {Path(fileimg).name}")
+    print(f"==========================================")
+    print(f"  Diagnosis:       {res['diagnosis']}")
+    print(f"  Confidence:      {res['confidence_percentage']}% (Probability: {res['probability']})")
+    print(f"  Risk Category:   {res['risk_tier']}")
+    print(f"  Inference Time:  {res['latency_ms']} ms")
+    print(f"  Recommendation:  {res['clinical_recommendation']}")
+    print(f"==========================================\n")
+
+    if save_gradcam_path:
+        blended, _ = gradcam.generate_overlay(raw_gray, tensor)
+        cv2.imwrite(save_gradcam_path, blended)
+        print(f"[Grad-CAM] Heatmap saved to: {save_gradcam_path}")
+
+    return res["is_pneumonia"]
+
+def main():
+    parser = argparse.ArgumentParser(description="Evaluate Chest X-Ray for Pneumonia detection.")
+    parser.add_argument(
+        "-i", "--image",
+        type=str,
+        default="core/assets/samples/sample_pneumonia.jpg",
+        help="Path to chest radiograph image file"
+    )
+    parser.add_argument(
+        "--clahe",
+        action="store_true",
+        help="Apply CLAHE contrast enhancement"
+    )
+    parser.add_argument(
+        "-o", "--output-gradcam",
+        type=str,
+        default=None,
+        help="Path to save Grad-CAM overlay visualization"
+    )
+
+    args = parser.parse_args()
+
+    if not Path(args.image).exists():
+        # Fallback check
+        print(f"Error: Specified image file '{args.image}' does not exist.", file=sys.stderr)
+        sys.exit(1)
+
+    result = predict(args.image, apply_clahe=args.clahe, save_gradcam_path=args.output_gradcam)
+    sys.exit(0 if result else 0)
+
+if __name__ == "__main__":
+    main()

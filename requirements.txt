@@ -1,0 +1,19 @@
+# Core Deep Learning & Tensor Operations
+tensorflow>=2.16.0
+keras>=3.0.0
+h5py>=3.10.0
+numpy>=1.26.0
+
+# Computer Vision & Medical Imaging
+opencv-python>=4.8.0
+pillow>=10.0.0
+
+# Production REST API Engine
+fastapi>=0.110.0
+uvicorn[standard]>=0.28.0
+pydantic>=2.6.0
+python-multipart>=0.0.9
+
+# Testing & Quality Assurance
+pytest>=8.0.0
+httpx>=0.27.0
