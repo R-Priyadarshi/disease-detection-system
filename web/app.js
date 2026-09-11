@@ -4702,12 +4702,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (bedsideStat) {
             bedsideStat.addEventListener('click', () => {
                 closeDrawer();
-                const handoffBtn = document.getElementById('stat-initiate-handoff-btn');
-                if (handoffBtn) handoffBtn.click();
-                else {
-                    const closedLoopDialog = document.getElementById('closed-loop-dialog');
-                    if (closedLoopDialog) closedLoopDialog.showModal();
-                }
+                openClosedLoopModal(activeStatStudy);
             });
         }
 
