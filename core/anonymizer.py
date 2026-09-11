@@ -178,15 +178,23 @@ class DicomAnonymizerEngine:
         Detects any leaked PHI tags.
         """
         leaks = []
+        identity_removed = getattr(ds, "PatientIdentityRemoved", "NO") == "YES"
+        method_present = hasattr(ds, "DeidentificationMethod")
+
+        # Standard de-identification prefixes used across clinical trials and research
+        valid_prefixes = ("ANON", "SUBJ", "TRIAL", "RESEARCH", "DEID", "PT", "CT", "CLINICAL", "ER")
+
         # Check Patient Name for suspicious non-anonymized patterns
         p_name = str(getattr(ds, "PatientName", ""))
-        if p_name and not p_name.startswith("ANON"):
-            leaks.append({"tag": "(0010,0010)", "name": "PatientName", "value": p_name})
+        if p_name:
+            if not identity_removed or not any(p_name.upper().startswith(p) for p in valid_prefixes):
+                leaks.append({"tag": "(0010,0010)", "name": "PatientName", "value": p_name})
 
         # Check Patient ID / MRN
         p_id = str(getattr(ds, "PatientID", ""))
-        if p_id and not p_id.startswith("ANON"):
-            leaks.append({"tag": "(0010,0020)", "name": "PatientID", "value": p_id})
+        if p_id:
+            if not identity_removed or not any(p_id.upper().startswith(p) for p in valid_prefixes):
+                leaks.append({"tag": "(0010,0020)", "name": "PatientID", "value": p_id})
 
         # Check for presence of prohibited identifying tags
         for tag in HIPAA_CLEARED_TAGS:

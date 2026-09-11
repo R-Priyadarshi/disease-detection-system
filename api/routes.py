@@ -1904,10 +1904,12 @@ async def anonymize_dicom_study(req: AnonymizeRequest):
     orig_sop_uid = str(getattr(ds, "SOPInstanceUID", "1.2.826.0.1.3680043.8.498.12347"))
 
     anonymizer = get_dicom_anonymizer()
+    target_pseudo = req.custom_patient_name or req.pseudonym or "ANONYMIZED^PATIENT"
+    target_mrn = req.custom_patient_id or req.patient_id
     anon_ds, audit = anonymizer.anonymize_dataset(
         ds,
-        patient_pseudonym=req.custom_patient_name,
-        mrn_pseudonym=req.custom_patient_id
+        patient_pseudonym=target_pseudo,
+        mrn_pseudonym=target_mrn
     )
 
     target_path, output_filename, file_size = anonymizer.save_anonymized_dataset(anon_ds)

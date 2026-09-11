@@ -4714,8 +4714,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (bedsideDictate) {
             bedsideDictate.addEventListener('click', () => {
                 closeDrawer();
-                const dictateDialog = document.getElementById('voice-dictation-dialog');
-                if (dictateDialog) dictateDialog.showModal();
+                const reportDialog = document.getElementById('report-dialog');
+                if (reportDialog) reportDialog.showModal();
                 else showWorkstationToast('🎙️ Bedside Voice Dictation Ready');
             });
         }

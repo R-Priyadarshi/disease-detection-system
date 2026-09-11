@@ -560,8 +560,10 @@ class DicomSRForwardResponse(BaseModel):
 class AnonymizeRequest(BaseModel):
     study_id: Optional[str] = None
     input_dicom_path: Optional[str] = None
-    custom_patient_name: Optional[str] = "ANONYMIZED^PATIENT"
+    custom_patient_name: Optional[str] = None
+    pseudonym: Optional[str] = None
     custom_patient_id: Optional[str] = None
+    patient_id: Optional[str] = None
     custom_accession_number: Optional[str] = None
     keep_patient_age: bool = True
     keep_patient_sex: bool = True

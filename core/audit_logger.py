@@ -80,6 +80,7 @@ class AuditLogger:
         details: Optional[Dict[str, Any]] = None
     ) -> AuditEvent:
         """Appends a cryptographically verified event to the HIPAA audit ledger."""
+        self._last_hash = self._get_latest_hash()
         now = time.time()
         timestamp_utc = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(now))
         event_id = f"AUD-{uuid.uuid4().hex[:12].upper()}"
