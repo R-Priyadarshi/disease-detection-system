@@ -1348,14 +1348,32 @@ async def production_health_probes():
 
 # --- 2. Diagnostic Web Viewer Bridge & OHIF Configuration ---
 
-@router.get("/viewer", tags=["Diagnostic Web Viewer"])
-@router.get("/ohif", tags=["Diagnostic Web Viewer"])
+@router.api_route("/viewer", methods=["GET", "HEAD"], tags=["Diagnostic Web Viewer"])
+@router.api_route("/ohif", methods=["GET", "HEAD"], tags=["Diagnostic Web Viewer"])
 async def serve_diagnostic_viewer():
     """Serves the zero-footprint standalone diagnostic DICOM viewer bridge."""
     viewer_path = settings.BASE_DIR / "web" / "ohif_viewer.html"
     if viewer_path.exists():
         return FileResponse(str(viewer_path), media_type="text/html")
     raise HTTPException(status_code=404, detail="Viewer template not found.")
+
+@router.api_route("/landing", methods=["GET", "HEAD"], tags=["Executive Showcase"])
+@router.api_route("/about", methods=["GET", "HEAD"], tags=["Executive Showcase"])
+async def serve_landing_page():
+    """Serves the executive product landing page."""
+    landing_path = settings.BASE_DIR / "web" / "landing.html"
+    if landing_path.exists():
+        return FileResponse(str(landing_path), media_type="text/html")
+    raise HTTPException(status_code=404, detail="Landing page not found.")
+
+@router.api_route("/workstation", methods=["GET", "HEAD"], tags=["Clinical Workstation"])
+@router.api_route("/app", methods=["GET", "HEAD"], tags=["Clinical Workstation"])
+async def serve_workstation_page():
+    """Serves the clinical diagnostic workstation."""
+    workstation_path = settings.BASE_DIR / "web" / "index.html"
+    if workstation_path.exists():
+        return FileResponse(str(workstation_path), media_type="text/html")
+    raise HTTPException(status_code=404, detail="Workstation page not found.")
 
 @router.get("/api/v1/ohif/config", tags=["Diagnostic Web Viewer"])
 async def get_ohif_viewer_config():
