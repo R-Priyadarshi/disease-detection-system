@@ -434,4 +434,126 @@ class NeuroAnalysisResponse(BaseModel):
     recommended_action: str
     hu_window_presets: Dict[str, Any]
 
+# --- Enterprise Modality Router Schemas ---
+
+class ModalityItem(BaseModel):
+    modality_id: str
+    name: str
+    ae_title: str
+    host: str
+    port: int
+    modality_type: str
+    department: str
+    status: str
+    last_ping_ms: Optional[float] = None
+    last_verified_at: Optional[str] = None
+    transfer_syntaxes: Optional[List[str]] = None
+
+class ModalityListResponse(BaseModel):
+    status: str = "success"
+    modalities: List[Dict[str, Any]]
+
+class ModalityVerifyRequest(BaseModel):
+    modality_id: Optional[str] = None
+    ae_title: Optional[str] = None
+    host: Optional[str] = None
+    port: Optional[int] = None
+
+class ModalityVerifyResponse(BaseModel):
+    status: str = "success"
+    verification: Dict[str, Any]
+
+class ModalityQueryRetrieveRequest(BaseModel):
+    modality_id: str
+    study_instance_uid: Optional[str] = None
+    patient_mrn: Optional[str] = None
+    patient_name: Optional[str] = None
+
+class ModalityQueryRetrieveResponse(BaseModel):
+    status: str = "success"
+    message: str
+    retrieval_log: Dict[str, Any]
+
+class RoutingRuleItem(BaseModel):
+    rule_id: str
+    name: str
+    condition_type: str
+    condition_value: str
+    target_modality_id: str
+    enabled: bool = True
+    priority: int = 1
+
+class RoutingRulesResponse(BaseModel):
+    status: str = "success"
+    rules: List[Dict[str, Any]]
+
+class ModalityRouteRequest(BaseModel):
+    study_id: str
+    target_modality_id: str
+    patient_mrn: Optional[str] = None
+    primary_finding: Optional[str] = None
+
+class ModalityRouteResponse(BaseModel):
+    status: str = "success"
+    dispatched: List[Dict[str, Any]]
+
+# --- Longitudinal Prior Comparison Schemas ---
+
+class PriorCompareRequest(BaseModel):
+    current_study_id: Optional[str] = None
+    prior_study_id: Optional[str] = None
+    patient_mrn: Optional[str] = "MRN-TRAUMA-4410"
+    current_image_b64: Optional[str] = None
+    prior_image_b64: Optional[str] = None
+
+class PriorCompareResponse(BaseModel):
+    status: str = "success"
+    patient_mrn: str
+    current_study_date: str
+    prior_study_date: str
+    registration_status: str
+    interval_assessment: str
+    interval_delta_pct: float
+    current_density_score: float
+    prior_density_score: float
+    clinical_summary: str
+    prior_image_b64: str
+    subtraction_heatmap_b64: str
+    resolution_clearance_pct: float
+    analyzed_at: str
+
+# --- DICOM Part 16 Structured Reporting (TID 1500) Schemas ---
+
+class DicomSRGenerateRequest(BaseModel):
+    study_id: str
+    patient_mrn: Optional[str] = "MRN-TRAUMA-4410"
+    patient_name: Optional[str] = "Elena Rostova"
+    patient_sex: Optional[str] = "F"
+    primary_finding: Optional[str] = "PNEUMOTHORAX"
+    confidence_percentage: Optional[float] = 99.8
+    caliper_measurements: Optional[List[Dict[str, Any]]] = None
+    ctr_index: Optional[float] = 0.46
+    acr_category: Optional[str] = "ACR Category 1 (Critical STAT Alert)"
+    radiologist_name: Optional[str] = "Dr. S. Vance, MD"
+
+class DicomSRGenerateResponse(BaseModel):
+    status: str = "success"
+    study_id: str
+    filename: str
+    file_size_bytes: int
+    sop_instance_uid: str
+    download_url: str
+    standard_conformance: str = "DICOM PS 3.16 / TID 1500"
+
+class DicomSRForwardRequest(BaseModel):
+    study_id: str
+    target_modality_id: Optional[str] = "PACS-ORTHANC"
+    target_ae_title: Optional[str] = "ORTHANC_VNA"
+
+class DicomSRForwardResponse(BaseModel):
+    status: str = "success"
+    message: str
+    forward_details: Dict[str, Any]
+
+
 

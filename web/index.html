@@ -67,6 +67,14 @@
 
                 <div class="telemetry-divider"></div>
 
+                <!-- Interactive Guided Clinical Tour Button -->
+                <button type="button" class="header-action-btn clinical-tour-header-btn" id="start-clinical-tour-btn" title="Start Interactive Clinical Tour ('Day in the Life of a Radiologist')" style="background: rgba(14, 165, 233, 0.18); border-color: rgba(56, 189, 248, 0.5); color: #38bdf8;">
+                    <span style="font-size: 13px;">🧭</span>
+                    <span style="font-weight: 600;">Clinical Tour</span>
+                </button>
+
+                <div class="telemetry-divider"></div>
+
                 <!-- Launch OHIF Diagnostic Viewer Quick Button -->
                 <a href="/viewer" target="_blank" class="header-action-btn ohif-btn-header" id="open-ohif-viewer-btn" title="Launch Industry-Standard OHIF Diagnostic Viewer v3">
                     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
@@ -503,6 +511,10 @@
                                 <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>
                                 <span>↗️ Arrow</span>
                             </button>
+                            <button type="button" class="measure-tool-btn" id="tool-prior-comparison" title="Longitudinal Prior Study Comparison & Subtraction (P)" style="background: rgba(14, 165, 233, 0.15); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+                                <span>⚖️ Prior Comparison</span>
+                            </button>
                         </div>
                         <div class="measure-actions-group">
                             <button type="button" class="measure-clear-btn" id="btn-clear-measurements" title="Clear Calipers & Annotations">
@@ -550,15 +562,27 @@
                             </div>
                         </div>
 
-                        <!-- Side-by-Side Dual View -->
+                        <!-- Side-by-Side Dual View & Prior Comparison -->
                         <div class="dual-frame" id="side-by-side-wrapper" hidden>
-                            <div class="dual-screen">
-                                <span class="screen-tag">PRE-PROCESSED FILM</span>
-                                <img id="side-orig" class="dual-img" alt="Original">
+                            <div class="dual-screen" id="dual-screen-left">
+                                <span class="screen-tag" id="screen-tag-left">CURRENT STUDY (TODAY)</span>
+                                <img id="side-orig" class="dual-img" alt="Current Study">
                             </div>
-                            <div class="dual-screen">
-                                <span class="screen-tag">GRAD-CAM ACTIVATION MAP</span>
-                                <img id="side-heatmap" class="dual-img" alt="Grad-CAM">
+                            <div class="dual-screen" id="dual-screen-right" style="position: relative;">
+                                <div class="dual-screen-header-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%; position: absolute; top: 8px; left: 0; padding: 0 12px; z-index: 10;">
+                                    <span class="screen-tag" id="screen-tag-right" style="position: static;">PRIOR BASELINE (HISTORICAL)</span>
+                                    <button type="button" class="btn-micro-toggle" id="btn-toggle-subtraction" title="Toggle Digital Subtraction Radiography Map" style="background: rgba(14, 165, 233, 0.25); border: 1px solid #38bdf8; color: #38bdf8; font-size: 10px; padding: 3px 8px; border-radius: 4px; cursor: pointer; display: none;">
+                                        <span>🎨 Subtraction Map</span>
+                                    </button>
+                                </div>
+                                <img id="side-heatmap" class="dual-img" alt="Prior Study or Grad-CAM">
+                                <div class="interval-delta-badge" id="interval-delta-badge" style="display: none; position: absolute; bottom: 10px; left: 12px; right: 12px; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 6px; padding: 6px 12px; font-size: 11px; color: #e2e8f0; align-items: center; justify-content: space-between; z-index: 10;">
+                                    <div style="display: flex; align-items: center; gap: 6px;">
+                                        <span class="delta-icon" style="font-size: 13px;">📉</span>
+                                        <span id="interval-delta-text" style="font-weight: 600; color: #38bdf8;">Stable / -13.0% Δ Opacity</span>
+                                    </div>
+                                    <span style="font-size: 10px; color: #94a3b8;">Rigid Co-Registered</span>
+                                </div>
                             </div>
                         </div>
 
@@ -1004,6 +1028,16 @@
 
                 <div class="modal-bottom">
                     <button type="button" class="btn-titanium" id="modal-cancel-btn">Dismiss</button>
+                    <button type="button" class="btn-titanium" id="modal-dicom-sr-btn" style="width: auto; padding: 10px 18px; background: rgba(56, 189, 248, 0.12); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;" title="Generate DICOM Part 16 / TID 1500 Enhanced Structured Report (.dcm)">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                            <polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/>
+                            <line x1="16" y1="17" x2="8" y2="17"/>
+                            <polyline points="10 9 9 9 8 9"/>
+                        </svg>
+                        <span>Export DICOM SR (TID 1500)</span>
+                    </button>
                     <button type="button" class="btn-master" id="modal-pdf-btn" style="width: auto; padding: 10px 20px; background: linear-gradient(135deg, #0284c7, #2563eb); border-color: #38bdf8;">
                         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
@@ -1145,6 +1179,10 @@
                     <button type="button" class="pacs-hub-tab-btn" data-pacs-tab="tab-hl7-fhir">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
                         HL7 & FHIR EHR Gateway
+                    </button>
+                    <button type="button" class="pacs-hub-tab-btn" data-pacs-tab="tab-modalities" id="tab-btn-modalities">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                        Modality Network & Router
                     </button>
                 </div>
 
@@ -1543,6 +1581,81 @@ Click "Transmit Order" or "Generate Results" to test live MLLP / JSON parsing.</
                             </div>
                         </div>
                     </div>
+
+                    <!-- Tab 7: Hospital Modality Network & Auto-Router -->
+                    <div class="pacs-tab-panel" id="tab-modalities">
+                        <div class="pacs-status-banner">
+                            <div class="pacs-status-left">
+                                <span class="pacs-live-indicator"></span>
+                                <div>
+                                    <div class="pacs-listener-title">Hospital Modality Directory & Auto-Router</div>
+                                    <div class="pacs-listener-sub">DICOM Verification SCU (C-ECHO) • Query/Retrieve SCU (C-MOVE) • Automated Acuity Dispatch</div>
+                                </div>
+                            </div>
+                            <button type="button" class="btn-titanium" id="btn-refresh-modalities" style="padding: 5px 12px; font-size: 11px;">
+                                🔄 Refresh Nodes
+                            </button>
+                        </div>
+
+                        <div class="pacs-two-col">
+                            <!-- Modality Directory Table -->
+                            <div class="pacs-card" style="flex: 1.2;">
+                                <div class="pacs-card-header">
+                                    <h4>🏥 Registered Hospital Modalities & Scanners</h4>
+                                    <span class="pacs-card-sub">Active scanners, trauma bay units, and enterprise archives</span>
+                                </div>
+                                <div style="overflow-x: auto; max-height: 220px; overflow-y: auto;">
+                                    <table class="pacs-directory-table" id="modalities-table" style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                                        <thead>
+                                            <tr style="border-bottom: 1px solid rgba(255,255,255,0.1); text-align: left; color: #94a3b8;">
+                                                <th style="padding: 6px 8px;">MODALITY / NODE</th>
+                                                <th style="padding: 6px 8px;">AE TITLE</th>
+                                                <th style="padding: 6px 8px;">IP : PORT</th>
+                                                <th style="padding: 6px 8px;">STATUS</th>
+                                                <th style="padding: 6px 8px;">ACTION</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="modalities-table-body">
+                                            <!-- Dynamically populated -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="pacs-console-log" id="modality-ping-log" style="height: 60px; font-size: 11px; margin-top: 10px;">Select a modality above and click "Ping C-ECHO" to test live DIMSE connectivity.</div>
+                            </div>
+
+                            <!-- C-MOVE Study Query/Retrieve & Auto-Routing Rules -->
+                            <div class="pacs-card" style="flex: 1;">
+                                <div class="pacs-card-header">
+                                    <h4>📥 C-MOVE Remote Query / Retrieve</h4>
+                                    <span class="pacs-card-sub">Pull prior or STAT imaging from external PACS archives</span>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px;">
+                                    <div style="display: flex; gap: 6px;">
+                                        <select id="cmove-source-modality" class="pacs-input" style="flex: 1;">
+                                            <option value="MOD-XR-01">Trauma Bay 1 (TRAUMA_XR_01)</option>
+                                            <option value="MOD-CT-02">Neuro 64-Slice CT (NEURO_CT_02)</option>
+                                            <option value="PACS-ORTHANC">Enterprise VNA (ORTHANC_VNA)</option>
+                                            <option value="MOD-ICU-03">Surgical ICU Mobile (SICU_MOB_03)</option>
+                                        </select>
+                                    </div>
+                                    <div style="display: flex; gap: 6px;">
+                                        <input type="text" id="cmove-patient-mrn" class="pacs-input" placeholder="Patient MRN" value="MRN-TRAUMA-4410" style="flex: 1;">
+                                        <button type="button" class="btn-master" id="btn-cmove-retrieve" style="padding: 6px 14px; font-size: 11px; white-space: nowrap;">
+                                            📥 Retrieve (C-MOVE)
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="pacs-card-header" style="margin-top: 12px;">
+                                    <h4>⚡ Active Auto-Routing Rules</h4>
+                                    <span class="pacs-card-sub">Automatic dispatch triggers for critical findings</span>
+                                </div>
+                                <div id="routing-rules-container" style="display: flex; flex-direction: column; gap: 6px; max-height: 120px; overflow-y: auto;">
+                                    <!-- Populated via API -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="modal-bottom">
@@ -1710,6 +1823,44 @@ Click "Transmit Order" or "Generate Results" to test live MLLP / JSON parsing.</
                 </div>
             </div>
         </dialog>
+
+        <!-- Interactive Guided Clinical Tour System ("Day in the Life of a Radiologist") -->
+        <div id="clinical-tour-overlay" class="clinical-tour-overlay" style="display: none;">
+            <div class="clinical-tour-card" id="clinical-tour-card">
+                <div class="tour-header">
+                    <div class="tour-badge-row">
+                        <span class="tour-step-badge" id="tour-step-badge">STATION 1 OF 7</span>
+                        <span class="tour-mode-chip">CLINICAL ORIENTATION</span>
+                    </div>
+                    <button type="button" class="tour-close-btn" id="tour-close-btn" title="Exit Clinical Tour">&times;</button>
+                </div>
+                <div class="tour-body">
+                    <div class="tour-icon-title-row">
+                        <span class="tour-station-icon" id="tour-station-icon">🚨</span>
+                        <h3 class="tour-station-title" id="tour-station-title">Emergency STAT Triage Queue</h3>
+                    </div>
+                    <p class="tour-station-desc" id="tour-station-desc">
+                        Witness automated clinical acuity ranking prioritize critical, life-threatening findings (e.g. Tension Pneumothorax) to the top of the radiologist's worklist.
+                    </p>
+                    <div class="tour-action-box" id="tour-action-box">
+                        <span class="tour-action-arrow">👉</span>
+                        <span id="tour-action-text" style="font-weight: 500; color: #38bdf8;">Notice Elena Rostova's STAT Critical card flagged with 99.8% Pneumothorax probability.</span>
+                    </div>
+                </div>
+                <div class="tour-footer">
+                    <div class="tour-dots" id="tour-dots">
+                        <!-- 7 step indicator dots -->
+                    </div>
+                    <div class="tour-nav-btns">
+                        <button type="button" class="btn-titanium tour-btn" id="tour-prev-btn" disabled>← Previous</button>
+                        <button type="button" class="btn-master tour-btn" id="tour-action-btn" style="background: linear-gradient(135deg, #0284c7, #2563eb); border-color: #38bdf8;">
+                            <span>Try Feature 🎯</span>
+                        </button>
+                        <button type="button" class="btn-titanium tour-btn" id="tour-next-btn">Next Station →</button>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
 
