@@ -83,6 +83,12 @@
                     <span>OHIF Viewer</span>
                 </a>
 
+                <!-- Mobile & Tablet ER Triage Worklist Drawer Toggle Button -->
+                <button type="button" class="header-action-btn tablet-drawer-btn" id="triage-drawer-toggle-btn" title="Toggle ER Triage Queue Drawer">
+                    <span style="font-size: 13px;">📋</span>
+                    <span style="font-weight: 600;">ER Triage (<span id="tablet-stat-badge">3</span>)</span>
+                </button>
+
                 <div class="telemetry-divider"></div>
 
                 <!-- Active Clinical User & Role Switcher -->
@@ -188,6 +194,13 @@
                             <path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"/>
                         </svg>
                         PACS & DICOMweb (W)
+                    </button>
+                    <button type="button" class="tool-btn" id="btn-hipaa-anonymize" style="border-color: #059669; color: #34d399;" title="HIPAA Safe-Harbor DICOM De-Identification & Clinical Export (H)">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                            <path d="m9 12 2 2 4-4"/>
+                        </svg>
+                        HIPAA Anonymizer (H)
                     </button>
                     <button type="button" class="tool-btn" id="reset-pacs-btn">Reset All</button>
                 </div>
@@ -828,6 +841,37 @@
                 </div>
             </section>
         </main>
+
+        <!-- Mobile/Tablet Worklist Off-Canvas Backdrop -->
+        <div id="drawer-backdrop" class="drawer-backdrop"></div>
+
+        <!-- Mobile Trauma Bay Bedside Quick Bar (Touch-First for iPads / Bedside Tablets) -->
+        <nav class="bedside-quick-bar" id="bedside-quick-bar" aria-label="Bedside Trauma Actions">
+            <button type="button" class="bedside-action-btn" id="bedside-btn-triage" title="Toggle ER Triage Queue Drawer">
+                <span class="bedside-icon">📋</span>
+                <span class="bedside-label">Worklist</span>
+            </button>
+            <button type="button" class="bedside-action-btn" id="bedside-btn-caliper" title="Activate Caliper Measurement Tool">
+                <span class="bedside-icon">📏</span>
+                <span class="bedside-label">Measure</span>
+            </button>
+            <button type="button" class="bedside-action-btn stat-accent" id="bedside-btn-stat" title="Record Closed-Loop STAT Verbal Handoff">
+                <span class="bedside-icon">🚨</span>
+                <span class="bedside-label">STAT Handoff</span>
+            </button>
+            <button type="button" class="bedside-action-btn" id="bedside-btn-dictate" title="Radiology Voice Dictation">
+                <span class="bedside-icon">🎙️</span>
+                <span class="bedside-label">Dictate</span>
+            </button>
+            <button type="button" class="bedside-action-btn" id="bedside-btn-anonymize" title="HIPAA Safe-Harbor De-Identification">
+                <span class="bedside-icon">🛡️</span>
+                <span class="bedside-label">Anonymize</span>
+            </button>
+            <button type="button" class="bedside-action-btn" id="bedside-btn-contrast" title="High Contrast Bedside Mode">
+                <span class="bedside-icon">☀️</span>
+                <span class="bedside-label">Bedside Lux</span>
+            </button>
+        </nav>
 
         <!-- 1. Official ALVEON Clinical Consultation Report Modal -->
         <dialog id="report-dialog" class="alveon-modal">
@@ -1820,6 +1864,131 @@ Click "Transmit Order" or "Generate Results" to test live MLLP / JSON parsing.</
                         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
                         <span>Confirm & Seal Closed-Loop Handoff</span>
                     </button>
+                </div>
+            </div>
+        </dialog>
+
+        <!-- 7. HIPAA Safe-Harbor DICOM De-Identification & Anonymizer Dialog -->
+        <dialog id="anonymize-dialog" class="pacs-hub-modal">
+            <div class="pacs-hub-shell" style="max-width: 920px;">
+                <div class="pacs-hub-header">
+                    <div class="hub-header-left">
+                        <div class="hub-icon-box" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(52, 211, 153, 0.4); color: #34d399;">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                                <path d="m9 12 2 2 4-4"/>
+                            </svg>
+                        </div>
+                        <div>
+                            <div class="hub-main-title">HIPAA Safe-Harbor DICOM De-Identification & Anonymizer</div>
+                            <div class="hub-subtitle">45 CFR § 164.514(b)(2) 18 PHI Categories • DICOM PS 3.15 Annex E Confidentiality Profile</div>
+                        </div>
+                    </div>
+                    <button type="button" class="modal-x" id="close-anonymize-dialog-btn" aria-label="Close modal">&times;</button>
+                </div>
+
+                <div class="pacs-hub-body" style="padding: 20px;">
+                    <!-- Configuration Card -->
+                    <div style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                        <div style="font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                            <span>Clinical Trial Pseudonym Configuration</span>
+                            <span style="color: #34d399; font-size: 11px; font-weight: 600;">100% Client-Side / Zero-Cost Safe Harbor</span>
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 12px;">
+                            <div class="form-group">
+                                <label for="anon-custom-name" style="font-size: 11px; color: #cbd5e1; margin-bottom: 4px; display: block;">Patient Pseudonym Name</label>
+                                <input type="text" id="anon-custom-name" class="pacs-input" value="ANON^CLINICAL^TRIAL" placeholder="e.g. ANON^PATIENT">
+                            </div>
+                            <div class="form-group">
+                                <label for="anon-custom-id" style="font-size: 11px; color: #cbd5e1; margin-bottom: 4px; display: block;">Subject / Trial ID (MRN Replacement)</label>
+                                <input type="text" id="anon-custom-id" class="pacs-input" value="ANON-SUBJ-8841" placeholder="e.g. ANON-MRN-01">
+                            </div>
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 16px; font-size: 11px; color: #94a3b8;">
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="anon-opt-strip-18" checked disabled>
+                                <span style="color: #e2e8f0;">Strip all 18 HIPAA § 164.514 PHI Attributes</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="anon-opt-regen-uids" checked disabled>
+                                <span style="color: #e2e8f0;">Re-generate Cryptographic 2.25 UIDs</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="anon-opt-keep-age" checked>
+                                <span style="color: #e2e8f0;">Preserve Patient Age/Sex (Epidemiology)</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+                                <input type="checkbox" id="anon-opt-embed-tag" checked disabled>
+                                <span style="color: #e2e8f0;">Embed (0012,0062) PatientIdentityRemoved="YES"</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px;">
+                        <button type="button" class="btn-master" id="btn-run-anonymize" style="background: linear-gradient(135deg, #059669, #10b981); border-color: #34d399; font-weight: 600; padding: 10px 18px;">
+                            <span>🛡️ Execute HIPAA Safe-Harbor Scrubbing</span>
+                        </button>
+                        <button type="button" class="btn-titanium" id="btn-run-audit" style="padding: 10px 16px;">
+                            <span>🔍 Audit Active PHI Leaks</span>
+                        </button>
+                        <a id="btn-download-anon-dcm" href="#" download class="btn-master" style="display: none; background: #1e293b; border-color: #475569; color: #38bdf8; text-decoration: none; padding: 10px 16px; align-items: center; gap: 6px;">
+                            <span>📥 Download Anonymized DICOM (.dcm)</span>
+                        </a>
+                    </div>
+
+                    <!-- HIPAA 18 Safe Harbor Checklist Cards -->
+                    <div id="anon-checklist-strip" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px;">
+                        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(52, 211, 153, 0.25); border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; gap: 8px; font-size: 11px;">
+                            <span style="color: #34d399; font-weight: bold;">✓</span>
+                            <span>Direct Names & MRN Scrubbed</span>
+                        </div>
+                        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(52, 211, 153, 0.25); border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; gap: 8px; font-size: 11px;">
+                            <span style="color: #34d399; font-weight: bold;">✓</span>
+                            <span>Dates Aggregated to Year</span>
+                        </div>
+                        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(52, 211, 153, 0.25); border-radius: 6px; padding: 8px 10px; display: flex; align-items: center; gap: 8px; font-size: 11px;">
+                            <span style="color: #34d399; font-weight: bold;">✓</span>
+                            <span>DICOM PS 3.15 Tag Embedded</span>
+                        </div>
+                    </div>
+
+                    <!-- Side-by-Side Before vs After PHI Comparison Diff Table -->
+                    <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; overflow: hidden;">
+                        <div style="padding: 10px 14px; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-size: 11.5px; font-weight: 700; color: #f1f5f9;">PHI SCRUBBING AUDIT TRAIL (BEFORE VS AFTER)</span>
+                            <span id="anon-diff-status-badge" style="font-size: 10px; padding: 2px 8px; border-radius: 4px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; font-weight: 600;">READY TO SCRUB</span>
+                        </div>
+                        <div style="max-height: 280px; overflow-y: auto;">
+                            <table class="pacs-directory-table" id="anon-diff-table" style="width: 100%; font-size: 11px; text-align: left; border-collapse: collapse;">
+                                <thead>
+                                    <tr style="background: rgba(255,255,255,0.04); color: #94a3b8;">
+                                        <th style="padding: 8px 10px;">TAG</th>
+                                        <th style="padding: 8px 10px;">ATTRIBUTE NAME</th>
+                                        <th style="padding: 8px 10px; color: #f87171;">ORIGINAL CLINICAL VALUE</th>
+                                        <th style="padding: 8px 10px; color: #4ade80;">ANONYMIZED EXPORT VALUE</th>
+                                        <th style="padding: 8px 10px;">HIPAA CATEGORY</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="anon-diff-tbody">
+                                    <tr>
+                                        <td colspan="5" style="text-align: center; padding: 24px; color: #64748b;">
+                                            Click "Execute HIPAA Safe-Harbor Scrubbing" to generate live audit diff and exportable DICOM dataset.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pacs-hub-footer" style="padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08);">
+                    <div style="font-size: 11px; color: #64748b;">
+                        <span>AUDIT LEDGER: <strong>SHA-256 Chained</strong></span>
+                        <span style="margin: 0 8px;">•</span>
+                        <span>STANDARD: <strong>HIPAA § 164.514(b)(2) / PS 3.15</strong></span>
+                    </div>
+                    <button type="button" class="btn-titanium" id="dismiss-anonymize-dialog-btn">Close Anonymizer</button>
                 </div>
             </div>
         </dialog>

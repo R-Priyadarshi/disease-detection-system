@@ -22,4 +22,6 @@ Thumbs.db
 # PACS Ingest Storage (ignore ingested files, keep folder)
 data/dicom_storage/*
 !data/dicom_storage/.gitkeep
+data/anonymized/*
+!data/anonymized/.gitkeep
 data/hipaa_audit_trail.jsonl

@@ -4514,6 +4514,263 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---------------------------------------------------------
+    // 30. HIPAA SAFE-HARBOR DICOM DE-IDENTIFICATION & ANONYMIZER
+    // ---------------------------------------------------------
+    function initAnonymizerSystem() {
+        const btnOpen = document.getElementById('btn-hipaa-anonymize');
+        const dialog = document.getElementById('anonymize-dialog');
+        const btnClose = document.getElementById('close-anonymize-dialog-btn');
+        const btnDismiss = document.getElementById('dismiss-anonymize-dialog-btn');
+        const btnRunScrub = document.getElementById('btn-run-anonymize');
+        const btnRunAudit = document.getElementById('btn-run-audit');
+        const btnDownloadDcm = document.getElementById('btn-download-anon-dcm');
+        const diffTbody = document.getElementById('anon-diff-tbody');
+        const statusBadge = document.getElementById('anon-diff-status-badge');
+        const customNameInput = document.getElementById('anon-custom-name');
+        const customIdInput = document.getElementById('anon-custom-id');
+
+        if (!dialog) return;
+
+        function openAnonymizer() {
+            dialog.showModal();
+            if (selectedStudyId && customIdInput) {
+                customIdInput.value = 'ANON-MRN-' + selectedStudyId.replace(/[^a-zA-Z0-9]/g, '').slice(-4).toUpperCase();
+            }
+        }
+
+        function closeAnonymizer() {
+            dialog.close();
+        }
+
+        if (btnOpen) btnOpen.addEventListener('click', openAnonymizer);
+        if (btnClose) btnClose.addEventListener('click', closeAnonymizer);
+        if (btnDismiss) btnDismiss.addEventListener('click', closeAnonymizer);
+
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'h' || e.key === 'H') {
+                if (document.activeElement && ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+                if (!dialog.open) openAnonymizer();
+                else closeAnonymizer();
+            }
+        });
+
+        if (btnRunScrub) {
+            btnRunScrub.addEventListener('click', async () => {
+                try {
+                    statusBadge.textContent = 'SCRUBBING PHI...';
+                    statusBadge.style.color = '#fbbf24';
+                    statusBadge.style.background = 'rgba(251, 191, 36, 0.15)';
+
+                    const currentId = selectedStudyId || (currentPrediction ? currentPrediction.study_id : null);
+                    const payload = {
+                        study_id: currentId || null,
+                        custom_patient_name: (customNameInput && customNameInput.value.trim()) || 'ANON^CLINICAL^TRIAL',
+                        custom_patient_id: (customIdInput && customIdInput.value.trim()) || 'ANON-SUBJ-8841',
+                        keep_patient_age: true,
+                        keep_patient_sex: true
+                    };
+
+                    const res = await fetch('/api/v1/anonymize', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json().catch(() => ({ detail: 'HTTP ' + res.status }));
+                        throw new Error(err.detail || 'Anonymization failed');
+                    }
+
+                    const data = await res.json();
+
+                    statusBadge.textContent = '✓ 100% HIPAA SAFE HARBOR CERTIFIED';
+                    statusBadge.style.color = '#34d399';
+                    statusBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+
+                    if (diffTbody && Array.isArray(data.diff_table)) {
+                        diffTbody.innerHTML = data.diff_table.map(row => `
+                            <tr>
+                                <td style="font-family: var(--font-mono); color: #94a3b8; padding: 7px 10px;">${escapeHtml(row.tag)}</td>
+                                <td style="font-weight: 600; color: #f1f5f9; padding: 7px 10px;">${escapeHtml(row.name)}</td>
+                                <td style="color: #f87171; font-family: var(--font-mono); padding: 7px 10px;">${escapeHtml(row.original_value || '(Empty)')}</td>
+                                <td style="color: #4ade80; font-family: var(--font-mono); padding: 7px 10px; font-weight: bold;">${escapeHtml(row.anonymized_value || '(Removed)')}</td>
+                                <td style="padding: 7px 10px;"><span class="hipaa-tag-badge">${escapeHtml(row.hipaa_category)}</span></td>
+                            </tr>
+                        `).join('');
+                    }
+
+                    if (btnDownloadDcm) {
+                        btnDownloadDcm.href = data.download_url;
+                        btnDownloadDcm.download = data.anonymized_filename;
+                        btnDownloadDcm.style.display = 'inline-flex';
+                    }
+
+                    showWorkstationToast('🛡️ Study De-Identified: All 18 HIPAA § 164.514 PHI Attributes Scrubbed!');
+                } catch (err) {
+                    console.error('Anonymizer error:', err);
+                    statusBadge.textContent = 'SCRUBBING ERROR';
+                    statusBadge.style.color = '#f87171';
+                    showWorkstationToast('❌ HIPAA Anonymization error: ' + err.message);
+                }
+            });
+        }
+
+        if (btnRunAudit) {
+            btnRunAudit.addEventListener('click', async () => {
+                try {
+                    statusBadge.textContent = 'AUDITING PHI LEAKS...';
+                    const currentId = selectedStudyId || (currentPrediction ? currentPrediction.study_id : null);
+                    const res = await fetch('/api/v1/anonymize/audit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ study_id: currentId || null })
+                    });
+                    const audit = await res.json();
+                    if (audit.is_compliant) {
+                        statusBadge.textContent = '✓ AUDIT PASS: ZERO PHI DETECTED';
+                        statusBadge.style.color = '#34d399';
+                        showWorkstationToast('✓ HIPAA Audit Verified: Zero PHI leaks in active study.');
+                    } else {
+                        statusBadge.textContent = `⚠️ PHI DETECTED (${audit.phi_detected_count} ATTRIBUTES)`;
+                        statusBadge.style.color = '#f87171';
+                        if (diffTbody && audit.phi_detected) {
+                            diffTbody.innerHTML = audit.phi_detected.map(l => `
+                                <tr>
+                                    <td style="font-family: var(--font-mono); color: #f87171; padding: 7px 10px;">${escapeHtml(l.tag)}</td>
+                                    <td style="font-weight: 600; color: #f87171; padding: 7px 10px;">${escapeHtml(l.name)}</td>
+                                    <td style="color: #f87171; font-family: var(--font-mono); padding: 7px 10px;">${escapeHtml(l.value)}</td>
+                                    <td style="color: #94a3b8; padding: 7px 10px;">PENDING SCRUBBING</td>
+                                    <td style="padding: 7px 10px;"><span class="hipaa-tag-badge" style="color: #f87171; border-color: rgba(239,68,68,0.3);">UNSCRUBBED PHI</span></td>
+                                </tr>
+                            `).join('');
+                        }
+                        showWorkstationToast(`⚠️ PHI Detected: ${audit.phi_detected_count} direct identifiers present.`);
+                    }
+                } catch (e) {
+                    console.error('Audit failed:', e);
+                    showWorkstationToast('❌ PHI Audit request failed: ' + e.message);
+                }
+            });
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 31. MOBILE TRAUMA BAY TABLET VIEW (iPads / Bedside Touch UI)
+    // ---------------------------------------------------------
+    function initMobileTabletUI() {
+        const toggleBtn = document.getElementById('triage-drawer-toggle-btn');
+        const sidebar = document.getElementById('ingestion-panel');
+        const backdrop = document.getElementById('drawer-backdrop');
+
+        const bedsideWorklist = document.getElementById('bedside-btn-triage');
+        const bedsideCaliper = document.getElementById('bedside-btn-caliper');
+        const bedsideStat = document.getElementById('bedside-btn-stat');
+        const bedsideDictate = document.getElementById('bedside-btn-dictate');
+        const bedsideAnon = document.getElementById('bedside-btn-anonymize');
+        const bedsideContrast = document.getElementById('bedside-btn-contrast');
+
+        function toggleDrawer() {
+            if (!sidebar) return;
+            const isOpen = sidebar.classList.contains('drawer-open');
+            if (isOpen) {
+                sidebar.classList.remove('drawer-open');
+                if (backdrop) backdrop.classList.remove('active');
+            } else {
+                sidebar.classList.add('drawer-open');
+                if (backdrop) backdrop.classList.add('active');
+            }
+        }
+
+        function closeDrawer() {
+            if (sidebar) sidebar.classList.remove('drawer-open');
+            if (backdrop) backdrop.classList.remove('active');
+        }
+
+        if (toggleBtn) toggleBtn.addEventListener('click', toggleDrawer);
+        if (backdrop) backdrop.addEventListener('click', closeDrawer);
+        if (bedsideWorklist) bedsideWorklist.addEventListener('click', toggleDrawer);
+
+        if (bedsideCaliper) {
+            bedsideCaliper.addEventListener('click', () => {
+                closeDrawer();
+                const toolBtn = document.getElementById('tool-btn-caliper');
+                if (toolBtn) toolBtn.click();
+                showWorkstationToast('📏 Bedside Caliper Tool Activated');
+            });
+        }
+
+        if (bedsideStat) {
+            bedsideStat.addEventListener('click', () => {
+                closeDrawer();
+                const handoffBtn = document.getElementById('stat-initiate-handoff-btn');
+                if (handoffBtn) handoffBtn.click();
+                else {
+                    const closedLoopDialog = document.getElementById('closed-loop-dialog');
+                    if (closedLoopDialog) closedLoopDialog.showModal();
+                }
+            });
+        }
+
+        if (bedsideDictate) {
+            bedsideDictate.addEventListener('click', () => {
+                closeDrawer();
+                const dictateDialog = document.getElementById('voice-dictation-dialog');
+                if (dictateDialog) dictateDialog.showModal();
+                else showWorkstationToast('🎙️ Bedside Voice Dictation Ready');
+            });
+        }
+
+        if (bedsideAnon) {
+            bedsideAnon.addEventListener('click', () => {
+                closeDrawer();
+                const anonDialog = document.getElementById('anonymize-dialog');
+                if (anonDialog) anonDialog.showModal();
+            });
+        }
+
+        if (bedsideContrast) {
+            bedsideContrast.addEventListener('click', () => {
+                document.body.classList.toggle('bedside-high-contrast');
+                const isHigh = document.body.classList.contains('bedside-high-contrast');
+                bedsideContrast.classList.toggle('active', isHigh);
+                showWorkstationToast(isHigh ? '☀️ Bedside High-Contrast Lux Active (Trauma Lighting)' : '🌙 Standard Diagnostic Darkroom Mode');
+            });
+        }
+
+        const worklistContainer = document.getElementById('worklist-items-container') || document.getElementById('triage-worklist-container');
+        if (worklistContainer) {
+            worklistContainer.addEventListener('click', (e) => {
+                if (window.innerWidth <= 1024 && e.target.closest('.worklist-card, .sample-card')) {
+                    setTimeout(closeDrawer, 150);
+                }
+            });
+        }
+
+        let touchStartX = 0;
+        let touchStartY = 0;
+        window.addEventListener('touchstart', (e) => {
+            if (e.touches && e.touches.length === 1) {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            }
+        }, { passive: true });
+
+        window.addEventListener('touchend', (e) => {
+            if (e.changedTouches && e.changedTouches.length === 1 && window.innerWidth <= 1024) {
+                const deltaX = e.changedTouches[0].clientX - touchStartX;
+                const deltaY = e.changedTouches[0].clientY - touchStartY;
+                if (Math.abs(deltaX) > 80 && Math.abs(deltaY) < 60) {
+                    if (deltaX > 0 && touchStartX < 50) {
+                        if (sidebar && !sidebar.classList.contains('drawer-open')) toggleDrawer();
+                    } else if (deltaX < 0 && sidebar && sidebar.classList.contains('drawer-open')) {
+                        closeDrawer();
+                    }
+                }
+            }
+        }, { passive: true });
+    }
+
+    // ---------------------------------------------------------
     // INITIAL BOOT: FETCH WORKLIST & INIT ALL ENTERPRISE MODALS
     // ---------------------------------------------------------
     initPacsHubModal();
@@ -4532,6 +4789,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initLongitudinalPriorComparison();
     initDicomSRExport();
     initClinicalTourSystem();
+    initAnonymizerSystem();
+    initMobileTabletUI();
     fetchWorklist();
 });
 

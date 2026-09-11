@@ -27,6 +27,7 @@ RUN pip install --no-cache-dir --upgrade pip && \
 COPY core/ /app/core/
 COPY api/ /app/api/
 COPY web/ /app/web/
+COPY deploy/ /app/deploy/
 COPY test.py /app/test.py
 COPY TESTCNN.hdf5 /app/TESTCNN.hdf5
 

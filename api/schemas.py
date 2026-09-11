@@ -555,5 +555,42 @@ class DicomSRForwardResponse(BaseModel):
     message: str
     forward_details: Dict[str, Any]
 
+# --- HIPAA Safe-Harbor DICOM De-Identification & Anonymizer Schemas ---
 
+class AnonymizeRequest(BaseModel):
+    study_id: Optional[str] = None
+    input_dicom_path: Optional[str] = None
+    custom_patient_name: Optional[str] = "ANONYMIZED^PATIENT"
+    custom_patient_id: Optional[str] = None
+    custom_accession_number: Optional[str] = None
+    keep_patient_age: bool = True
+    keep_patient_sex: bool = True
 
+class AnonymizeResponse(BaseModel):
+    status: str = "success"
+    anonymized_filename: str
+    download_url: str
+    sop_instance_uid: str
+    study_instance_uid: str
+    series_instance_uid: str
+    original_patient_name: str
+    anonymized_patient_name: str
+    original_patient_id: str
+    anonymized_patient_id: str
+    hipaa_rules_cleared: int
+    tags_modified_count: int
+    diff_table: List[Dict[str, Any]]
+    standard_conformance: str = "HIPAA § 164.514(b)(2) / DICOM PS 3.15 Annex E"
+    anonymized_at: str
+
+class AuditDeidentificationRequest(BaseModel):
+    study_id: Optional[str] = None
+    file_path: Optional[str] = None
+
+class AuditDeidentificationResponse(BaseModel):
+    status: str = "success"
+    is_compliant: bool
+    phi_detected_count: int
+    phi_detected: List[Dict[str, Any]]
+    hipaa_checklist: Dict[str, bool]
+    recommendations: List[str]

@@ -1,25 +1,83 @@
 version: '3.8'
 
+# ==============================================================================
+# ALVEON PACS v5.1 - Production Enterprise Multi-Container Orchestration Stack
+# Services:
+#  1. alveon-pacs: Diagnostic AI Workstation, REST APIs & DICOM C-STORE SCP
+#  2. orthanc: Hospital Enterprise VNA & DICOMweb Storage Archive
+#  3. proxy: Nginx TLS 1.3 Reverse Proxy & HTTP-to-HTTPS Gateway
+# ==============================================================================
+
 services:
   alveon-pacs:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: alveon_pacs_platform
-    restart: unless-stopped
-    ports:
-      - "8000:8000"
-      - "11112:11112"
-    volumes:
-      - ./data/dicom_storage:/app/data/dicom_storage
+    container_name: alveon-pacs-engine
+    restart: always
     environment:
       - PYTHONUNBUFFERED=1
-      - TF_ENABLE_ONEDNN_OPTS=0
+      - TF_ENABLE_ONEDNN_OPTS=1
       - DICOM_SCP_PORT=11112
-      - DICOM_SCP_AET=ALVEON_PACS
+      - DICOM_SCP_AET=ALVEON_STORE_SCP
+      - ORTHANC_HOST=orthanc
+      - ORTHANC_HTTP_PORT=8042
+      - ORTHANC_DICOM_PORT=4242
+    volumes:
+      - alveon_dicom_storage:/app/data/dicom_storage
+      - alveon_data:/app/data
+    ports:
+      - "8000:8000"    # Direct FastAPI Application Port
+      - "11112:11112"  # DICOM Storage SCP Port
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/healthz"]
+      interval: 20s
+      timeout: 5s
       retries: 3
+      start_period: 15s
+    networks:
+      - alveon-network
 
+  orthanc:
+    image: orthancteam/orthanc:24.3.0
+    container_name: alveon-orthanc-pacs
+    restart: always
+    ports:
+      - "4242:4242"    # Orthanc DICOM DIMSE C-STORE / C-FIND
+      - "8042:8042"    # Orthanc REST API / Web Explorer
+    environment:
+      - ORTHANC_NAME=ORTHANC_HOSPITAL_PACS
+    volumes:
+      - ./deploy/orthanc.json:/etc/orthanc/orthanc.json:ro
+      - orthanc_storage:/var/lib/orthanc/db
+    networks:
+      - alveon-network
+
+  proxy:
+    image: nginx:1.25-alpine
+    container_name: alveon-nginx-proxy
+    restart: always
+    ports:
+      - "80:80"        # Public HTTP Port (redirects or serves)
+      - "443:443"      # Public HTTPS TLS 1.3 Gateway
+    volumes:
+      - ./deploy/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/certs:/etc/nginx/certs:ro
+    depends_on:
+      alveon-pacs:
+        condition: service_healthy
+    networks:
+      - alveon-network
+
+networks:
+  alveon-network:
+    name: alveon-network
+    driver: bridge
+
+volumes:
+  alveon_dicom_storage:
+    driver: local
+  alveon_data:
+    driver: local
+  orthanc_storage:
+    driver: local

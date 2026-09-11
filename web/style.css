@@ -4899,6 +4899,258 @@ input[type="range"]::-webkit-slider-thumb {
     font-family: var(--font-mono);
 }
 
+/* ==========================================================================
+   OPTION B: HIPAA Safe-Harbor De-Identification & Anonymizer Dialog Styles
+   ========================================================================== */
+#anonymize-dialog .pacs-hub-shell {
+    background: #0b0e14;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(16, 185, 129, 0.15);
+}
 
+#anon-diff-table th {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
 
+#anon-diff-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    font-size: 11px;
+}
 
+.hipaa-tag-badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 9.5px;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ==========================================================================
+   OPTION C: Mobile Trauma Bay Tablet View (iPad / Tablet Touch UI 768px-1024px)
+   ========================================================================== */
+
+/* Hidden on desktop by default */
+.tablet-drawer-btn {
+    display: none !important;
+}
+
+.bedside-quick-bar {
+    display: none !important;
+}
+
+.drawer-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 9998;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s ease;
+}
+
+.drawer-backdrop.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* High Contrast Bedside ER Lux Mode */
+body.bedside-high-contrast {
+    filter: contrast(1.15) brightness(1.05);
+}
+
+body.bedside-high-contrast .workstation-panel {
+    border-color: rgba(255, 255, 255, 0.25) !important;
+    background: #000000 !important;
+}
+
+@media screen and (max-width: 1024px) {
+    /* Container spacing tuned for touch tablets (iPad Pro / iPad Air / iPad Mini) */
+    .workstation-container {
+        padding: 8px 12px 75px !important;
+        max-width: 100% !important;
+    }
+
+    .pacs-header {
+        flex-wrap: wrap !important;
+        gap: 12px !important;
+    }
+
+    .telemetry-cluster {
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+
+    /* Show tablet drawer toggle button in header */
+    .tablet-drawer-btn {
+        display: inline-flex !important;
+        align-items: center;
+        gap: 6px;
+        background: rgba(56, 189, 248, 0.12) !important;
+        border: 1px solid rgba(56, 189, 248, 0.4) !important;
+        color: #38bdf8 !important;
+        padding: 6px 12px !important;
+        border-radius: 6px !important;
+        cursor: pointer;
+        min-height: 44px;
+        min-width: 44px;
+    }
+
+    /* Tablet Master Workstation Grid transforms to single column priority */
+    .workstation-grid {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+    }
+
+    /* Off-Canvas Sliding Drawer for ER Triage Worklist */
+    .drawer-backdrop {
+        display: block !important;
+    }
+
+    #ingestion-panel {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        width: 360px !important;
+        max-width: 88vw !important;
+        height: 100vh !important;
+        z-index: 9999 !important;
+        background: #0a0d14 !important;
+        box-shadow: 10px 0 35px rgba(0, 0, 0, 0.9) !important;
+        border-right: 1px solid rgba(56, 189, 248, 0.3) !important;
+        transform: translateX(-105%);
+        transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        overflow-y: auto !important;
+        padding: 16px 14px 80px !important;
+    }
+
+    #ingestion-panel.drawer-open {
+        transform: translateX(0) !important;
+    }
+
+    /* Ensure primary diagnostic canvas panel takes 100% tablet viewport */
+    .viewport-panel {
+        width: 100% !important;
+        min-height: 520px !important;
+    }
+
+    /* Minimum 48px Tap Targets for Ergonomic Bedside Touch */
+    .tool-btn,
+    .colormap-pill,
+    .btn-quick-upload,
+    .stat-action-btn,
+    .header-action-btn,
+    .panel-mode-tab {
+        min-height: 48px !important;
+        min-width: 48px !important;
+        font-size: 12.5px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        padding: 8px 14px !important;
+    }
+
+    .pill-group {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 6px !important;
+    }
+
+    .pacs-toolbar {
+        flex-wrap: wrap !important;
+        gap: 10px !important;
+        padding: 10px !important;
+    }
+
+    .toolbar-group {
+        flex: 1 1 auto !important;
+    }
+
+    /* Floating Bedside Quick-Bar for Trauma ER Clinicians */
+    .bedside-quick-bar {
+        display: flex !important;
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        height: 64px !important;
+        background: rgba(11, 14, 20, 0.96) !important;
+        backdrop-filter: blur(16px) !important;
+        -webkit-backdrop-filter: blur(16px) !important;
+        border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
+        box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.6) !important;
+        z-index: 9900 !important;
+        padding: 0 8px !important;
+        align-items: center !important;
+        justify-content: space-around !important;
+    }
+
+    .bedside-action-btn {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        background: transparent !important;
+        border: none !important;
+        color: #94a3b8 !important;
+        min-height: 48px !important;
+        min-width: 52px !important;
+        padding: 4px 6px !important;
+        border-radius: 8px !important;
+        cursor: pointer !important;
+        transition: background 0.15s ease, color 0.15s ease !important;
+        touch-action: manipulation !important;
+    }
+
+    .bedside-action-btn:active,
+    .bedside-action-btn.active {
+        background: rgba(255, 255, 255, 0.08) !important;
+        color: #38bdf8 !important;
+    }
+
+    .bedside-action-btn.stat-accent {
+        color: #f87171 !important;
+    }
+
+    .bedside-action-btn.stat-accent:active {
+        background: rgba(239, 68, 68, 0.15) !important;
+        color: #ef4444 !important;
+    }
+
+    .bedside-icon {
+        font-size: 18px !important;
+        line-height: 1 !important;
+        margin-bottom: 2px !important;
+    }
+
+    .bedside-label {
+        font-size: 10px !important;
+        font-weight: 600 !important;
+        letter-spacing: 0.02em !important;
+    }
+
+    /* Modal Responsive Adjustments for Tablet Devices */
+    .alveon-modal,
+    .pacs-hub-modal {
+        width: 94vw !important;
+        max-width: 94vw !important;
+        margin: auto !important;
+    }
+
+    .modal-shell,
+    .pacs-hub-shell {
+        max-height: 90vh !important;
+        overflow-y: auto !important;
+    }
+}
