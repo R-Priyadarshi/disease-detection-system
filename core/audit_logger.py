@@ -9,6 +9,8 @@ import json
 import time
 import hashlib
 import uuid
+import fcntl
+import threading
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
@@ -42,6 +44,7 @@ class AuditLogger:
     def __init__(self, log_path: Path = AUDIT_LOG_FILE):
         self.log_path = log_path
         self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        self._lock = threading.Lock()
         self._last_hash = self._get_latest_hash()
 
     @classmethod
@@ -80,50 +83,56 @@ class AuditLogger:
         details: Optional[Dict[str, Any]] = None
     ) -> AuditEvent:
         """Appends a cryptographically verified event to the HIPAA audit ledger."""
-        self._last_hash = self._get_latest_hash()
-        now = time.time()
-        timestamp_utc = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(now))
-        event_id = f"AUD-{uuid.uuid4().hex[:12].upper()}"
-        details_clean = details or {}
+        with self._lock:
+            # Open with append mode and acquire an exclusive advisory file lock
+            with open(self.log_path, "a+", encoding="utf-8") as f:
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                try:
+                    self._last_hash = self._get_latest_hash()
+                    now = time.time()
+                    timestamp_utc = time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(now))
+                    event_id = f"AUD-{uuid.uuid4().hex[:12].upper()}"
+                    details_clean = details or {}
 
-        # Canonical hashing payload
-        hash_payload = {
-            "event_id": event_id,
-            "timestamp_epoch": now,
-            "user_id": user_id,
-            "username": username,
-            "user_role": user_role,
-            "action": action,
-            "patient_mrn": patient_mrn,
-            "study_id": study_id,
-            "ip_address": ip_address,
-            "prev_hash": self._last_hash,
-            "details": details_clean
-        }
-        canonical_str = json.dumps(hash_payload, sort_keys=True, separators=(',', ':'))
-        record_hash = hashlib.sha256(canonical_str.encode('utf-8')).hexdigest()
+                    # Canonical hashing payload
+                    hash_payload = {
+                        "event_id": event_id,
+                        "timestamp_epoch": now,
+                        "user_id": user_id,
+                        "username": username,
+                        "user_role": user_role,
+                        "action": action,
+                        "patient_mrn": patient_mrn,
+                        "study_id": study_id,
+                        "ip_address": ip_address,
+                        "prev_hash": self._last_hash,
+                        "details": details_clean
+                    }
+                    canonical_str = json.dumps(hash_payload, sort_keys=True, separators=(',', ':'))
+                    record_hash = hashlib.sha256(canonical_str.encode('utf-8')).hexdigest()
 
-        event = AuditEvent(
-            event_id=event_id,
-            timestamp_utc=timestamp_utc,
-            timestamp_epoch=now,
-            user_id=user_id,
-            username=username,
-            user_role=user_role,
-            action=action,
-            patient_mrn=patient_mrn,
-            study_id=study_id,
-            ip_address=ip_address,
-            details=details_clean,
-            prev_hash=self._last_hash,
-            record_hash=record_hash
-        )
+                    event = AuditEvent(
+                        event_id=event_id,
+                        timestamp_utc=timestamp_utc,
+                        timestamp_epoch=now,
+                        user_id=user_id,
+                        username=username,
+                        user_role=user_role,
+                        action=action,
+                        patient_mrn=patient_mrn,
+                        study_id=study_id,
+                        ip_address=ip_address,
+                        details=details_clean,
+                        prev_hash=self._last_hash,
+                        record_hash=record_hash
+                    )
 
-        with open(self.log_path, "a", encoding="utf-8") as f:
-            f.write(json.dumps(event.model_dump()) + "\n")
-
-        self._last_hash = record_hash
-        return event
+                    f.write(json.dumps(event.model_dump()) + "\n")
+                    f.flush()
+                    self._last_hash = record_hash
+                    return event
+                finally:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
 
     def query(self, limit: int = 50, action: Optional[str] = None) -> List[AuditEvent]:
         """Retrieves recent audit events in reverse chronological order."""
