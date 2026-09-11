@@ -1,0 +1,40 @@
+{
+  "name": "alveon-desktop-pacs",
+  "version": "5.1.0",
+  "description": "Enterprise Thoracic Diagnostic AI & Zero-Footprint Clinical PACS Desktop Workstation",
+  "main": "main.js",
+  "author": "R Priyadarshi",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "build:linux": "electron-builder --linux AppImage",
+    "build:win": "electron-builder --win nsis",
+    "build:mac": "electron-builder --mac dmg"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "electron": "^29.1.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.alveon.pacs",
+    "productName": "ALVEON PACS",
+    "copyright": "Copyright © 2026 ALVEON PACS. R Priyadarshi",
+    "directories": {
+      "output": "dist"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Science"
+    },
+    "win": {
+      "target": ["nsis", "portable"]
+    },
+    "mac": {
+      "target": ["dmg", "zip"],
+      "category": "public.app-category.medical"
+    }
+  }
+}
