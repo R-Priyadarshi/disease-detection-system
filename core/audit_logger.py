@@ -5,6 +5,7 @@ access, neural inference, diagnostic measurements, and legal electronic sign-off
 Uses chained cryptographic SHA-256 hashes (blockchain-style) to guarantee audit record integrity.
 """
 
+import os
 import json
 import time
 import hashlib
@@ -15,7 +16,7 @@ from pathlib import Path
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
-AUDIT_LOG_DIR = Path("/home/rishikesh/.gemini/antigravity-ide/scratch/disease-detection-system/data")
+AUDIT_LOG_DIR = Path(os.environ.get("ALVEON_DATA_DIR", Path(__file__).resolve().parent.parent / "data"))
 AUDIT_LOG_FILE = AUDIT_LOG_DIR / "hipaa_audit_trail.jsonl"
 GENESIS_HASH = "0000000000000000ALVEON_HIPAA_GENESIS_BLOCK_2026_SECURITY"
 
