@@ -962,6 +962,8 @@ document.addEventListener('DOMContentLoaded', () => {
         dicomTagsDialog.showModal();
     }
 
+    const openDicomTagsBtn = document.getElementById('open-dicom-tags-btn');
+    if (openDicomTagsBtn) openDicomTagsBtn.addEventListener('click', openDicomTagsModal);
     if (hudTagTrigger) hudTagTrigger.addEventListener('click', openDicomTagsModal);
     if (closeDicomModalBtn) closeDicomModalBtn.addEventListener('click', () => dicomTagsDialog.close());
     if (dismissDicomBtn) dismissDicomBtn.addEventListener('click', () => dicomTagsDialog.close());
