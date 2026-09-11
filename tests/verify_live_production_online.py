@@ -145,13 +145,11 @@ def test_05_live_report_saving_and_persistence(tokens):
     
     report_payload = {
         "study_uid": test_study_uid,
-        "patient_id": "MRN-LIVE-992",
+        "patient_mrn": "MRN-LIVE-992",
+        "patient_name": "LIVE Attested Patient",
         "impression": "Dense consolidative alveolar opacity in left lower lobe compatible with acute bacterial pneumonia.",
-        "acr_category": "Category 4 (Actionable Pathology)",
-        "attesting_physician": "Dr. Eleanor Vance, MD, FACR",
-        "physician_role": "Chief Thoracic Radiologist",
-        "digital_signature_hash": digital_signature,
-        "calipers": [
+        "acr_actionable_code": "ACR Category 4 (Actionable Pathology)",
+        "caliper_measurements": [
             {"type": "linear", "startX": 120, "startY": 140, "endX": 210, "endY": 195, "lengthMm": 42.6},
             {"type": "arrow", "startX": 180, "startY": 160, "endX": 230, "endY": 210, "label": "Pathology Focus"},
             {"type": "ellipse", "cx": 190, "cy": 180, "rx": 35, "ry": 25, "areaCm2": 6.8}
@@ -165,19 +163,19 @@ def test_05_live_report_saving_and_persistence(tokens):
     assert_check("POST /api/v1/reports/save HTTP 200", save_res.status_code == 200, f"Latency: {lat:.1f}ms")
     save_data = save_res.json()
     assert_check("Report Saved with ID", "report_id" in save_data, f"Report ID: {save_data.get('report_id')}")
-    assert_check("Audit Event Chained", "audit_event_id" in save_data, f"Audit ID: {save_data.get('audit_event_id')}")
+    assert_check("Digital Signature Chained", "signature_hash" in save_data, f"Hash: {save_data.get('signature_hash')[:16]}...")
     
     # Retrieve by Study UID
     get_res = requests.get(f"{LIVE_BASE_URL}/api/v1/reports/study/{test_study_uid}", headers=headers, timeout=15)
     assert_check(f"GET /api/v1/reports/study/{{uid}} HTTP 200", get_res.status_code == 200)
     retrieved = get_res.json()
     assert_check("Study UID Matches", retrieved.get("study_uid") == test_study_uid)
-    assert_check("Digital Signature Verified", retrieved.get("digital_signature_hash") == digital_signature)
-    assert_check("Calipers Restored from Cloud DB", len(retrieved.get("calipers", [])) == 3, f"Calipers count: {len(retrieved.get('calipers', []))}")
+    assert_check("Digital Signature Verified", retrieved.get("digital_signature_hash") == save_data.get("signature_hash"))
+    assert_check("Calipers Restored from Cloud DB", len(retrieved.get("caliper_measurements", [])) == 3, f"Calipers count: {len(retrieved.get('caliper_measurements', []))}")
     
     # List all reports
     list_res = requests.get(f"{LIVE_BASE_URL}/api/v1/reports", headers=headers, timeout=15)
-    assert_check("GET /api/v1/reports HTTP 200", list_res.status_code == 200 and len(list_res.json()) >= 1)
+    assert_check("GET /api/v1/reports HTTP 200", list_res.status_code == 200 and len(list_res.json().get("reports", [])) >= 1)
 
 def test_06_live_dicomweb_services():
     print_banner("6. DICOMWEB PART 18 REST SERVICES IN THE CLOUD")
@@ -195,8 +193,9 @@ def test_06_live_dicomweb_services():
     
     # Extract UIDs for WADO-RS
     study_uid = first["0020000D"]["Value"][0]
-    # WADO-RS Rendered Frame
-    wado_url = f"{LIVE_BASE_URL}/dicomweb/studies/{study_uid}/series/1.2.3/instances/1.2.3.4/rendered"
+    series_uid = first.get("0020000E", {}).get("Value", ["1.2.3"])[0]
+    instance_uid = first.get("00080018", {}).get("Value", ["1.2.3.4"])[0]
+    wado_url = f"{LIVE_BASE_URL}/dicomweb/studies/{study_uid}/series/{series_uid}/instances/{instance_uid}/rendered"
     t0 = time.time()
     wado_res = requests.get(wado_url, timeout=15)
     lat = (time.time() - t0) * 1000
