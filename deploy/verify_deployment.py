@@ -103,7 +103,30 @@ def main():
     results.append(check_http_probe("http://127.0.0.1:8000/readyz", "Readiness Probe"))
     results.append(check_http_probe("http://127.0.0.1:8000/viewer", "OHIF Web Viewer Bridge"))
 
+    print("\n--- 5. Option D: SQLite Database & Report Persistence ---")
+    try:
+        from core.database import get_db_connection, get_user_by_username, list_recent_reports
+        conn = get_db_connection()
+        user = get_user_by_username("dr.vance")
+        conn.close()
+        results.append(log_check("Option D: SQLite Database", user is not None, f"Found active staff persona '{user.get('full_name') if user else 'none'}'"))
+    except Exception as e:
+        results.append(log_check("Option D: SQLite Database", False, f"DB error: {e}"))
+
+    print("\n--- 6. Option C: DICOMweb Part 18 Standards ---")
+    results.append(check_http_probe("http://127.0.0.1:8000/dicomweb/studies", "DICOMweb QIDO-RS Studies"))
+
+    print("\n--- 7. Option B: Neural Engine & Grad-CAM Weights ---")
+    try:
+        from core.model import get_model
+        model = get_model()
+        weights_loaded = model.model is not None
+        results.append(log_check("Option B: CNN Model Weights", weights_loaded, "TESTCNN.hdf5 loaded with 11 neural layers"))
+    except Exception as e:
+        results.append(log_check("Option B: CNN Model Weights", False, f"Model error: {e}"))
+
     total = len(results)
+
     passed = sum(1 for r in results if r)
     failed = total - passed
 

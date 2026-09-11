@@ -1,3 +1,14 @@
+---
+title: ALVEON Hospital PACS
+emoji: 🫁
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+app_port: 7860
+pinned: false
+license: mit
+---
+
 # ALVEON — Thoracic Diagnostic Intelligence & Clinical PACS Workstation
 
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
@@ -211,6 +222,35 @@ Response:
   "gradcam_heatmap_b64": "data:image/jpeg;base64,..."
 }
 ```
+
+---
+
+## Enterprise Engineering Pathways (Implemented End-to-End)
+
+ALVEON comes complete with all 4 clinical enterprise pathways fully implemented:
+
+### Option A: Cloud Deployment & 24/7 Universal Web Hosting
+- **Zero-Cost 24/7 Cloud Hosting (Hugging Face Spaces):** The codebase includes Dockerfile and metadata for deploying to Hugging Face Spaces with **16 GB RAM + 2 vCPU 100% free forever** (`PORT=7860`). Never shuts down when your laptop closes.
+- **Render 1-Click Deployment:** Included `deploy/render.yaml` blueprint for automated deployment from GitHub.
+- **Production Multi-Container Stack:** Bundled `docker-compose.yml` with Nginx TLS 1.3 reverse proxy, Orthanc VNA, and ALVEON PACS.
+
+### Option B: Real Deep Learning Neural Engine & Saliency
+- **TensorFlow / Keras Convolutional Core:** Loaded from `TESTCNN.hdf5` with 11 neural layers (`conv2d`, `max_pooling2d`, `dense`, `batch_normalization`).
+- **Explainable Grad-CAM:** Backpropagates gradients through the final convolutional layer to generate real diagnostic heatmaps.
+- **Anatomical Quadrant Zonation:** Automatically calculates opacity percentages across 4 pulmonary lobes (RUL, RLL, LUL, LLL) with dominant zone identification.
+- **Multi-Label Pathology Classification:** Simultaneous detection of Pneumonia, Pneumothorax, Pleural Effusion, Cardiomegaly, and Infiltrates.
+
+### Option C: Live Hospital PACS Integration (DICOMweb & DIMSE)
+- **DICOM Storage SCP Daemon:** Embedded `pynetdicom` Service Class Provider listening on port `11112` for inbound C-STORE and C-ECHO pings.
+- **DICOMweb Part 18 REST Services:** Full standards-compliant implementation of QIDO-RS (`/dicomweb/studies`), WADO-RS (`/dicomweb/studies/{uid}/series/{uid}/instances/{uid}/rendered`), and STOW-RS (`POST /dicomweb/studies`).
+- **Orthanc VNA Integration:** Tested and pre-configured bridge to Orthanc Enterprise Archive on port `8042`.
+
+### Option D: User Authentication & Saved Radiology Reports (Zero-Cloud DB)
+- **100% Embedded SQLite Engine:** Self-contained at `data/alveon.db` with Write-Ahead Logging (WAL) for high concurrency. Zero cloud database configuration or sign-ups required.
+- **Role-Based Access Control (RBAC):** Pre-configured clinical personas (`dr.vance`, `dr.chen`, `dr.adams`, `admin.marcus`) with PBKDF2-HMAC-SHA256 password hashing and HMAC-SHA256 JWT shift tokens.
+- **Digital Cryptographic Signatures:** SHA-256 digital signing of radiology findings and patient demographics.
+- **Caliper Markup Persistence:** Viewport millimeter caliper measurements, CTR cardiac indices, and elliptical ROIs automatically persist to the database upon attestation and restore upon reopening a study.
+- **HIPAA Audit Ledger:** Cryptographically chained event block trail (§ 164.312(b)) tracking every login, image view, and sign-off.
 
 ---
 

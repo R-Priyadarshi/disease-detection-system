@@ -17,7 +17,14 @@ from core.auth import (
     UserRole,
     create_access_token,
     get_current_user,
-    require_roles
+    require_roles,
+    authenticate_user
+)
+from core.database import (
+    save_radiology_report,
+    get_report_by_study,
+    list_recent_reports,
+    list_users
 )
 from core.audit_logger import get_audit_logger
 from core.volumetric import get_volumetric_engine, WINDOW_PRESETS
@@ -115,7 +122,11 @@ from api.schemas import (
     AnonymizeRequest,
     AnonymizeResponse,
     AuditDeidentificationRequest,
-    AuditDeidentificationResponse
+    AuditDeidentificationResponse,
+    SaveReportRequest,
+    ReportResponse,
+    SavedReportDetail,
+    ReportsListResponse
 )
 
 from core.model import get_model, PneumoniaCNNModel
@@ -1090,13 +1101,19 @@ async def login(req: LoginRequest):
     issues an HMAC-SHA256 JWT session token, and records a HIPAA login audit event.
     """
     username = req.username.strip().lower()
-    if username not in CLINICAL_DIRECTORY:
-        raise HTTPException(
-            status_code=401,
-            detail=f"Authentication failed: User '{username}' not recognized in hospital directory."
-        )
+    
+    # 1. Attempt database-backed PBKDF2 authentication
+    user = authenticate_user(username, req.password or "Alveon2026!")
+    if not user:
+        # Fallback to in-memory directory for demo/backward compatibility
+        if username in CLINICAL_DIRECTORY:
+            user = CLINICAL_DIRECTORY[username]
+        else:
+            raise HTTPException(
+                status_code=401,
+                detail=f"Authentication failed: User '{username}' not recognized in hospital directory."
+            )
 
-    user = CLINICAL_DIRECTORY[username]
     token = create_access_token(user)
 
     # Log HIPAA security access
@@ -1140,7 +1157,26 @@ async def get_my_session(current_user: ClinicalUser = Depends(get_current_user))
 
 @router.get("/api/v1/auth/users", response_model=List[ClinicalUserSchema], tags=["Enterprise Security & RBAC"])
 async def list_clinical_directory():
-    """Lists pre-configured clinical personas for demonstration and role switching."""
+    """Lists pre-configured clinical personas from SQLite database and directory."""
+    try:
+        db_users = list_users()
+        if db_users:
+            return [
+                ClinicalUserSchema(
+                    user_id=u["id"],
+                    username=u["username"],
+                    full_name=u["full_name"],
+                    title=u["title"],
+                    role=u["role"],
+                    department=u["department"],
+                    npi=u.get("npi"),
+                    initials=u["initials"]
+                )
+                for u in db_users
+            ]
+    except Exception:
+        pass
+
     return [
         ClinicalUserSchema(
             user_id=u.user_id,
@@ -1154,6 +1190,75 @@ async def list_clinical_directory():
         )
         for u in CLINICAL_DIRECTORY.values()
     ]
+
+
+# --- Option D: Radiology Reports & Digital Signatures ---
+
+@router.post("/api/v1/reports/save", response_model=ReportResponse, tags=["Radiology Reports & Persistence"])
+async def save_report_endpoint(
+    req: SaveReportRequest,
+    current_user: ClinicalUser = Depends(get_current_user)
+):
+    """
+    Persists a finalized radiology report with digital cryptographic signature,
+    caliper measurements, and structured findings into the embedded SQLite database.
+    """
+    try:
+        report_dict = {
+            "study_uid": req.study_uid,
+            "patient_mrn": req.patient_mrn,
+            "patient_name": req.patient_name or "Anonymous Patient",
+            "user_id": current_user.user_id,
+            "username": current_user.username,
+            "attesting_physician": current_user.full_name,
+            "examination_technique": req.examination_technique,
+            "clinical_indication": req.clinical_indication,
+            "findings_lungs": req.findings_lungs,
+            "findings_pleura": req.findings_pleura,
+            "findings_cardiomediastinum": req.findings_cardiomediastinum,
+            "findings_bones_soft_tissues": req.findings_bones_soft_tissues,
+            "impression": req.impression,
+            "acr_actionable_code": req.acr_actionable_code,
+            "caliper_measurements": req.caliper_measurements or [],
+            "status": req.status or "FINAL_SIGNED"
+        }
+        
+        saved = save_radiology_report(report_dict)
+        
+        return ReportResponse(
+            status="success",
+            report_id=saved["report_id"],
+            signature_hash=saved["signature_hash"],
+            signed_at=saved["signed_at"],
+            study_uid=req.study_uid,
+            patient_mrn=req.patient_mrn,
+            attesting_physician=current_user.full_name,
+            caliper_count=len(req.caliper_measurements or [])
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to persist report: {str(e)}")
+
+
+@router.get("/api/v1/reports/study/{study_uid}", response_model=Optional[SavedReportDetail], tags=["Radiology Reports & Persistence"])
+async def get_study_report(study_uid: str):
+    """Retrieves the latest signed report for a specific study UID."""
+    report = get_report_by_study(study_uid)
+    if not report:
+        return None
+    return SavedReportDetail(**report)
+
+
+@router.get("/api/v1/reports", response_model=ReportsListResponse, tags=["Radiology Reports & Persistence"])
+async def list_reports(limit: int = 50):
+    """Lists recent finalized radiology reports from the SQLite database."""
+    reports = list_recent_reports(limit=limit)
+    report_items = [SavedReportDetail(**r) for r in reports]
+    return ReportsListResponse(
+        status="success",
+        total_reports=len(report_items),
+        reports=report_items
+    )
+
 
 
 # --- 2. HIPAA Chained Audit Trail ---

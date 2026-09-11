@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ALVEON Split-Wipe Thorax Logo Refinements</title>
+    <style>
+        body {
+            background: #06080d;
+            color: #f8fafc;
+            font-family: 'Inter', system-ui, sans-serif;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        h1 { font-size: 20px; font-weight: 700; letter-spacing: 1px; color: #94a3b8; margin: 0; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+        .card {
+            background: #0c1018;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        .card-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #38bdf8;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+        .preview-hero {
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle at 50% 30%, #151d2e 0%, #080a10 100%);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 20px;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.7), inset 0 1px 1px rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .preview-nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #080a10;
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.08);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .nav-box {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(145deg, #131926 0%, #07090f 100%);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .nav-box svg { width: 30px; height: 30px; }
+        .b-name { font-size: 16px; font-weight: 800; letter-spacing: 2px; color: #fff; }
+        .b-sub { font-size: 9px; font-weight: 700; letter-spacing: 1px; color: #38bdf8; margin-top: 1px; }
+        .scales-strip {
+            display: flex;
+            align-items: center;
+            justify-content: space-around;
+            width: 100%;
+            background: #090c12;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .scale-item { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: 9px; color: #64748b; }
+        .desc { font-size: 11px; color: #cbd5e1; line-height: 1.5; text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>ALVEON SPLIT-WIPE THORAX — REFINED VARIATIONS</h1>
+
+    <div class="grid">
+
+        <!-- VARIATION 1: THE ANATOMICAL SPLIT-SCANNER -->
+        <div class="card">
+            <div class="card-title">1. ANATOMICAL SPLIT-SCANNER</div>
+            <div class="preview-hero">
+                <svg viewBox="0 0 48 48" width="84" height="84" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="v1-bone" x1="8" y1="10" x2="22" y2="40" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#ffffff"/>
+                            <stop offset="100%" stop-color="#64748b"/>
+                        </linearGradient>
+                        <linearGradient id="v1-heat" x1="26" y1="10" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#38bdf8"/>
+                            <stop offset="50%" stop-color="#fb923c"/>
+                            <stop offset="100%" stop-color="#ef4444"/>
+                        </linearGradient>
+                        <radialGradient id="v1-focal" cx="33" cy="29" r="6" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#ef4444" stop-opacity="0.9"/>
+                            <stop offset="100%" stop-color="#fb923c" stop-opacity="0"/>
+                        </radialGradient>
+                    </defs>
+                    <!-- Left Lung (DICOM Bone & Parenchyma Density) -->
+                    <path d="M22 7C14 8 8 15 8 24C8 33 13 39 21 41V35C16 33 13 29 13 24C13 18 17 13 22 12V7Z" fill="url(#v1-bone)"/>
+                    <path d="M12 17C15 18 18 20 22 20" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" opacity="0.8"/>
+                    <path d="M11 24C14 25 18 26 22 26" stroke="#e2e8f0" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/>
+                    <path d="M13 31C16 32 18 33 22 33" stroke="#cbd5e1" stroke-width="1.2" stroke-linecap="round" opacity="0.6"/>
+
+                    <!-- Right Lung (AI Grad-CAM Thermal Attention Map) -->
+                    <path d="M26 7C34 8 40 15 40 24C40 33 35 39 27 41V35C32 33 35 29 35 24C35 18 31 13 26 12V7Z" fill="url(#v1-heat)"/>
+                    <!-- Pathological Focal Heatmap -->
+                    <circle cx="33" cy="29" r="6" fill="url(#v1-focal)"/>
+                    <circle cx="33" cy="29" r="2.2" fill="#ffffff"/>
+                    <circle cx="33" cy="29" r="4.5" stroke="#ffffff" stroke-width="0.8" stroke-dasharray="1.5 1.5"/>
+
+                    <!-- Split Wipe Vertical Scanning Ray -->
+                    <line x1="24" y1="5" x2="24" y2="43" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+                    <!-- Central Split Wipe Slider Handle with Drag Chevrons -->
+                    <circle cx="24" cy="24" r="4.5" fill="#080a10" stroke="#38bdf8" stroke-width="1.5"/>
+                    <path d="M22 22.5L20.5 24L22 25.5" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                    <path d="M26 22.5L27.5 24L26 25.5" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <div class="preview-nav">
+                <div class="nav-box">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22 7C14 8 8 15 8 24C8 33 13 39 21 41V35C16 33 13 29 13 24C13 18 17 13 22 12V7Z" fill="#ffffff"/>
+                        <path d="M26 7C34 8 40 15 40 24C40 33 35 39 27 41V35C32 33 35 29 35 24C35 18 31 13 26 12V7Z" fill="#ef4444"/>
+                        <line x1="24" y1="5" x2="24" y2="43" stroke="#38bdf8" stroke-width="2"/>
+                        <circle cx="24" cy="24" r="4" fill="#080a10" stroke="#38bdf8" stroke-width="1.5"/>
+                        <circle cx="33" cy="29" r="2.2" fill="#ffffff"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="b-name">ALVEON</div>
+                    <div class="b-sub">THORACIC PACS</div>
+                </div>
+            </div>
+            <div class="scales-strip">
+                <div class="scale-item">
+                    <svg viewBox="0 0 48 48" width="16" height="16" fill="none">
+                        <path d="M22 7C14 8 8 15 8 24C8 33 13 39 21 41V35C16 33 13 29 13 24V7Z" fill="#ffffff"/>
+                        <path d="M26 7C34 8 40 15 40 24C40 33 35 39 27 41V35C32 33 35 29 35 24V7Z" fill="#ef4444"/>
+                        <line x1="24" y1="5" x2="24" y2="43" stroke="#38bdf8" stroke-width="3"/>
+                    </svg>
+                    <span>16px</span>
+                </div>
+                <div class="scale-item">
+                    <svg viewBox="0 0 48 48" width="24" height="24" fill="none">
+                        <path d="M22 7C14 8 8 15 8 24C8 33 13 39 21 41V35C16 33 13 29 13 24V7Z" fill="#ffffff"/>
+                        <path d="M26 7C34 8 40 15 40 24C40 33 35 39 27 41V35C32 33 35 29 35 24V7Z" fill="#ef4444"/>
+                        <line x1="24" y1="5" x2="24" y2="43" stroke="#38bdf8" stroke-width="2.5"/>
+                        <circle cx="24" cy="24" r="4" fill="#080a10" stroke="#38bdf8" stroke-width="1.5"/>
+                    </svg>
+                    <span>24px</span>
+                </div>
+            </div>
+            <div class="desc">Literal representation of the workstation viewport: raw DICOM radiograph on the left, neural Grad-CAM heatmap on the right, divided by the interactive split-wipe slider.</div>
+        </div>
+
+        <!-- VARIATION 2: THE APEX-THORAX (Monolithic 'A' + Lungs + AI Split Wipe) -->
+        <div class="card">
+            <div class="card-title">2. APEX-THORAX HYBRID</div>
+            <div class="preview-hero">
+                <svg viewBox="0 0 48 48" width="84" height="84" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="v2-bone" x1="12" y1="6" x2="24" y2="40" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#ffffff"/>
+                            <stop offset="100%" stop-color="#64748b"/>
+                        </linearGradient>
+                        <linearGradient id="v2-heat" x1="24" y1="6" x2="36" y2="40" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#38bdf8"/>
+                            <stop offset="50%" stop-color="#fb923c"/>
+                            <stop offset="100%" stop-color="#ef4444"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- Left Wing: Forming both the left leg of 'A' and left lung lobe -->
+                    <path d="M24 6L9 39H16.5L20.5 29C17 28 14 24 14 20C14 15 17 11 22 10V6L24 6Z" fill="url(#v2-bone)"/>
+                    <path d="M12 28C14 26 17 26 21 26" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>
+                    <path d="M14 21C16 20 18 20 22 20" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round"/>
+
+                    <!-- Right Wing: Forming both the right leg of 'A' and right lung with AI Heatmap -->
+                    <path d="M24 6L39 39H31.5L27.5 29C31 28 34 24 34 20C34 15 31 11 26 10V6L24 6Z" fill="url(#v2-heat)"/>
+                    <circle cx="30" cy="27" r="2" fill="#ffffff"/>
+
+                    <!-- Center Split-Wipe Scanning Pillar -->
+                    <line x1="24" y1="6" x2="24" y2="42" stroke="#38bdf8" stroke-width="2" stroke-linecap="round"/>
+                    <circle cx="24" cy="24" r="4" fill="#080a10" stroke="#38bdf8" stroke-width="1.5"/>
+                    <circle cx="24" cy="24" r="1.5" fill="#ffffff"/>
+                </svg>
+            </div>
+            <div class="preview-nav">
+                <div class="nav-box">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M24 6L9 39H16.5L20.5 29C17 28 14 24 14 20C14 15 17 11 22 10V6L24 6Z" fill="#ffffff"/>
+                        <path d="M24 6L39 39H31.5L27.5 29C31 28 34 24 34 20C34 15 31 11 26 10V6L24 6Z" fill="#ef4444"/>
+                        <line x1="24" y1="6" x2="24" y2="42" stroke="#38bdf8" stroke-width="2"/>
+                        <circle cx="24" cy="24" r="3.5" fill="#080a10" stroke="#38bdf8" stroke-width="1.5"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="b-name">ALVEON</div>
+                    <div class="b-sub">THORACIC PACS</div>
+                </div>
+            </div>
+            <div class="scales-strip">
+                <div class="scale-item">
+                    <svg viewBox="0 0 48 48" width="16" height="16" fill="none">
+                        <path d="M24 6L9 39H16L24 20V6Z" fill="#ffffff"/>
+                        <path d="M24 6L39 39H32L24 20V6Z" fill="#ef4444"/>
+                        <line x1="24" y1="6" x2="24" y2="42" stroke="#38bdf8" stroke-width="3"/>
+                    </svg>
+                    <span>16px</span>
+                </div>
+                <div class="scale-item">
+                    <svg viewBox="0 0 48 48" width="24" height="24" fill="none">
+                        <path d="M24 6L9 39H16.5L20.5 29C17 28 14 24 14 20V6L24 6Z" fill="#ffffff"/>
+                        <path d="M24 6L39 39H31.5L27.5 29C31 28 34 24 34 20V6L24 6Z" fill="#ef4444"/>
+                        <line x1="24" y1="6" x2="24" y2="42" stroke="#38bdf8" stroke-width="2.5"/>
+                        <circle cx="24" cy="24" r="3.5" fill="#080a10" stroke="#38bdf8" stroke-width="1.5"/>
+                    </svg>
+                    <span>24px</span>
+                </div>
+            </div>
+            <div class="desc">A synthesis of the capital letter 'A' with anatomical lung contours and the central split-wipe slider node. Seamlessly bridges brand name and application working.</div>
+        </div>
+
+        <!-- VARIATION 3: THE LATTICE APERTURE (Alveolar Tree + Radiologic Loupe) -->
+        <div class="card">
+            <div class="card-title">3. ALVEOLAR LOUPE</div>
+            <div class="preview-hero">
+                <svg viewBox="0 0 48 48" width="84" height="84" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="v3-ring" x1="6" y1="6" x2="42" y2="42" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#38bdf8"/>
+                            <stop offset="100%" stop-color="#0284c7"/>
+                        </linearGradient>
+                    </defs>
+                    <!-- The Diagnostic Lens / Loupe Outer Frame -->
+                    <circle cx="24" cy="24" r="18" stroke="url(#v3-ring)" stroke-width="2"/>
+                    <!-- Central Vertical Radiographic Axis -->
+                    <line x1="24" y1="6" x2="24" y2="42" stroke="#64748b" stroke-width="1.2" stroke-dasharray="2 2"/>
+                    <!-- Tracheobronchial Branching inside the Lens -->
+                    <path d="M24 9V19L16 29" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+                    <path d="M24 19L32 29" stroke="#ef4444" stroke-width="2" stroke-linecap="round"/>
+                    <!-- Left Alveolar Cluster (Clean Aerated - White) -->
+                    <circle cx="15" cy="30" r="3.5" fill="#ffffff" opacity="0.9"/>
+                    <circle cx="12" cy="25" r="2.5" fill="#ffffff" opacity="0.7"/>
+                    <circle cx="18" cy="35" r="2" fill="#ffffff" opacity="0.6"/>
+                    <!-- Right Alveolar Cluster (Pathology Heatmap - Red/Amber) -->
+                    <circle cx="33" cy="30" r="4.5" fill="#ef4444"/>
+                    <circle cx="36" cy="25" r="3" fill="#fb923c"/>
+                    <circle cx="30" cy="35" r="2.5" fill="#f59e0b"/>
+                    <circle cx="33" cy="30" r="1.5" fill="#ffffff"/>
+                </svg>
+            </div>
+            <div class="preview-nav">
+                <div class="nav-box">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <circle cx="24" cy="24" r="18" stroke="#38bdf8" stroke-width="2"/>
+                        <path d="M24 9V19L16 29" stroke="#ffffff" stroke-width="2"/>
+                        <path d="M24 19L32 29" stroke="#ef4444" stroke-width="2"/>
+                        <circle cx="15" cy="30" r="3.5" fill="#ffffff"/>
+                        <circle cx="33" cy="30" r="4" fill="#ef4444"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="b-name">ALVEON</div>
+                    <div class="b-sub">THORACIC PACS</div>
+                </div>
+            </div>
+            <div class="scales-strip">
+                <div class="scale-item">
+                    <svg viewBox="0 0 48 48" width="16" height="16" fill="none">
+                        <circle cx="24" cy="24" r="18" stroke="#38bdf8" stroke-width="3"/>
+                        <circle cx="16" cy="26" r="4" fill="#ffffff"/>
+                        <circle cx="32" cy="26" r="4" fill="#ef4444"/>
+                    </svg>
+                    <span>16px</span>
+                </div>
+                <div class="scale-item">
+                    <svg viewBox="0 0 48 48" width="24" height="24" fill="none">
+                        <circle cx="24" cy="24" r="18" stroke="#38bdf8" stroke-width="2"/>
+                        <path d="M24 9V19L16 29" stroke="#ffffff" stroke-width="2"/>
+                        <path d="M24 19L32 29" stroke="#ef4444" stroke-width="2"/>
+                        <circle cx="15" cy="30" r="3.5" fill="#ffffff"/>
+                        <circle cx="33" cy="30" r="4" fill="#ef4444"/>
+                    </svg>
+                    <span>24px</span>
+                </div>
+            </div>
+            <div class="desc">The 2.5x Inspection Loupe examining a cluster of microscopic alveoli. Compares healthy aerated alveoli with inflamed consolidative alveoli under AI inspection.</div>
+        </div>
+
+    </div>
+</body>
+</html>

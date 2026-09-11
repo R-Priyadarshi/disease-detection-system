@@ -31,18 +31,20 @@ COPY deploy/ /app/deploy/
 COPY test.py /app/test.py
 COPY TESTCNN.hdf5 /app/TESTCNN.hdf5
 
-# Pre-generate sample radiograph assets and DICOM storage folder
+# Pre-generate sample radiograph assets and initialize SQLite database
 RUN python -m core.sample_generator && \
+    python -c "import core.database as db; db.init_db()" && \
     mkdir -p /app/data/dicom_storage
 
 # Create non-root medical app user for HIPAA security compliance
 RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# HTTP API & PACS Webstation (8000), DICOM Storage SCP (11112)
-EXPOSE 8000 11112
+# Expose ports: 8000 (Standard), 7860 (Hugging Face Spaces), 11112 (DICOM SCP)
+EXPOSE 8000 7860 11112
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
+    CMD curl -f http://localhost:${PORT:-8000}/health || exit 1
 
-CMD ["uvicorn", "api.app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["sh", "-c", "uvicorn api.app:app --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
+

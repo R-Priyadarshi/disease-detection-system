@@ -1,13 +1,14 @@
 /* ==========================================================================
    ALVEON PACS v5.1 — EXECUTIVE LANDING PAGE STYLESHEET
    Aesthetics: Deep Medical Obsidian, Cyan/Emerald Accents, Glassmorphism
-   Author: R-Priyadarshi <rishikeshpriyadarshi99@gmail.com>
+   Built by - R Priyadarshi
    ========================================================================== */
 
 :root {
-    --bg-base: #060913;
-    --bg-surface: #0b1120;
-    --bg-card: rgba(15, 23, 42, 0.7);
+    --bg-base: #060709;
+    --bg-surface: #0d0f14;
+    --bg-surface-elevated: #131722;
+    --bg-card: rgba(24, 28, 41, 0.7);
     --bg-card-hover: rgba(30, 41, 59, 0.85);
     --border-subtle: rgba(255, 255, 255, 0.08);
     --border-glow: rgba(56, 189, 248, 0.35);
@@ -23,16 +24,18 @@
     --text-muted: #64748b;
     
     --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    --font-heading: 'Outfit', 'Inter', -apple-system, sans-serif;
+    --font-heading: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
     --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
     
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-lg: 20px;
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
     --radius-full: 9999px;
     
     --shadow-card: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
     --shadow-glow: 0 0 35px -5px rgba(56, 189, 248, 0.25);
+
+    --border-hairline: rgba(255, 255, 255, 0.08);
 }
 
 *, *::before, *::after {
@@ -111,20 +114,29 @@ body {
 }
 
 .nav-brand-logo {
-    width: 38px;
-    height: 38px;
-    background: linear-gradient(135deg, #0284c7, #10b981);
+    width: 44px;
+    height: 44px;
+    background: linear-gradient(145deg, #111724 0%, #07090f 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.14);
     border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 4px 14px rgba(2, 132, 199, 0.4);
+    transition: var(--transition);
+}
+
+.nav-brand:hover .nav-brand-logo {
+    border-color: rgba(56, 189, 248, 0.45);
+    background: linear-gradient(145deg, #162032 0%, #0a0e18 100%);
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    transform: scale(1.02);
 }
 
 .nav-brand-logo svg {
-    width: 22px;
-    height: 22px;
-    stroke: #ffffff;
+    width: 30px;
+    height: 30px;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
 }
 
 .nav-brand-text {
@@ -132,32 +144,37 @@ body {
     flex-direction: column;
 }
 
-.brand-title {
-    font-family: var(--font-heading);
-    font-size: 1.25rem;
-    font-weight: 800;
-    letter-spacing: -0.02em;
-    color: #ffffff;
+.brand-row {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
+}
+
+.brand-title {
+    font-family: var(--font-heading);
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: 2.5px;
+    color: var(--text-primary);
 }
 
 .brand-badge {
-    font-size: 0.65rem;
-    padding: 2px 6px;
-    background: rgba(56, 189, 248, 0.15);
-    border: 1px solid rgba(56, 189, 248, 0.3);
-    color: var(--accent-cyan);
-    border-radius: 4px;
-    font-weight: 700;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-hairline);
+    border-radius: 3px;
+    color: var(--text-secondary);
 }
 
 .brand-sub {
-    font-size: 0.72rem;
+    font-size: 11px;
     color: var(--text-muted);
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
+    letter-spacing: 0.2px;
+    margin-top: 1px;
 }
 
 .nav-links {
@@ -754,6 +771,486 @@ body {
 }
 
 /* ==========================================================================
+   TRUST BADGES BAR
+   ========================================================================== */
+.trust-badges-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 28px 0 16px;
+}
+
+.trust-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: var(--radius-full);
+    font-size: 0.76rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    backdrop-filter: blur(8px);
+    transition: all 0.2s ease;
+}
+
+.trust-badge:hover {
+    border-color: rgba(56, 189, 248, 0.35);
+    color: var(--accent-cyan);
+    transform: translateY(-1px);
+}
+
+.trust-badge svg {
+    color: var(--accent-cyan);
+}
+
+/* ==========================================================================
+   INTERACTIVE HERO CASE SELECTOR TABS
+   ========================================================================== */
+.mockup-case-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(10, 14, 23, 0.85);
+    padding: 8px 16px;
+    border-bottom: 1px solid var(--border-hairline);
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.mockup-case-bar::-webkit-scrollbar {
+    display: none;
+}
+
+.case-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    background: rgba(30, 41, 59, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+.case-btn:hover {
+    background: rgba(51, 65, 85, 0.6);
+    color: var(--text-primary);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+.case-btn.active {
+    background: rgba(14, 165, 233, 0.18);
+    border-color: #38bdf8;
+    color: #38bdf8;
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.2);
+}
+
+/* ==========================================================================
+   CLINICAL ACCURACY & ROC-AUC BENCHMARKS TABLE
+   ========================================================================== */
+.benchmarks-section {
+    padding: 80px 0;
+    border-top: 1px solid var(--border-subtle);
+    position: relative;
+}
+
+.benchmarks-table-wrapper {
+    background: rgba(13, 17, 26, 0.75);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    overflow-x: auto;
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(16px);
+    margin-top: 36px;
+}
+
+.benchmarks-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    text-align: left;
+}
+
+.benchmarks-table th {
+    background: rgba(20, 27, 43, 0.9);
+    padding: 16px 20px;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border-subtle);
+    white-space: nowrap;
+}
+
+.benchmarks-table td {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    color: var(--text-secondary);
+    vertical-align: middle;
+}
+
+.benchmarks-table tr:hover td {
+    background: rgba(30, 41, 59, 0.35);
+}
+
+.pathology-name {
+    font-weight: 600;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.auc-score-box {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.auc-value {
+    font-family: var(--font-mono);
+    font-weight: 700;
+    color: var(--accent-cyan);
+    min-width: 44px;
+}
+
+.auc-bar {
+    width: 80px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.auc-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #0284c7, #38bdf8);
+    border-radius: 3px;
+}
+
+.urgency-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.74rem;
+    font-family: var(--font-mono);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.urgency-stat {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.urgency-urgent {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.urgency-routine {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* ==========================================================================
+   ENTERPRISE COMPETITIVE MATRIX
+   ========================================================================== */
+.comparison-section {
+    padding: 80px 0;
+    border-top: 1px solid var(--border-subtle);
+    position: relative;
+}
+
+.comparison-table-wrapper {
+    background: rgba(13, 17, 26, 0.75);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    overflow-x: auto;
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(16px);
+    margin-top: 36px;
+}
+
+.comparison-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+    text-align: left;
+}
+
+.comparison-table th {
+    padding: 18px 20px;
+    font-family: var(--font-heading);
+    font-weight: 600;
+    color: var(--text-primary);
+    border-bottom: 1px solid var(--border-subtle);
+    background: rgba(20, 27, 43, 0.9);
+}
+
+.comparison-table td {
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    color: var(--text-secondary);
+}
+
+.comparison-table th.alveon-col,
+.comparison-table td.alveon-col {
+    background: rgba(14, 165, 233, 0.07);
+    border-left: 1px solid rgba(56, 189, 248, 0.25);
+    border-right: 1px solid rgba(56, 189, 248, 0.25);
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+.comparison-table th.alveon-col {
+    background: rgba(14, 165, 233, 0.15);
+    color: var(--accent-cyan);
+}
+
+/* ==========================================================================
+   TECHNICAL SPECIFICATIONS & PROTOCOLS GRID
+   ========================================================================== */
+.specs-section {
+    padding: 80px 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.specs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    margin-top: 36px;
+}
+
+.spec-card {
+    background: rgba(16, 21, 34, 0.65);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    backdrop-filter: blur(12px);
+    transition: all 0.25s ease;
+}
+
+.spec-card:hover {
+    border-color: rgba(56, 189, 248, 0.35);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4);
+}
+
+.spec-card-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.spec-card-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: var(--radius-sm);
+    background: rgba(56, 189, 248, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-cyan);
+}
+
+.spec-card-title {
+    font-family: var(--font-heading);
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.spec-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.spec-item {
+    font-size: 0.84rem;
+    color: var(--text-secondary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    padding-bottom: 6px;
+}
+
+.spec-item-val {
+    font-family: var(--font-mono);
+    color: var(--accent-cyan);
+    font-size: 0.8rem;
+}
+
+/* ==========================================================================
+   1-CLICK FREE DEPLOYMENT TERMINAL
+   ========================================================================== */
+.deployment-section {
+    padding: 80px 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.terminal-window {
+    background: #090d16;
+    border: 1px solid rgba(56, 189, 248, 0.25);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 14px 40px -10px rgba(0, 0, 0, 0.7), 0 0 25px rgba(56, 189, 248, 0.1);
+    overflow: hidden;
+    margin-top: 36px;
+}
+
+.terminal-header {
+    background: #0f1422;
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.terminal-tabs {
+    display: flex;
+    gap: 8px;
+}
+
+.terminal-tab-btn {
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.terminal-tab-btn.active {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: rgba(56, 189, 248, 0.35);
+    color: var(--accent-cyan);
+}
+
+.terminal-body {
+    padding: 24px;
+    font-family: var(--font-mono);
+    font-size: 0.88rem;
+    color: #e2e8f0;
+    position: relative;
+    overflow-x: auto;
+}
+
+.btn-copy-code {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid var(--border-hairline);
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-copy-code:hover {
+    background: rgba(51, 65, 85, 0.9);
+    color: var(--text-primary);
+    border-color: var(--accent-cyan);
+}
+
+/* ==========================================================================
+   INTERACTIVE FAQ ACCORDION
+   ========================================================================== */
+.faq-section {
+    padding: 80px 0;
+    border-top: 1px solid var(--border-subtle);
+}
+
+.faq-list {
+    max-width: 860px;
+    margin: 36px auto 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.faq-item {
+    background: rgba(16, 21, 34, 0.65);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    overflow: hidden;
+    transition: all 0.2s ease;
+}
+
+.faq-item.active {
+    border-color: rgba(56, 189, 248, 0.4);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.faq-question {
+    width: 100%;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: none;
+    border: none;
+    color: var(--text-primary);
+    font-family: var(--font-heading);
+    font-size: 1.02rem;
+    font-weight: 600;
+    cursor: pointer;
+    text-align: left;
+}
+
+.faq-chevron {
+    transition: transform 0.25s ease;
+    color: var(--text-muted);
+}
+
+.faq-item.active .faq-chevron {
+    transform: rotate(180deg);
+    color: var(--accent-cyan);
+}
+
+.faq-answer {
+    padding: 0 24px 20px;
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    display: none;
+}
+
+.faq-item.active .faq-answer {
+    display: block;
+}
+
+/* ==========================================================================
    FOOTER
    ========================================================================== */
 .landing-footer {
@@ -840,6 +1337,9 @@ body {
     .workflow-grid {
         grid-template-columns: 1fr;
     }
+    .specs-grid {
+        grid-template-columns: 1fr;
+    }
     .hero-cta-group {
         flex-direction: column;
         width: 100%;
@@ -867,4 +1367,9 @@ body {
         flex-direction: column;
         align-items: flex-start;
     }
+    .terminal-body {
+        padding: 16px;
+        font-size: 0.78rem;
+    }
 }
+

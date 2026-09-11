@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: alveon-pacs
+    env: docker
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 10000
+      - key: TF_ENABLE_ONEDNN_OPTS
+        value: 1
+      - key: PYTHONUNBUFFERED
+        value: 1
+      - key: DICOM_SCP_PORT
+        value: 11112
+      - key: DICOM_AE_TITLE
+        value: ALVEON_PACS

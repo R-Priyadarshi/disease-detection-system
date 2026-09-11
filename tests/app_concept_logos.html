@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ALVEON App-Concept Driven Logos</title>
+    <style>
+        body {
+            background: #06080d;
+            color: #f8fafc;
+            font-family: 'Inter', system-ui, sans-serif;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        h1 { font-size: 20px; font-weight: 700; letter-spacing: 1px; color: #94a3b8; margin: 0; }
+        .subtitle { font-size: 13px; color: #64748b; margin-top: -20px; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+        .card {
+            background: #0c1018;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 14px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+        }
+        .card-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #38bdf8;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+        .preview-hero {
+            width: 120px;
+            height: 120px;
+            background: radial-gradient(circle at 50% 30%, #151d2e 0%, #080a10 100%);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 20px;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.7), inset 0 1px 1px rgba(255,255,255,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .preview-nav {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            background: #080a10;
+            padding: 10px 18px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.08);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .nav-box {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(145deg, #131926 0%, #07090f 100%);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+        }
+        .nav-box svg { width: 30px; height: 30px; }
+        .b-name { font-size: 16px; font-weight: 800; letter-spacing: 2px; color: #fff; }
+        .b-sub { font-size: 9px; font-weight: 700; letter-spacing: 1px; color: #38bdf8; margin-top: 1px; }
+        .desc { font-size: 11.5px; color: #94a3b8; line-height: 1.5; text-align: center; }
+        .concept-bullets {
+            font-size: 11px;
+            color: #cbd5e1;
+            line-height: 1.6;
+            margin: 0;
+            padding-left: 18px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <h1>ALVEON LOGO — CONCEPTS DIRECTLY ROOTED IN APP FUNCTIONALITY</h1>
+    <div class="subtitle">Every design directly mirrors the actual clinical application: Chest X-ray imaging, Grad-CAM AI heatmaps, split-wipe comparison, and pulmonary alveolar anatomy.</div>
+
+    <div class="grid">
+
+        <!-- CONCEPT 1: THE SPLIT-WIPE THORAX (The signature interaction of the app) -->
+        <div class="card">
+            <div class="card-title">1. SPLIT-WIPE THORAX</div>
+            <div class="preview-hero">
+                <svg viewBox="0 0 48 48" width="84" height="84" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <!-- Monochrome DICOM X-ray Bone Density -->
+                        <linearGradient id="c1-dicom" x1="6" y1="12" x2="22" y2="40" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#ffffff"/>
+                            <stop offset="100%" stop-color="#64748b"/>
+                        </linearGradient>
+                        <!-- AI Neural Heatmap / Grad-CAM Activation -->
+                        <linearGradient id="c1-heatmap" x1="26" y1="12" x2="42" y2="40" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#38bdf8"/>
+                            <stop offset="50%" stop-color="#fb923c"/>
+                            <stop offset="100%" stop-color="#ef4444"/>
+                        </linearGradient>
+                        <!-- Heatmap Glow Core -->
+                        <radialGradient id="c1-glow" cx="34" cy="28" r="8" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#ef4444" stop-opacity="0.8"/>
+                            <stop offset="60%" stop-color="#fb923c" stop-opacity="0.4"/>
+                            <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+                        </radialGradient>
+                    </defs>
+
+                    <!-- Left Pulmonary Field (Raw Monochrome DICOM Radiograph with Rib Cadence) -->
+                    <path d="M22 8C14 9 8 16 8 25C8 33 13 39 22 41V35C16 33 13 29 13 25C13 19 17 14 22 13V8Z" fill="url(#c1-dicom)"/>
+                    <!-- Skeletal Rib Arcs on Left -->
+                    <path d="M12 18C15 19 18 21 22 21" stroke="#ffffff" stroke-width="1.2" stroke-linecap="round" opacity="0.8"/>
+                    <path d="M11 25C14 26 18 28 22 28" stroke="#cbd5e1" stroke-width="1.2" stroke-linecap="round" opacity="0.6"/>
+                    <path d="M13 32C16 33 19 35 22 35" stroke="#94a3b8" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
+
+                    <!-- Right Pulmonary Field (AI Grad-CAM Thermal Consolidation Reveal) -->
+                    <path d="M26 8C34 9 40 16 40 25C40 33 35 39 26 41V35C32 33 35 29 35 25C35 19 31 14 26 13V8Z" fill="url(#c1-heatmap)"/>
+                    <!-- Localized Pathology Hotspot in Right Lower Lobe -->
+                    <circle cx="33" cy="28" r="6" fill="url(#c1-glow)"/>
+                    <circle cx="33" cy="28" r="2" fill="#ffffff"/>
+
+                    <!-- Central Interactive Split-Wipe Scan Divider (Direct from app UI) -->
+                    <line x1="24" y1="5" x2="24" y2="43" stroke="#38bdf8" stroke-width="1.8" stroke-linecap="round"/>
+                    <!-- Split Handle Pill / Circle (The exact handle user drags in workstation) -->
+                    <circle cx="24" cy="24" r="3.5" fill="#080a10" stroke="#38bdf8" stroke-width="1.5"/>
+                    <circle cx="24" cy="24" r="1.5" fill="#ffffff"/>
+                </svg>
+            </div>
+            <div class="preview-nav">
+                <div class="nav-box">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22 8C14 9 8 16 8 25C8 33 13 39 22 41V35C16 33 13 29 13 25C13 19 17 14 22 13V8Z" fill="#ffffff"/>
+                        <path d="M26 8C34 9 40 16 40 25C40 33 35 39 26 41V35C32 33 35 29 35 25C35 19 31 14 26 13V8Z" fill="#ef4444"/>
+                        <line x1="24" y1="6" x2="24" y2="42" stroke="#38bdf8" stroke-width="2"/>
+                        <circle cx="24" cy="24" r="3.5" fill="#080a10" stroke="#38bdf8" stroke-width="1.5"/>
+                        <circle cx="24" cy="24" r="1.5" fill="#ffffff"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="b-name">ALVEON</div>
+                    <div class="b-sub">THORACIC PACS</div>
+                </div>
+            </div>
+            <ul class="concept-bullets">
+                <li><strong>Literal Working</strong>: Left half is raw DICOM radiograph; right half reveals the neural network Grad-CAM heatmap.</li>
+                <li><strong>Split-Wipe Node</strong>: Features the exact interactive split-slider handle radiologists use in the central viewport.</li>
+                <li><strong>Anatomy</strong>: Distinct bilateral human lungs with ribcage contours and thoracic silhouette.</li>
+            </ul>
+        </div>
+
+        <!-- CONCEPT 2: THE GRAD-CAM APERTURE (Thoracic Apex + Neural Focal Heatmap) -->
+        <div class="card">
+            <div class="card-title">2. GRAD-CAM RETICLE</div>
+            <div class="preview-hero">
+                <svg viewBox="0 0 48 48" width="84" height="84" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="c2-beam" x1="12" y1="6" x2="36" y2="42" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#38bdf8"/>
+                            <stop offset="50%" stop-color="#ffffff"/>
+                            <stop offset="100%" stop-color="#0284c7"/>
+                        </linearGradient>
+                        <linearGradient id="c2-flame" x1="24" y1="18" x2="36" y2="34" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#f59e0b"/>
+                            <stop offset="100%" stop-color="#ef4444"/>
+                        </linearGradient>
+                    </defs>
+
+                    <!-- Thoracic Ribcage Arcs (3 Paired Bilateral Ribs) -->
+                    <path d="M12 14C16 13 20 14 24 16C28 14 32 13 36 14" stroke="#475569" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M10 22C15 20 20 22 24 24C28 22 33 20 38 22" stroke="#64748b" stroke-width="1.5" stroke-linecap="round"/>
+                    <path d="M11 30C16 28 20 30 24 32C28 30 32 28 37 30" stroke="#475569" stroke-width="1.5" stroke-linecap="round"/>
+
+                    <!-- Central Spinal Radiographic Column -->
+                    <line x1="24" y1="8" x2="24" y2="40" stroke="#94a3b8" stroke-width="2" stroke-dasharray="3 2"/>
+
+                    <!-- Neural Focus / Heatmap Target on Right Lung (The exact area AI detects pathology) -->
+                    <circle cx="31" cy="26" r="10" stroke="#38bdf8" stroke-width="1.2" stroke-dasharray="2 2"/>
+                    <circle cx="31" cy="26" r="7" fill="url(#c2-flame)" opacity="0.35"/>
+                    <circle cx="31" cy="26" r="4" fill="#ef4444" opacity="0.85"/>
+                    <circle cx="31" cy="26" r="1.8" fill="#ffffff"/>
+
+                    <!-- Caliper Crosshairs on the Detected Lesion -->
+                    <line x1="31" y1="13" x2="31" y2="18" stroke="#38bdf8" stroke-width="1.4" stroke-linecap="round"/>
+                    <line x1="31" y1="34" x2="31" y2="39" stroke="#38bdf8" stroke-width="1.4" stroke-linecap="round"/>
+                    <line x1="18" y1="26" x2="23" y2="26" stroke="#38bdf8" stroke-width="1.4" stroke-linecap="round"/>
+                    <line x1="39" y1="26" x2="44" y2="26" stroke="#38bdf8" stroke-width="1.4" stroke-linecap="round"/>
+                </svg>
+            </div>
+            <div class="preview-nav">
+                <div class="nav-box">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 16C16 15 20 16 24 18C28 16 32 15 36 16" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>
+                        <path d="M10 24C15 22 20 24 24 26C28 24 33 22 38 24" stroke="#ffffff" stroke-width="1.5" stroke-linecap="round"/>
+                        <line x1="24" y1="8" x2="24" y2="40" stroke="#64748b" stroke-width="2"/>
+                        <circle cx="31" cy="24" r="6" fill="#ef4444"/>
+                        <circle cx="31" cy="24" r="2" fill="#ffffff"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="b-name">ALVEON</div>
+                    <div class="b-sub">THORACIC PACS</div>
+                </div>
+            </div>
+            <ul class="concept-bullets">
+                <li><strong>Literal Working</strong>: Represents the anatomical thoracic ribcage undergoing deep-learning Grad-CAM detection.</li>
+                <li><strong>Diagnostic Calipers</strong>: Incorporates the precision measurement crosshairs that radiologists use to isolate tumors or pneumonia opacities.</li>
+                <li><strong>Visual Metaphor</strong>: High clinical fidelity, like an actual fluoroscopic scan.</li>
+            </ul>
+        </div>
+
+        <!-- CONCEPT 3: THE ALVEOLAR BIFURCATION (Trachea + Lungs + AI Wavefront) -->
+        <div class="card">
+            <div class="card-title">3. ALVEOLAR BIFURCATION</div>
+            <div class="preview-hero">
+                <svg viewBox="0 0 48 48" width="84" height="84" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="c3-grad" x1="10" y1="38" x2="38" y2="10" gradientUnits="userSpaceOnUse">
+                            <stop offset="0%" stop-color="#0284c7"/>
+                            <stop offset="45%" stop-color="#38bdf8"/>
+                            <stop offset="75%" stop-color="#ffffff"/>
+                            <stop offset="100%" stop-color="#f43f5e"/>
+                        </linearGradient>
+                    </defs>
+
+                    <!-- The Inverted Y / Tracheobronchial Tree Carina -->
+                    <path d="M24 6V18L13 34H19L24 25L29 34H35L24 18V6Z" fill="#ffffff"/>
+
+                    <!-- Left Alveolar Chamber (Healthy Lung - Cerulean) -->
+                    <path d="M12 22C8 26 8 34 13 38C18 42 22 38 22 34C17 34 14 30 14 26C14 24 15 23 16 22H12Z" fill="#38bdf8"/>
+
+                    <!-- Right Alveolar Chamber (Infiltrated / Consolidative Pathology - Coral/Red Heatmap) -->
+                    <path d="M36 22C40 26 40 34 35 38C30 42 26 38 26 34C31 34 34 30 34 26C34 24 33 23 32 22H36Z" fill="#f43f5e"/>
+
+                    <!-- Alveolar Gas Exchange Pores (3 Precision Dots on Each Lobe) -->
+                    <circle cx="15" cy="30" r="1.5" fill="#ffffff"/>
+                    <circle cx="17" cy="35" r="1.5" fill="#ffffff"/>
+                    <circle cx="33" cy="30" r="1.5" fill="#ffffff"/>
+                    <circle cx="31" cy="35" r="1.5" fill="#ffffff"/>
+
+                    <!-- Precision Top Scan Ring -->
+                    <circle cx="24" cy="18" r="3" stroke="#38bdf8" stroke-width="1.5"/>
+                    <circle cx="24" cy="18" r="1" fill="#ffffff"/>
+                </svg>
+            </div>
+            <div class="preview-nav">
+                <div class="nav-box">
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M24 6V18L13 34H19L24 25L29 34H35L24 18V6Z" fill="#ffffff"/>
+                        <path d="M12 22C8 26 8 34 13 38C18 42 22 38 22 34C17 34 14 30 14 26H12Z" fill="#38bdf8"/>
+                        <path d="M36 22C40 26 40 34 35 38C30 42 26 38 26 34C31 34 34 30 34 26H36Z" fill="#f43f5e"/>
+                        <circle cx="24" cy="18" r="2" fill="#ffffff"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="b-name">ALVEON</div>
+                    <div class="b-sub">THORACIC PACS</div>
+                </div>
+            </div>
+            <ul class="concept-bullets">
+                <li><strong>Literal Working</strong>: Shows the bronchial bifurcation (carina) delivering air into bilateral alveolar clusters.</li>
+                <li><strong>Diagnostic Contrast</strong>: Compares clear aerated tissue (cyan) against inflammatory consolidation (coral).</li>
+                <li><strong>Micro to Macro</strong>: Connects cellular alveoli to the whole thoracic organ system.</li>
+            </ul>
+        </div>
+
+    </div>
+</body>
+</html>

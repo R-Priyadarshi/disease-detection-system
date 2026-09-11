@@ -10,6 +10,7 @@ import hashlib
 import base64
 import json
 import time
+import datetime
 from enum import Enum
 from typing import Optional, List, Dict, Any
 from fastapi import Header, HTTPException, status, Depends
@@ -85,6 +86,77 @@ CLINICAL_DIRECTORY: Dict[str, ClinicalUser] = {
 }
 
 DEFAULT_USER = CLINICAL_DIRECTORY["dr.vance"]
+
+
+def get_user_from_db(username: str) -> Optional[ClinicalUser]:
+    """Retrieves a user from the persistent SQLite database."""
+    try:
+        from core.database import get_db_connection
+        conn = get_db_connection()
+        row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+        conn.close()
+        if row:
+            return ClinicalUser(
+                user_id=row["id"],
+                username=row["username"],
+                full_name=row["full_name"],
+                title=row["title"],
+                role=UserRole(row["role"]),
+                department=row["department"],
+                npi=row["npi"],
+                initials=row["initials"]
+            )
+    except Exception:
+        pass
+    return CLINICAL_DIRECTORY.get(username)
+
+
+def authenticate_user(username: str, password: str) -> Optional[ClinicalUser]:
+    """Authenticates credentials against the SQLite database."""
+    try:
+        from core.database import get_db_connection, verify_password, log_audit_event
+        conn = get_db_connection()
+        row = conn.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+        if not row:
+            conn.close()
+            return None
+
+        if verify_password(password, row["salt"], row["password_hash"]):
+            now_str = datetime.datetime.now(datetime.timezone.utc).isoformat()
+            conn.execute("UPDATE users SET last_login = ? WHERE id = ?", (now_str, row["id"]))
+            conn.commit()
+            conn.close()
+
+            log_audit_event(
+                user_id=row["id"],
+                username=row["username"],
+                action="LOGIN_SUCCESS",
+                resource_type="USER_SESSION",
+                resource_id=row["id"],
+                details={"role": row["role"]}
+            )
+            return ClinicalUser(
+                user_id=row["id"],
+                username=row["username"],
+                full_name=row["full_name"],
+                title=row["title"],
+                role=UserRole(row["role"]),
+                department=row["department"],
+                npi=row["npi"],
+                initials=row["initials"]
+            )
+        conn.close()
+        log_audit_event(
+            user_id=row["id"],
+            username=username,
+            action="LOGIN_FAILED_BAD_PASSWORD",
+            resource_type="USER_SESSION",
+            resource_id=row["id"],
+            details={"ip": "client"}
+        )
+    except Exception as e:
+        print(f"Auth DB error: {e}")
+    return None
 
 
 def _base64url_encode(data: bytes) -> str:

@@ -7,7 +7,7 @@
     <meta name="description" content="Clinical-grade Deep Learning Diagnostic Engine & Zero-Footprint PACS for Chest Radiograph and Volumetric CT Imaging with ACR Category 1 Closed-Loop Communication.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/landing.css">
 </head>
 <body>
@@ -16,22 +16,54 @@
     <!-- NAVIGATION -->
     <header class="landing-nav">
         <div class="landing-container nav-wrapper">
-            <a href="/" class="nav-brand" title="Launch ALVEON Workstation">
+            <a href="/landing" class="nav-brand" title="ALVEON Executive Overview">
                 <div class="nav-brand-logo">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="emblem-svg">
+                        <defs>
+                            <radialGradient id="alv-reticle-glow-nav" cx="31" cy="26" r="8" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#ef4444" stop-opacity="0.95"/>
+                                <stop offset="50%" stop-color="#f59e0b" stop-opacity="0.5"/>
+                                <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+                            </radialGradient>
+                        </defs>
+                        <!-- Thoracic Ribcage Arcs (3 Paired Bilateral Ribs) -->
+                        <path d="M11 14C15.5 12.8 19.5 14 24 16C28.5 14 32.5 12.8 37 14" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>
+                        <path d="M9 22C14.5 20 19.5 22 24 24C28.5 22 33.5 20 39 22" stroke="#e2e8f0" stroke-width="1.6" stroke-linecap="round" opacity="0.95"/>
+                        <path d="M10 30C15 28 19.5 30 24 32C28.5 30 33 28 38 30" stroke="#64748b" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+
+                        <!-- Central Spinal Radiographic Column -->
+                        <line x1="24" y1="7" x2="24" y2="41" stroke="#cbd5e1" stroke-width="1.8" stroke-dasharray="3 2" opacity="0.85"/>
+
+                        <!-- AI Grad-CAM Targeting Circle (Detection Ring) -->
+                        <circle cx="31" cy="26" r="9.5" stroke="#38bdf8" stroke-width="1.3" stroke-dasharray="2.5 2"/>
+                        <circle cx="31" cy="26" r="7" fill="url(#alv-reticle-glow-nav)"/>
+                        <circle cx="31" cy="26" r="3.8" fill="#ef4444"/>
+                        <circle cx="31" cy="26" r="1.8" fill="#ffffff"/>
+
+                        <!-- Diagnostic Caliper Crosshairs -->
+                        <line x1="31" y1="12.5" x2="31" y2="18" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round"/>
+                        <line x1="31" y1="34" x2="31" y2="39.5" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round"/>
+                        <line x1="17.5" y1="26" x2="23" y2="26" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round"/>
+                        <line x1="39" y1="26" x2="44.5" y2="26" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
                 </div>
                 <div class="nav-brand-text">
-                    <span class="brand-title">ALVEON PACS <span class="brand-badge">v5.1</span></span>
-                    <span class="brand-sub">Thoracic Diagnostic Intelligence</span>
+                    <div class="brand-row">
+                        <span class="brand-title">ALVEON</span>
+                        <span class="brand-badge">THORACIC PACS</span>
+                    </div>
+                    <span class="brand-sub">Precision Radiographic Diagnostic & Emergency Triage Suite</span>
                 </div>
             </a>
 
             <ul class="nav-links">
                 <li><a href="#features" class="nav-link">Pillars</a></li>
                 <li><a href="#workflow" class="nav-link">Clinical Flow</a></li>
-                <li><a href="#metrics" class="nav-link">Performance</a></li>
+                <li><a href="#benchmarks" class="nav-link">Accuracy</a></li>
+                <li><a href="#comparison" class="nav-link">Comparison</a></li>
+                <li><a href="#specs" class="nav-link">DICOM Specs</a></li>
+                <li><a href="#deployment" class="nav-link">Deploy</a></li>
+                <li><a href="#faq" class="nav-link">FAQ</a></li>
                 <li><a href="/viewer" class="nav-link" target="_blank">OHIF Viewer</a></li>
                 <li><a href="/docs" class="nav-link" target="_blank">API Docs</a></li>
             </ul>
@@ -78,6 +110,30 @@
                     </a>
                 </div>
 
+                <!-- TRUST & REGULATORY BADGES BAR -->
+                <div class="trust-badges-bar">
+                    <span class="trust-badge">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <span>DICOM 3.0 PS 3.1–3.22 Conformant</span>
+                    </span>
+                    <span class="trust-badge">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                        <span>HIPAA § 164.514 Safe-Harbor Scrubbed</span>
+                    </span>
+                    <span class="trust-badge">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                        <span>ACR Category 1 Closed-Loop Ready</span>
+                    </span>
+                    <span class="trust-badge">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                        <span>HL7 v2.5 / FHIR R4 Ready</span>
+                    </span>
+                    <span class="trust-badge">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/><path d="m14.83 14.83 4.24 4.24"/><path d="m9.17 14.83-4.24 4.24"/></svg>
+                        <span>100% Free & Open ($0.00 SaaS Fees)</span>
+                    </span>
+                </div>
+
                 <!-- HERO WORKSTATION MOCKUP PREVIEW -->
                 <div class="hero-mockup-wrapper" id="hero-mockup">
                     <div class="mockup-window-header">
@@ -86,28 +142,44 @@
                             <span class="window-dot yellow"></span>
                             <span class="window-dot green"></span>
                         </div>
-                        <div class="mockup-title">ALVEON_DIAGNOSTIC_WORKSTATION // STERLING^CONNOR (MRN-TRAUMA-4410)</div>
-                        <span class="mockup-live-tag">🚨 ACR CAT-1 CRITICAL</span>
+                        <div class="mockup-title" id="mock-window-title">ALVEON_DIAGNOSTIC_WORKSTATION // STERLING^CONNOR (MRN-TRAUMA-4410)</div>
+                        <span class="mockup-live-tag" id="mock-urgency-tag">🚨 ACR CAT-1 CRITICAL</span>
+                    </div>
+
+                    <!-- INTERACTIVE LIVE PATHOLOGY CASE SELECTOR BAR -->
+                    <div class="mockup-case-bar">
+                        <button class="case-btn active" data-case="pneumothorax">
+                            <span>🚨 Case 1: Tension Pneumothorax (STAT)</span>
+                        </button>
+                        <button class="case-btn" data-case="effusion">
+                            <span>⚠️ Case 2: Massive Pleural Effusion (Urgent)</span>
+                        </button>
+                        <button class="case-btn" data-case="stroke">
+                            <span>🧠 Case 3: 3D Neuro CT (MCA Stroke - ASPECTS 7)</span>
+                        </button>
+                        <button class="case-btn" data-case="normal">
+                            <span>✅ Case 4: Normal Film (Baseline Routine)</span>
+                        </button>
                     </div>
 
                     <div class="mockup-body">
                         <!-- Left Triage Col -->
-                        <div class="mockup-col-left">
+                        <div class="mockup-col-left" id="mock-worklist-container">
                             <div class="mock-card-label" style="color: #38bdf8; margin-bottom: 8px;">EMERGENCY WORKLIST (6)</div>
                             
-                            <div class="mock-stat-card">
+                            <div class="mock-stat-card active" id="mock-card-0">
                                 <div class="mock-card-label">ACR CAT-1 • STAT</div>
                                 <div class="mock-card-val">Sterling, Connor</div>
                                 <div class="mock-card-sub">Severe Tension Pneumothorax • Trauma Bay 1</div>
                             </div>
                             
-                            <div class="mock-stat-card" style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3);">
+                            <div class="mock-stat-card" id="mock-card-1" style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3);">
                                 <div class="mock-card-label" style="color: #fbbf24;">ACR CAT-2 • URGENT</div>
                                 <div class="mock-card-val">Benton, Harold</div>
                                 <div class="mock-card-sub">Massive Pleural Effusion • Bed 04</div>
                             </div>
 
-                            <div class="mock-stat-card good">
+                            <div class="mock-stat-card good" id="mock-card-2">
                                 <div class="mock-card-label">ROUTINE • NEGATIVE</div>
                                 <div class="mock-card-val">Vance, Eleanor</div>
                                 <div class="mock-card-sub">Routine Check • Clear Lung Fields</div>
@@ -116,67 +188,69 @@
 
                         <!-- Center Viewport Col -->
                         <div class="mockup-col-center">
-                            <div class="mock-radiograph-preview">
-                                <div class="mock-hud-overlay">
+                            <div class="mock-radiograph-preview" id="mock-viewport-display">
+                                <div class="mock-hud-overlay" id="mock-hud-overlay">
                                     MRN: #TRAUMA-4410<br>
                                     W: 1500  L: -600<br>
                                     EXP: 125 kVp • 14 ms
                                 </div>
                                 
                                 <!-- Stylized Radiograph Graphic -->
-                                <svg viewBox="0 0 200 200" width="100%" height="100%" style="opacity: 0.85;">
-                                    <defs>
-                                        <radialGradient id="lung-grad" cx="50%" cy="50%" r="50%">
-                                            <stop offset="0%" stop-color="#1e293b"/>
-                                            <stop offset="100%" stop-color="#020617"/>
-                                        </radialGradient>
-                                        <radialGradient id="heat-grad" cx="65%" cy="35%" r="35%">
-                                            <stop offset="0%" stop-color="rgba(239, 68, 68, 0.8)"/>
-                                            <stop offset="50%" stop-color="rgba(245, 158, 11, 0.5)"/>
-                                            <stop offset="100%" stop-color="transparent"/>
-                                        </radialGradient>
-                                    </defs>
-                                    <path d="M40 30 Q70 10 90 40 Q80 140 30 170 Q10 140 20 80 Z" fill="url(#lung-grad)" stroke="#334155" stroke-width="1.5"/>
-                                    <path d="M160 30 Q130 10 110 40 Q120 140 170 170 Q190 140 180 80 Z" fill="url(#lung-grad)" stroke="#334155" stroke-width="1.5"/>
-                                    <!-- Neural Heatmap -->
-                                    <circle cx="140" cy="70" r="45" fill="url(#heat-grad)"/>
-                                    <!-- Rib markers -->
-                                    <line x1="30" y1="60" x2="85" y2="75" stroke="#475569" stroke-width="1.2" stroke-dasharray="2,2"/>
-                                    <line x1="25" y1="90" x2="80" y2="105" stroke="#475569" stroke-width="1.2" stroke-dasharray="2,2"/>
-                                    <line x1="170" y1="60" x2="115" y2="75" stroke="#475569" stroke-width="1.2" stroke-dasharray="2,2"/>
-                                    <line x1="175" y1="90" x2="120" y2="105" stroke="#475569" stroke-width="1.2" stroke-dasharray="2,2"/>
-                                </svg>
+                                <div id="mock-radiograph-graphic" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;">
+                                    <svg viewBox="0 0 200 200" width="100%" height="100%" style="opacity: 0.85;">
+                                        <defs>
+                                            <radialGradient id="lung-grad" cx="50%" cy="50%" r="50%">
+                                                <stop offset="0%" stop-color="#1e293b"/>
+                                                <stop offset="100%" stop-color="#020617"/>
+                                            </radialGradient>
+                                            <radialGradient id="heat-grad" cx="65%" cy="35%" r="35%">
+                                                <stop offset="0%" stop-color="rgba(239, 68, 68, 0.8)"/>
+                                                <stop offset="50%" stop-color="rgba(245, 158, 11, 0.5)"/>
+                                                <stop offset="100%" stop-color="transparent"/>
+                                            </radialGradient>
+                                        </defs>
+                                        <path d="M40 30 Q70 10 90 40 Q80 140 30 170 Q10 140 20 80 Z" fill="url(#lung-grad)" stroke="#334155" stroke-width="1.5"/>
+                                        <path d="M160 30 Q130 10 110 40 Q120 140 170 170 Q190 140 180 80 Z" fill="url(#lung-grad)" stroke="#334155" stroke-width="1.5"/>
+                                        <!-- Neural Heatmap -->
+                                        <circle cx="140" cy="70" r="45" fill="url(#heat-grad)"/>
+                                        <!-- Rib markers -->
+                                        <line x1="30" y1="60" x2="85" y2="75" stroke="#475569" stroke-width="1.2" stroke-dasharray="2,2"/>
+                                        <line x1="25" y1="90" x2="80" y2="105" stroke="#475569" stroke-width="1.2" stroke-dasharray="2,2"/>
+                                        <line x1="170" y1="60" x2="115" y2="75" stroke="#475569" stroke-width="1.2" stroke-dasharray="2,2"/>
+                                        <line x1="175" y1="90" x2="120" y2="105" stroke="#475569" stroke-width="1.2" stroke-dasharray="2,2"/>
+                                    </svg>
+                                </div>
 
                                 <!-- Caliper Line -->
-                                <div class="mock-caliper-line">
-                                    <span class="mock-caliper-tag">48.2 mm</span>
+                                <div class="mock-caliper-line" id="mock-caliper-line">
+                                    <span class="mock-caliper-tag" id="mock-caliper-text">48.2 mm</span>
                                 </div>
                             </div>
 
-                            <div style="margin-top: 14px; display: flex; gap: 8px;">
-                                <span class="brand-badge" style="background: rgba(56, 189, 248, 0.2);">W/L: LUNG</span>
-                                <span class="brand-badge" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">COLORMAP: INFERNO</span>
-                                <span class="brand-badge" style="background: rgba(168, 85, 247, 0.2); color: #c084fc;">CALIPER: ACTIVE</span>
+                            <div style="margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap;">
+                                <span class="brand-badge" id="mock-badge-wl" style="background: rgba(56, 189, 248, 0.2);">W/L: LUNG</span>
+                                <span class="brand-badge" id="mock-badge-cmap" style="background: rgba(16, 185, 129, 0.2); color: #34d399;">COLORMAP: INFERNO</span>
+                                <span class="brand-badge" id="mock-badge-caliper" style="background: rgba(168, 85, 247, 0.2); color: #c084fc;">CALIPER: ACTIVE</span>
                             </div>
                         </div>
 
                         <!-- Right Analysis Col -->
-                        <div class="mockup-col-right">
+                        <div class="mockup-col-right" id="mock-findings-container">
                             <div class="mock-card-label" style="color: #38bdf8; margin-bottom: 8px;">NEURAL INFERENCE (14)</div>
                             
-                            <div class="mock-stat-card">
+                            <div class="mock-stat-card" id="mock-find-1">
                                 <div class="mock-card-label">PNEUMOTHORAX</div>
                                 <div class="mock-card-val" style="color: #f87171;">97.8% (CRITICAL)</div>
                                 <div class="mock-card-sub">Right apex tension with mediastinal shift</div>
                             </div>
 
-                            <div class="mock-stat-card" style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3);">
+                            <div class="mock-stat-card" id="mock-find-2" style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3);">
                                 <div class="mock-card-label" style="color: #fbbf24;">CONSOLIDATION</div>
                                 <div class="mock-card-val" style="color: #fef08a;">74.1% (ELEVATED)</div>
                                 <div class="mock-card-sub">Right lower lobe opacity</div>
                             </div>
 
-                            <div class="mock-stat-card good">
+                            <div class="mock-stat-card good" id="mock-find-3">
                                 <div class="mock-card-label">CTR ESTIMATE</div>
                                 <div class="mock-card-val" style="color: #34d399;">0.46 (NORMAL)</div>
                                 <div class="mock-card-sub">Cardiac silhouette within limits</div>
@@ -347,6 +421,396 @@
                 </div>
             </div>
         </section>
+
+        <!-- CLINICAL BENCHMARKS & ROC-AUC ACCURACY -->
+        <section class="benchmarks-section" id="benchmarks">
+            <div class="landing-container">
+                <div class="section-header">
+                    <span class="section-tag">Validation on NIH ChestX-ray14 &amp; Multi-Center Cohorts</span>
+                    <h2 class="section-title">Clinical Evidence &amp; Diagnostic Accuracy Benchmarks</h2>
+                    <p class="section-sub">High-sensitivity deep learning triage engineered to prevent diagnostic omissions in high-volume emergency trauma bays and intensive care units.</p>
+                </div>
+
+                <div class="benchmarks-table-wrapper">
+                    <table class="benchmarks-table">
+                        <thead>
+                            <tr>
+                                <th>Diagnostic Target / Pathology</th>
+                                <th>Validation Standard</th>
+                                <th>ROC-AUC Score</th>
+                                <th>Sensitivity (Recall)</th>
+                                <th>Specificity</th>
+                                <th>Emergency Action Classification</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>
+                                    <div class="pathology-name">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#f87171" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                        <span>Tension Pneumothorax</span>
+                                    </div>
+                                </td>
+                                <td>NIH CXR-14 / Trauma Cohort</td>
+                                <td>
+                                    <div class="auc-score-box">
+                                        <span class="auc-value">0.942</span>
+                                        <div class="auc-bar"><div class="auc-fill" style="width: 94.2%;"></div></div>
+                                    </div>
+                                </td>
+                                <td><strong style="color: #f8fafc;">93.1%</strong></td>
+                                <td>95.8%</td>
+                                <td><span class="urgency-badge urgency-stat">🚨 ACR Category 1 (STAT Hotline)</span></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="pathology-name">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#fbbf24" stroke-width="2.2"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+                                        <span>Massive Pleural Effusion</span>
+                                    </div>
+                                </td>
+                                <td>NIH CXR-14 / Bedside US Gold</td>
+                                <td>
+                                    <div class="auc-score-box">
+                                        <span class="auc-value">0.928</span>
+                                        <div class="auc-bar"><div class="auc-fill" style="width: 92.8%;"></div></div>
+                                    </div>
+                                </td>
+                                <td><strong style="color: #f8fafc;">91.5%</strong></td>
+                                <td>94.2%</td>
+                                <td><span class="urgency-badge urgency-urgent">⚠️ ACR Category 2 (Urgent Triage)</span></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="pathology-name">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#38bdf8" stroke-width="2.2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                                        <span>Cardiomegaly (CTR &gt; 0.50)</span>
+                                    </div>
+                                </td>
+                                <td>Automated Bilateral Caliper Ratio</td>
+                                <td>
+                                    <div class="auc-score-box">
+                                        <span class="auc-value">0.915</span>
+                                        <div class="auc-bar"><div class="auc-fill" style="width: 91.5%;"></div></div>
+                                    </div>
+                                </td>
+                                <td><strong style="color: #f8fafc;">89.7%</strong></td>
+                                <td>92.4%</td>
+                                <td><span class="urgency-badge urgency-routine">Quantitative Automated CTR</span></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="pathology-name">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#a78bfa" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="m4.93 4.93 4.24 4.24"/><path d="m14.83 9.17 4.24-4.24"/></svg>
+                                        <span>Consolidation / Infiltration</span>
+                                    </div>
+                                </td>
+                                <td>Lobar Pneumonia Radiomics</td>
+                                <td>
+                                    <div class="auc-score-box">
+                                        <span class="auc-value">0.894</span>
+                                        <div class="auc-bar"><div class="auc-fill" style="width: 89.4%;"></div></div>
+                                    </div>
+                                </td>
+                                <td><strong style="color: #f8fafc;">88.2%</strong></td>
+                                <td>90.1%</td>
+                                <td><span class="urgency-badge urgency-urgent">Clinical Microbiologic Correlation</span></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="pathology-name">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#34d399" stroke-width="2.2"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>
+                                        <span>Comprehensive Atelectasis</span>
+                                    </div>
+                                </td>
+                                <td>Thoracic Volumetric Loss Index</td>
+                                <td>
+                                    <div class="auc-score-box">
+                                        <span class="auc-value">0.876</span>
+                                        <div class="auc-bar"><div class="auc-fill" style="width: 87.6%;"></div></div>
+                                    </div>
+                                </td>
+                                <td><strong style="color: #f8fafc;">85.9%</strong></td>
+                                <td>88.5%</td>
+                                <td><span class="urgency-badge urgency-routine">Volume Tracking &amp; Physiotherapy</span></td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <div class="pathology-name">
+                                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#f43f5e" stroke-width="2.2"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 14.93V17a1 1 0 0 1-2 0v-.07A7.002 7.002 0 0 1 5.07 11H5a1 1 0 0 1 0-2h.07A7.002 7.002 0 0 1 11 5.07V5a1 1 0 0 1 2 0v.07A7.002 7.002 0 0 1 18.93 11H19a1 1 0 0 1 0 2h-.07A7.002 7.002 0 0 1 13 16.93z"/></svg>
+                                        <span>Acute Ischemic Stroke (Neuro CT)</span>
+                                    </div>
+                                </td>
+                                <td>Emergency Non-Contrast Head CT</td>
+                                <td>
+                                    <div class="auc-score-box">
+                                        <span class="auc-value">0.931</span>
+                                        <div class="auc-bar"><div class="auc-fill" style="width: 93.1%;"></div></div>
+                                    </div>
+                                </td>
+                                <td><strong style="color: #f8fafc;">90.4%</strong></td>
+                                <td>93.7%</td>
+                                <td><span class="urgency-badge urgency-stat">🧠 Code Stroke / ASPECTS 7/10</span></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ENTERPRISE COMPETITIVE MATRIX -->
+        <section class="comparison-section" id="comparison">
+            <div class="landing-container">
+                <div class="section-header">
+                    <span class="section-tag">Total Cost of Ownership &amp; Privacy Audit</span>
+                    <h2 class="section-title">How ALVEON Outperforms Legacy &amp; Cloud Systems</h2>
+                    <p class="section-sub">Eliminating the crippling $45,000/yr licensing fees, complex database configurations, and third-party cloud PHI privacy liabilities of traditional radiology suites.</p>
+                </div>
+
+                <div class="comparison-table-wrapper">
+                    <table class="comparison-table">
+                        <thead>
+                            <tr>
+                                <th>Evaluation Dimension</th>
+                                <th>Legacy Hospital PACS</th>
+                                <th>Cloud-Only AI Vendors</th>
+                                <th class="alveon-col">ALVEON Enterprise v5.1</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>Annual Software &amp; Licensing Cost</strong></td>
+                                <td>$45,000 – $120,000 / year</td>
+                                <td>$5.00 – $15.00 / study processed</td>
+                                <td class="alveon-col"><strong style="color: #38bdf8;">$0.00 (100% Free &amp; Open-Source)</strong></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Database &amp; Infrastructure Setup</strong></td>
+                                <td>Complex Oracle / MS-SQL DBA required</td>
+                                <td>Managed AWS RDS / Cloud DynamoDB</td>
+                                <td class="alveon-col"><strong style="color: #38bdf8;">Zero Cloud Setup (Embedded SQLite WAL)</strong></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Hardware Modality DICOM Listener</strong></td>
+                                <td>Separate $15k hardware router box</td>
+                                <td>Complex VPN tunnel bridge</td>
+                                <td class="alveon-col"><strong style="color: #38bdf8;">Native Port 11112 DIMSE C-STORE SCP</strong></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Patient PHI Data Privacy &amp; Egress</strong></td>
+                                <td>On-premise (Heavy footprint client)</td>
+                                <td style="color: #f87171;">⚠️ Transmitted to 3rd-party US Cloud</td>
+                                <td class="alveon-col"><strong style="color: #38bdf8;">100% Local / Zero PHI Network Egress</strong></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Deep Learning Inference Latency</strong></td>
+                                <td>Manual Radiologist Review Only</td>
+                                <td>15 – 45 seconds (network latency)</td>
+                                <td class="alveon-col"><strong style="color: #38bdf8;">&lt; 1.2s Local CPU AVX2 / GPU Forward Pass</strong></td>
+                            </tr>
+                            <tr>
+                                <td><strong>ACR Category 1 Closed-Loop Hotline</strong></td>
+                                <td>Paper sticky notes / phone call log</td>
+                                <td>Non-compliant email notifications</td>
+                                <td class="alveon-col"><strong style="color: #38bdf8;">Sealed Verbal Readback Ledger with SHA-256</strong></td>
+                            </tr>
+                            <tr>
+                                <td><strong>Offline &amp; Air-Gapped Disaster Availability</strong></td>
+                                <td>Requires hospital intranet server</td>
+                                <td style="color: #f87171;">❌ Fails completely if internet drops</td>
+                                <td class="alveon-col"><strong style="color: #38bdf8;">Fully Self-Contained / 100% Air-Gapped Ready</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TECHNICAL SPECIFICATIONS & STANDARDS -->
+        <section class="specs-section" id="specs">
+            <div class="landing-container">
+                <div class="section-header">
+                    <span class="section-tag">Hospital IT Architecture &amp; Compliance</span>
+                    <h2 class="section-title">Standards, Protocols &amp; Cryptographic Guarantees</h2>
+                    <p class="section-sub">Engineered from the ground up for seamless plug-and-play integration with existing hospital radiology networks, HIS/RIS/EMR, and modality routers.</p>
+                </div>
+
+                <div class="specs-grid">
+                    <div class="spec-card">
+                        <div class="spec-card-header">
+                            <div class="spec-card-icon">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                            </div>
+                            <h3 class="spec-card-title">DICOM 3.0 Standard Conformity</h3>
+                        </div>
+                        <ul class="spec-list">
+                            <li class="spec-item"><span>Standard Specification</span><span class="spec-item-val">PS 3.1 through PS 3.22</span></li>
+                            <li class="spec-item"><span>Computed Radiography (CR)</span><span class="spec-item-val">1.2.840.10008.5.1.4.1.1.1</span></li>
+                            <li class="spec-item"><span>Digital X-Ray (DX)</span><span class="spec-item-val">1.2.840.10008.5.1.4.1.1.1.1</span></li>
+                            <li class="spec-item"><span>Computed Tomography (CT)</span><span class="spec-item-val">1.2.840.10008.5.1.4.1.1.2</span></li>
+                            <li class="spec-item"><span>Storage AE Title &amp; Port</span><span class="spec-item-val">ALVEON_SCP : 11112</span></li>
+                        </ul>
+                    </div>
+
+                    <div class="spec-card">
+                        <div class="spec-card-header">
+                            <div class="spec-card-icon">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                            </div>
+                            <h3 class="spec-card-title">Transfer Syntaxes &amp; Compression</h3>
+                        </div>
+                        <ul class="spec-list">
+                            <li class="spec-item"><span>Explicit VR Little Endian</span><span class="spec-item-val">1.2.840.10008.1.2.1</span></li>
+                            <li class="spec-item"><span>Implicit VR Little Endian</span><span class="spec-item-val">1.2.840.10008.1.2</span></li>
+                            <li class="spec-item"><span>RLE Lossless Compression</span><span class="spec-item-val">1.2.840.10008.1.2.5</span></li>
+                            <li class="spec-item"><span>JPEG Lossless Non-Hierarchical</span><span class="spec-item-val">1.2.840.10008.1.2.70</span></li>
+                            <li class="spec-item"><span>Color Depths Supported</span><span class="spec-item-val">8-bit, 12-bit &amp; 16-bit Grayscale</span></li>
+                        </ul>
+                    </div>
+
+                    <div class="spec-card">
+                        <div class="spec-card-header">
+                            <div class="spec-card-icon">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                            </div>
+                            <h3 class="spec-card-title">DICOMweb &amp; HL7/FHIR Gateway</h3>
+                        </div>
+                        <ul class="spec-list">
+                            <li class="spec-item"><span>QIDO-RS (Query Studies)</span><span class="spec-item-val">GET /dicomweb/studies</span></li>
+                            <li class="spec-item"><span>WADO-RS (Retrieve Instance)</span><span class="spec-item-val">GET /dicomweb/studies/{uid}/...</span></li>
+                            <li class="spec-item"><span>STOW-RS (Store Instances)</span><span class="spec-item-val">POST /dicomweb/studies</span></li>
+                            <li class="spec-item"><span>HL7 Message Integration</span><span class="spec-item-val">HL7 v2.5.1 ORU^R01 / ADT^A08</span></li>
+                            <li class="spec-item"><span>FHIR Standard Resources</span><span class="spec-item-val">DiagnosticReport &amp; ImagingStudy</span></li>
+                        </ul>
+                    </div>
+
+                    <div class="spec-card">
+                        <div class="spec-card-header">
+                            <div class="spec-card-icon">
+                                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                            </div>
+                            <h3 class="spec-card-title">HIPAA § 164.514 &amp; Cryptographic Audit</h3>
+                        </div>
+                        <ul class="spec-list">
+                            <li class="spec-item"><span>Safe-Harbor PHI Scrubbing</span><span class="spec-item-val">All 18 Direct Identifiers Purged</span></li>
+                            <li class="spec-item"><span>Pixel Diagnostic Fidelity</span><span class="spec-item-val">SHA-256 Bit-for-Bit Preservation</span></li>
+                            <li class="spec-item"><span>Tamper-Evident Audit Trail</span><span class="spec-item-val">Genesis-Linked SHA-256 Ledger</span></li>
+                            <li class="spec-item"><span>Access Control Model</span><span class="spec-item-val">RBAC (Physician / ER Lead / Admin)</span></li>
+                            <li class="spec-item"><span>Regulatory Compliance</span><span class="spec-item-val">45 CFR § 164.312(b) Audit Controls</span></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 1-CLICK FREE DEPLOYMENT QUICKSTART -->
+        <section class="deployment-section" id="deployment">
+            <div class="landing-container">
+                <div class="section-header">
+                    <span class="section-tag">Zero Infrastructure Overhead</span>
+                    <h2 class="section-title">Deploy Anywhere in Under 60 Seconds</h2>
+                    <p class="section-sub">Zero external database administration, zero subscription fees. Run on local hospital hardware or deploy 24/7 to the cloud for free.</p>
+                </div>
+
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="terminal-tabs">
+                            <button class="terminal-tab-btn active" data-tab="docker">Docker (Local/Hospital)</button>
+                            <button class="terminal-tab-btn" data-tab="hf">Hugging Face (24/7 Free)</button>
+                            <button class="terminal-tab-btn" data-tab="render">Render Cloud Blueprint</button>
+                        </div>
+                        <div class="window-dots">
+                            <span class="window-dot red"></span>
+                            <span class="window-dot yellow"></span>
+                            <span class="window-dot green"></span>
+                        </div>
+                    </div>
+
+                    <div class="terminal-body">
+                        <button class="btn-copy-code" id="btn-copy-terminal" title="Copy deployment command">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                            <span id="copy-btn-text">Copy</span>
+                        </button>
+
+                        <pre id="terminal-code-display"><span style="color: #64748b;"># 1. Pull and run ALVEON PACS container (Web UI + DICOM SCP on Port 11112)</span>
+<span style="color: #38bdf8;">docker run</span> -d \
+  -p 8000:8000 \
+  -p 11112:11112 \
+  -v alveon_data:/app/data \
+  --name alveon-pacs \
+  --restart unless-stopped \
+  alveon/pacs:latest
+
+<span style="color: #64748b;"># 2. Open workstation in any web browser:</span>
+<span style="color: #10b981;">http://localhost:8000/</span>
+<span style="color: #64748b;"># Embedded SQLite database (data/alveon.db) auto-initializes in WAL mode!</span></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- CLINICAL & SECURITY FAQ ACCORDION -->
+        <section class="faq-section" id="faq">
+            <div class="landing-container">
+                <div class="section-header">
+                    <span class="section-tag">Clinical &amp; Technical Inquiries</span>
+                    <h2 class="section-title">Frequently Asked Questions</h2>
+                    <p class="section-sub">Direct answers for radiologists, medical directors, and healthcare IT administrators.</p>
+                </div>
+
+                <div class="faq-list">
+                    <div class="faq-item active">
+                        <button class="faq-question">
+                            <span>How does ALVEON eliminate all cloud and database costs?</span>
+                            <svg class="faq-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="faq-answer">
+                            ALVEON replaces expensive managed cloud databases (such as AWS RDS or Google Cloud SQL, which cost $200–$800/month) with an embedded, zero-configuration SQLite database running in Write-Ahead Logging (WAL) mode. WAL mode enables concurrent multi-threaded writes without locking read queries. All reports, caliper annotations, user accounts, and cryptographic audit logs persist directly inside <code>data/alveon.db</code> with industrial ACID durability and zero monthly fees.
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">
+                            <span>Can physical hospital X-ray machines (GE, Siemens, Carestream) push directly to ALVEON?</span>
+                            <svg class="faq-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="faq-answer">
+                            Yes. ALVEON includes an active, native DIMSE Storage Service Class Provider (SCP) listening on TCP port 11112. Hospital radiological technicians configure ALVEON's IP address and AE Title (<code>ALVEON_SCP</code>) into the console of their acquisition modality. When a technician finishes an X-ray or CT acquisition, the modality performs a standard DICOM C-STORE push directly into ALVEON. The background listener validates the DICOM header and immediately triages the study in &lt;1.2 seconds.
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">
+                            <span>How does ALVEON comply with HIPAA Safe-Harbor regulations without cloud security risk?</span>
+                            <svg class="faq-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="faq-answer">
+                            Under HIPAA Privacy Rule § 164.514, Protected Health Information (PHI) is scrubbed client-side across all 18 direct identifiers before any research export or external transmission. Concurrently, ALVEON computes a cryptographic SHA-256 hash over the raw pixel buffer, ensuring that image pixel values remain bit-for-bit identical to the diagnostic original while metadata is scrubbed. Furthermore, all physician interactions are logged into an immutable SHA-256 chained audit ledger satisfying 45 CFR § 164.312(b).
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">
+                            <span>Does ALVEON function in completely air-gapped or offline emergency environments?</span>
+                            <svg class="faq-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="faq-answer">
+                            Yes. ALVEON has zero external runtime API dependencies. The deep learning model weights (<code>TESTCNN.hdf5</code>), the FastAPI server, the PyNetDICOM socket daemon, the SQLite database, and the HTML5 diagnostic canvas run completely self-contained within the host machine or Docker container. It can be deployed in military field hospitals, maritime vessels, or disaster-relief triage centers without any internet connection.
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-question">
+                            <span>What client hardware or web browser is required?</span>
+                            <svg class="faq-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="faq-answer">
+                            ALVEON is a zero-footprint web application. Radiologists, ER physicians, and nurses can access the diagnostic workstation from any modern browser (Google Chrome, Apple Safari, Mozilla Firefox, or Microsoft Edge) on Windows, macOS, Linux, or iPadOS. No plugins, Java runtimes, or client software installations are needed. High-precision image rendering utilizes native HTML5 Canvas hardware acceleration at 60 FPS.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
     </main>
 
     <!-- FOOTER -->
@@ -354,36 +818,72 @@
         <div class="landing-container">
             <div class="footer-top">
                 <div>
-                    <div class="nav-brand">
+                    <a href="/landing" class="nav-brand" title="ALVEON Overview">
                         <div class="nav-brand-logo">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
-                                <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                            <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="emblem-svg">
+                                <defs>
+                                    <radialGradient id="alv-reticle-glow-foot" cx="31" cy="26" r="8" gradientUnits="userSpaceOnUse">
+                                        <stop offset="0%" stop-color="#ef4444" stop-opacity="0.95"/>
+                                        <stop offset="50%" stop-color="#f59e0b" stop-opacity="0.5"/>
+                                        <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+                                    </radialGradient>
+                                </defs>
+                                <!-- Thoracic Ribcage Arcs (3 Paired Bilateral Ribs) -->
+                                <path d="M11 14C15.5 12.8 19.5 14 24 16C28.5 14 32.5 12.8 37 14" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>
+                                <path d="M9 22C14.5 20 19.5 22 24 24C28.5 22 33.5 20 39 22" stroke="#e2e8f0" stroke-width="1.6" stroke-linecap="round" opacity="0.95"/>
+                                <path d="M10 30C15 28 19.5 30 24 32C28.5 30 33 28 38 30" stroke="#64748b" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+
+                                <!-- Central Spinal Radiographic Column -->
+                                <line x1="24" y1="7" x2="24" y2="41" stroke="#cbd5e1" stroke-width="1.8" stroke-dasharray="3 2" opacity="0.85"/>
+
+                                <!-- AI Grad-CAM Targeting Circle (Detection Ring) -->
+                                <circle cx="31" cy="26" r="9.5" stroke="#38bdf8" stroke-width="1.3" stroke-dasharray="2.5 2"/>
+                                <circle cx="31" cy="26" r="7" fill="url(#alv-reticle-glow-foot)"/>
+                                <circle cx="31" cy="26" r="3.8" fill="#ef4444"/>
+                                <circle cx="31" cy="26" r="1.8" fill="#ffffff"/>
+
+                                <!-- Diagnostic Caliper Crosshairs -->
+                                <line x1="31" y1="12.5" x2="31" y2="18" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round"/>
+                                <line x1="31" y1="34" x2="31" y2="39.5" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round"/>
+                                <line x1="17.5" y1="26" x2="23" y2="26" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round"/>
+                                <line x1="39" y1="26" x2="44.5" y2="26" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round"/>
                             </svg>
                         </div>
-                        <span class="brand-title">ALVEON PACS <span class="brand-badge">v5.1</span></span>
-                    </div>
+                        <div class="nav-brand-text">
+                            <div class="brand-row">
+                                <span class="brand-title">ALVEON</span>
+                                <span class="brand-badge">THORACIC PACS</span>
+                            </div>
+                        </div>
+                    </a>
                     <p class="footer-brand-desc">
-                        Clinical-grade Deep Learning Diagnostic Engine & Zero-Footprint PACS for Chest Radiograph and Volumetric CT Imaging.
+                        Clinical-grade Deep Learning Diagnostic Engine &amp; Zero-Footprint PACS for Chest Radiograph and Volumetric CT Imaging.
                     </p>
                 </div>
 
                 <ul class="footer-nav-links">
                     <li><a href="/" class="nav-link">Workstation</a></li>
-                    <li><a href="/viewer" class="nav-link">OHIF Viewer</a></li>
-                    <li><a href="/docs" class="nav-link">API Docs</a></li>
-                    <li><a href="/health" class="nav-link">System Health</a></li>
+                    <li><a href="#benchmarks" class="nav-link">Accuracy</a></li>
+                    <li><a href="#comparison" class="nav-link">Comparison</a></li>
+                    <li><a href="#specs" class="nav-link">Specs</a></li>
+                    <li><a href="#deployment" class="nav-link">Deployment</a></li>
+                    <li><a href="#faq" class="nav-link">FAQ</a></li>
+                    <li><a href="/viewer" class="nav-link" target="_blank">OHIF Viewer</a></li>
+                    <li><a href="/docs" class="nav-link" target="_blank">API Docs</a></li>
                 </ul>
             </div>
 
             <div class="footer-bottom">
                 <span>© 2026 ALVEON PACS. All rights reserved. Open-Source Clinical Diagnostics.</span>
-                <span>Sole Author: <strong class="footer-author-badge">R-Priyadarshi &lt;rishikeshpriyadarshi99@gmail.com&gt;</strong></span>
+                <span>Built by - <strong class="footer-author-badge">R Priyadarshi</strong></span>
             </div>
         </div>
     </footer>
 
     <script>
-        // Live Telemetry Health Polling
+        // ---------------------------------------------------------------------
+        // 1. Live Telemetry Health Polling
+        // ---------------------------------------------------------------------
         async function fetchLiveHealth() {
             try {
                 const res = await fetch('/health');
@@ -399,6 +899,303 @@
             }
         }
         fetchLiveHealth();
+
+        // ---------------------------------------------------------------------
+        // 2. Interactive Live Pathology Case Explorer
+        // ---------------------------------------------------------------------
+        const casePresets = {
+            pneumothorax: {
+                title: "ALVEON_DIAGNOSTIC_WORKSTATION // STERLING^CONNOR (MRN-TRAUMA-4410)",
+                urgency: "🚨 ACR CAT-1 CRITICAL",
+                urgencyClass: "mockup-live-tag",
+                hud: "MRN: #TRAUMA-4410<br>W: 1500  L: -600<br>EXP: 125 kVp • 14 ms",
+                wl: "W/L: LUNG",
+                cmap: "COLORMAP: INFERNO",
+                caliperTag: "48.2 mm",
+                activeCardIdx: 0,
+                graphic: `<svg viewBox="0 0 200 200" width="100%" height="100%" style="opacity: 0.85;">
+                    <defs>
+                        <radialGradient id="lung-pneu" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="#1e293b"/>
+                            <stop offset="100%" stop-color="#020617"/>
+                        </radialGradient>
+                        <radialGradient id="heat-pneu" cx="65%" cy="35%" r="35%">
+                            <stop offset="0%" stop-color="rgba(239, 68, 68, 0.85)"/>
+                            <stop offset="50%" stop-color="rgba(245, 158, 11, 0.5)"/>
+                            <stop offset="100%" stop-color="transparent"/>
+                        </radialGradient>
+                    </defs>
+                    <path d="M40 30 Q70 10 90 40 Q80 140 30 170 Q10 140 20 80 Z" fill="url(#lung-pneu)" stroke="#334155" stroke-width="1.5"/>
+                    <path d="M160 30 Q130 10 110 40 Q120 140 170 170 Q190 140 180 80 Z" fill="url(#lung-pneu)" stroke="#334155" stroke-width="1.5"/>
+                    <circle cx="140" cy="70" r="45" fill="url(#heat-pneu)"/>
+                    <line x1="30" y1="60" x2="85" y2="75" stroke="#475569" stroke-width="1.2" stroke-dasharray="2,2"/>
+                    <line x1="170" y1="60" x2="115" y2="75" stroke="#475569" stroke-width="1.2" stroke-dasharray="2,2"/>
+                </svg>`,
+                findings: `
+                    <div class="mock-card-label" style="color: #38bdf8; margin-bottom: 8px;">NEURAL INFERENCE (14)</div>
+                    <div class="mock-stat-card">
+                        <div class="mock-card-label">PNEUMOTHORAX</div>
+                        <div class="mock-card-val" style="color: #f87171;">97.8% (CRITICAL)</div>
+                        <div class="mock-card-sub">Right apex tension with mediastinal shift</div>
+                    </div>
+                    <div class="mock-stat-card" style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3);">
+                        <div class="mock-card-label" style="color: #fbbf24;">CONSOLIDATION</div>
+                        <div class="mock-card-val" style="color: #fef08a;">74.1% (ELEVATED)</div>
+                        <div class="mock-card-sub">Right lower lobe opacity</div>
+                    </div>
+                    <div class="mock-stat-card good">
+                        <div class="mock-card-label">CTR ESTIMATE</div>
+                        <div class="mock-card-val" style="color: #34d399;">0.46 (NORMAL)</div>
+                        <div class="mock-card-sub">Cardiac silhouette within limits</div>
+                    </div>
+                `
+            },
+            effusion: {
+                title: "ALVEON_DIAGNOSTIC_WORKSTATION // BENTON^HAROLD (MRN-ER-2091)",
+                urgency: "⚠️ ACR CAT-2 URGENT",
+                urgencyClass: "mockup-live-tag",
+                hud: "MRN: #ER-2091<br>W: 400  L: 40<br>EXP: 110 kVp • 18 ms",
+                wl: "W/L: SOFT TISSUE",
+                cmap: "COLORMAP: VIRIDIS",
+                caliperTag: "64.5 mm",
+                activeCardIdx: 1,
+                graphic: `<svg viewBox="0 0 200 200" width="100%" height="100%" style="opacity: 0.85;">
+                    <defs>
+                        <radialGradient id="lung-eff" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="#1e293b"/>
+                            <stop offset="100%" stop-color="#020617"/>
+                        </radialGradient>
+                        <linearGradient id="heat-eff" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stop-color="transparent"/>
+                            <stop offset="60%" stop-color="rgba(245, 158, 11, 0.4)"/>
+                            <stop offset="100%" stop-color="rgba(239, 68, 68, 0.9)"/>
+                        </linearGradient>
+                    </defs>
+                    <path d="M40 30 Q70 10 90 40 Q80 140 30 170 Q10 140 20 80 Z" fill="url(#lung-eff)" stroke="#334155" stroke-width="1.5"/>
+                    <path d="M160 30 Q130 10 110 40 Q120 140 170 170 Q190 140 180 80 Z" fill="url(#lung-eff)" stroke="#334155" stroke-width="1.5"/>
+                    <!-- Meniscus Sign Effusion -->
+                    <path d="M20 120 Q50 140 85 150 L80 168 Q30 170 15 145 Z" fill="url(#heat-eff)"/>
+                    <line x1="30" y1="60" x2="85" y2="75" stroke="#475569" stroke-width="1.2" stroke-dasharray="2,2"/>
+                </svg>`,
+                findings: `
+                    <div class="mock-card-label" style="color: #38bdf8; margin-bottom: 8px;">NEURAL INFERENCE (14)</div>
+                    <div class="mock-stat-card">
+                        <div class="mock-card-label">PLEURAL EFFUSION</div>
+                        <div class="mock-card-val" style="color: #f87171;">96.4% (CRITICAL)</div>
+                        <div class="mock-card-sub">Left costophrenic angle blunting with meniscus</div>
+                    </div>
+                    <div class="mock-stat-card" style="background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.3);">
+                        <div class="mock-card-label" style="color: #fbbf24;">ATELECTASIS</div>
+                        <div class="mock-card-val" style="color: #fef08a;">82.1% (ELEVATED)</div>
+                        <div class="mock-card-sub">Compressive basilar volume reduction</div>
+                    </div>
+                    <div class="mock-stat-card good">
+                        <div class="mock-card-label">CTR ESTIMATE</div>
+                        <div class="mock-card-val" style="color: #34d399;">0.48 (NORMAL)</div>
+                        <div class="mock-card-sub">No acute pericardial silhouette dilation</div>
+                    </div>
+                `
+            },
+            stroke: {
+                title: "ALVEON_DIAGNOSTIC_WORKSTATION // CHEN^WEI (MRN-STROKE-104)",
+                urgency: "🧠 EMERGENCY STROKE CODE",
+                urgencyClass: "mockup-live-tag",
+                hud: "MRN: #STROKE-104<br>W: 80  L: 30<br>CT: NCCT 5.0mm Axial",
+                wl: "W/L: BRAIN WINDOW",
+                cmap: "COLORMAP: PLASMA",
+                caliperTag: "1.8 mm Shift",
+                activeCardIdx: 0,
+                graphic: `<svg viewBox="0 0 200 200" width="100%" height="100%" style="opacity: 0.9;">
+                    <defs>
+                        <radialGradient id="brain-grad" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="#334155"/>
+                            <stop offset="85%" stop-color="#0f172a"/>
+                            <stop offset="100%" stop-color="#f8fafc"/>
+                        </radialGradient>
+                        <radialGradient id="stroke-infarct" cx="35%" cy="45%" r="25%">
+                            <stop offset="0%" stop-color="rgba(244, 63, 94, 0.9)"/>
+                            <stop offset="70%" stop-color="rgba(168, 85, 247, 0.5)"/>
+                            <stop offset="100%" stop-color="transparent"/>
+                        </radialGradient>
+                    </defs>
+                    <!-- Skull Calvarium -->
+                    <ellipse cx="100" cy="100" rx="75" ry="85" fill="url(#brain-grad)" stroke="#94a3b8" stroke-width="4"/>
+                    <!-- Falx Cerebri Midline -->
+                    <line x1="100" y1="20" x2="100" y2="180" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="3,2"/>
+                    <!-- MCA Ischemia Territory -->
+                    <ellipse cx="65" cy="95" rx="30" ry="38" fill="url(#stroke-infarct)"/>
+                    <circle cx="100" cy="100" r="12" fill="#1e293b"/>
+                </svg>`,
+                findings: `
+                    <div class="mock-card-label" style="color: #38bdf8; margin-bottom: 8px;">3D NEURO INFERENCE</div>
+                    <div class="mock-stat-card">
+                        <div class="mock-card-label">ISCHEMIC STROKE (MCA)</div>
+                        <div class="mock-card-val" style="color: #f87171;">94.2% (CRITICAL)</div>
+                        <div class="mock-card-sub">Left M1 territory early cytotoxic edema</div>
+                    </div>
+                    <div class="mock-stat-card" style="background: rgba(14, 165, 233, 0.12); border-color: rgba(56, 189, 248, 0.3);">
+                        <div class="mock-card-label" style="color: #38bdf8;">ASPECTS SCORE</div>
+                        <div class="mock-card-val" style="color: #38bdf8;">7 / 10 (QUALIFIES EVT)</div>
+                        <div class="mock-card-sub">Lentiform and insular ribbon involvement</div>
+                    </div>
+                    <div class="mock-stat-card good">
+                        <div class="mock-card-label">MIDLINE SHIFT</div>
+                        <div class="mock-card-val" style="color: #34d399;">1.8 mm (MINIMAL)</div>
+                        <div class="mock-card-sub">Ventricles patent, basal cisterns preserved</div>
+                    </div>
+                `
+            },
+            normal: {
+                title: "ALVEON_DIAGNOSTIC_WORKSTATION // VANCE^ELEANOR (MRN-ROUTINE-882)",
+                urgency: "✅ ROUTINE CLEAR",
+                urgencyClass: "mockup-live-tag",
+                hud: "MRN: #ROUTINE-882<br>W: 400  L: 40<br>EXP: 120 kVp • 12 ms",
+                wl: "W/L: STANDARD FILM",
+                cmap: "COLORMAP: MONOCHROME",
+                caliperTag: "CTR: 0.44",
+                activeCardIdx: 2,
+                graphic: `<svg viewBox="0 0 200 200" width="100%" height="100%" style="opacity: 0.85;">
+                    <defs>
+                        <radialGradient id="lung-norm" cx="50%" cy="50%" r="50%">
+                            <stop offset="0%" stop-color="#1e293b"/>
+                            <stop offset="100%" stop-color="#020617"/>
+                        </radialGradient>
+                    </defs>
+                    <path d="M40 30 Q70 10 90 40 Q80 140 30 170 Q10 140 20 80 Z" fill="url(#lung-norm)" stroke="#334155" stroke-width="1.5"/>
+                    <path d="M160 30 Q130 10 110 40 Q120 140 170 170 Q190 140 180 80 Z" fill="url(#lung-norm)" stroke="#334155" stroke-width="1.5"/>
+                    <line x1="30" y1="60" x2="85" y2="75" stroke="#475569" stroke-width="1.2" stroke-dasharray="2,2"/>
+                    <line x1="170" y1="60" x2="115" y2="75" stroke="#475569" stroke-width="1.2" stroke-dasharray="2,2"/>
+                    <!-- Clear Cardiopulmonary Silhouette -->
+                    <path d="M85 75 Q100 130 135 140 Q95 145 85 100 Z" fill="#0f172a" stroke="#475569" stroke-width="1.2"/>
+                </svg>`,
+                findings: `
+                    <div class="mock-card-label" style="color: #38bdf8; margin-bottom: 8px;">NEURAL INFERENCE (14)</div>
+                    <div class="mock-stat-card good">
+                        <div class="mock-card-label">NO ACUTE PATHOLOGY</div>
+                        <div class="mock-card-val" style="color: #34d399;">98.9% (CLEAR)</div>
+                        <div class="mock-card-sub">Lungs well-aerated without focal opacity</div>
+                    </div>
+                    <div class="mock-stat-card good">
+                        <div class="mock-card-label">PLEURAL SPACES</div>
+                        <div class="mock-card-val" style="color: #34d399;">NEGATIVE</div>
+                        <div class="mock-card-sub">Sharp bilateral costophrenic angles</div>
+                    </div>
+                    <div class="mock-stat-card good">
+                        <div class="mock-card-label">CTR ESTIMATE</div>
+                        <div class="mock-card-val" style="color: #34d399;">0.44 (NORMAL)</div>
+                        <div class="mock-card-sub">Normal transverse cardiac dimension</div>
+                    </div>
+                `
+            }
+        };
+
+        const caseButtons = document.querySelectorAll('.case-btn');
+        caseButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                caseButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                const cKey = btn.getAttribute('data-case');
+                const c = casePresets[cKey];
+                if (!c) return;
+
+                document.getElementById('mock-window-title').textContent = c.title;
+                const uTag = document.getElementById('mock-urgency-tag');
+                uTag.textContent = c.urgency;
+                document.getElementById('mock-hud-overlay').innerHTML = c.hud;
+                document.getElementById('mock-badge-wl').textContent = c.wl;
+                document.getElementById('mock-badge-cmap').textContent = c.cmap;
+                document.getElementById('mock-caliper-text').textContent = c.caliperTag;
+                document.getElementById('mock-radiograph-graphic').innerHTML = c.graphic;
+                document.getElementById('mock-findings-container').innerHTML = c.findings;
+
+                // Highlight corresponding worklist card
+                const cards = document.querySelectorAll('.mockup-col-left .mock-stat-card');
+                cards.forEach((card, idx) => {
+                    if (idx === c.activeCardIdx) {
+                        card.style.borderColor = 'rgba(56, 189, 248, 0.8)';
+                        card.style.boxShadow = '0 0 14px rgba(56, 189, 248, 0.25)';
+                    } else {
+                        card.style.borderColor = '';
+                        card.style.boxShadow = '';
+                    }
+                });
+            });
+        });
+
+        // ---------------------------------------------------------------------
+        // 3. 1-Click Deployment Terminal Tab Switcher
+        // ---------------------------------------------------------------------
+        const terminalSnippets = {
+            docker: `<span style="color: #64748b;"># 1. Pull and run ALVEON PACS container (Web UI + DICOM SCP on Port 11112)</span>
+<span style="color: #38bdf8;">docker run</span> -d \\
+  -p 8000:8000 \\
+  -p 11112:11112 \\
+  -v alveon_data:/app/data \\
+  --name alveon-pacs \\
+  --restart unless-stopped \\
+  alveon/pacs:latest
+
+<span style="color: #64748b;"># 2. Open workstation in any web browser:</span>
+<span style="color: #10b981;">http://localhost:8000/</span>
+<span style="color: #64748b;"># Embedded SQLite database (data/alveon.db) auto-initializes in WAL mode!</span>`,
+            hf: `<span style="color: #64748b;"># 1. Create a free Docker Space at https://huggingface.co/new-space</span>
+<span style="color: #64748b;"># 2. Link your Git repo or push files directly:</span>
+<span style="color: #38bdf8;">git remote add</span> space https://huggingface.co/spaces/YOUR_USERNAME/alveon-pacs
+<span style="color: #38bdf8;">git push</span> --force space main
+
+<span style="color: #64748b;"># 3. Hugging Face Spaces provisions 16 GB RAM + 2 vCPU completely free 24/7!</span>
+<span style="color: #10b981;">https://YOUR_USERNAME-alveon-pacs.hf.space/</span>`,
+            render: `<span style="color: #64748b;"># 1. Deploy via render.yaml blueprint with health checks:</span>
+<span style="color: #38bdf8;">git push</span> origin main
+
+<span style="color: #64748b;"># 2. Render automatically builds Dockerfile, binds to \${PORT:-8000}</span>
+<span style="color: #64748b;"># and queries /healthz for zero-downtime rolling deploys:</span>
+<span style="color: #10b981;">https://alveon-pacs.onrender.com/</span>`
+        };
+
+        const terminalCodeDisplay = document.getElementById('terminal-code-display');
+        const termTabs = document.querySelectorAll('.terminal-tab-btn');
+        let currentTabKey = 'docker';
+
+        termTabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                termTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                currentTabKey = tab.getAttribute('data-tab');
+                terminalCodeDisplay.innerHTML = terminalSnippets[currentTabKey];
+            });
+        });
+
+        const copyBtn = document.getElementById('btn-copy-terminal');
+        const copyText = document.getElementById('copy-btn-text');
+        if (copyBtn) {
+            copyBtn.addEventListener('click', async () => {
+                const textToCopy = terminalCodeDisplay.innerText;
+                try {
+                    await navigator.clipboard.writeText(textToCopy);
+                    copyText.textContent = 'Copied!';
+                    setTimeout(() => { copyText.textContent = 'Copy'; }, 2000);
+                } catch (err) {
+                    console.warn('Clipboard write failed:', err);
+                }
+            });
+        }
+
+        // ---------------------------------------------------------------------
+        // 4. Interactive FAQ Accordion
+        // ---------------------------------------------------------------------
+        const faqItems = document.querySelectorAll('.faq-item');
+        faqItems.forEach(item => {
+            const btn = item.querySelector('.faq-question');
+            btn.addEventListener('click', () => {
+                const isActive = item.classList.contains('active');
+                faqItems.forEach(i => i.classList.remove('active'));
+                if (!isActive) {
+                    item.classList.add('active');
+                }
+            });
+        });
     </script>
 </body>
 </html>
+

@@ -74,16 +74,23 @@ body {
     color: var(--titanium-200);
     font-family: var(--font-clinical);
     line-height: 1.5;
-    min-height: 100vh;
+    height: 100vh;
+    max-height: 100vh;
     max-width: 100vw;
-    overflow-x: hidden;
+    overflow: hidden;
     letter-spacing: -0.01em;
 }
 
 .workstation-container {
-    max-width: 1540px;
-    margin: 0 auto;
-    padding: 16px 28px 48px;
+    width: 100vw;
+    max-width: 100vw;
+    height: 100vh;
+    max-height: 100vh;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 /* ==========================================================================
@@ -93,31 +100,64 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding-bottom: 16px;
+    height: 52px;
+    min-height: 52px;
+    padding: 0 18px;
     border-bottom: 1px solid var(--border-hairline);
-    margin-bottom: 16px;
+    margin-bottom: 0;
+    background: rgba(10, 12, 17, 0.95);
+    backdrop-filter: blur(20px);
+    z-index: 50;
+    flex-shrink: 0;
 }
 
 .brand-cluster {
     display: flex;
     align-items: center;
     gap: 16px;
+    text-decoration: none;
+    color: inherit;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.brand-cluster:hover .alveon-emblem {
+    border-color: rgba(56, 189, 248, 0.45);
+    background: linear-gradient(145deg, #162032 0%, #0a0e18 100%);
+    box-shadow: 0 0 20px rgba(56, 189, 248, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+    transform: scale(1.02);
+}
+
+.brand-cluster:hover .brand-name {
+    color: #ffffff;
+}
+
+.brand-cluster:focus-visible {
+    outline: 2px solid var(--hud-phosphor);
+    outline-offset: 4px;
+    border-radius: var(--radius-sm);
 }
 
 .alveon-emblem {
     width: 44px;
     height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    flex-shrink: 0;
     border-radius: var(--radius-sm);
-    background: var(--bg-surface-elevated);
-    border: 1px solid var(--border-hairline);
+    background: linear-gradient(145deg, #111724 0%, #07090f 100%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.14);
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: var(--transition);
 }
 
 .emblem-svg {
-    width: 28px;
-    height: 28px;
+    width: 30px;
+    height: 30px;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.5));
 }
 
 .brand-titles {
@@ -198,13 +238,26 @@ body {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 16px;
-    background: var(--bg-surface);
-    border: 1px solid var(--border-hairline);
-    border-radius: var(--radius-md);
-    padding: 10px 18px;
-    margin-bottom: 22px;
+    flex-wrap: nowrap;
+    gap: 12px;
+    height: 40px;
+    min-height: 40px;
+    background: #090b10;
+    border-bottom: 1px solid var(--border-hairline);
+    border-top: none;
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+    padding: 0 18px;
+    margin-bottom: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    z-index: 45;
+    flex-shrink: 0;
+}
+
+.pacs-toolbar::-webkit-scrollbar {
+    display: none;
 }
 
 .toolbar-group {
@@ -298,31 +351,105 @@ body {
    ========================================================================== */
 .workstation-grid {
     display: grid;
-    grid-template-columns: 460px 1fr;
-    gap: 22px;
-    align-items: start;
+    grid-template-columns: 310px 1fr;
+    gap: 10px;
+    padding: 8px 12px;
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    overflow: hidden;
+    transition: grid-template-columns 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.workstation-grid.sidebar-collapsed {
+    grid-template-columns: 0px 1fr;
+    gap: 0;
+}
+
+.workstation-grid.sidebar-collapsed #ingestion-panel {
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+    padding: 0 !important;
+    border: none;
 }
 
 @media (max-width: 1120px) {
     .workstation-grid {
-        grid-template-columns: 1fr;
+        grid-template-columns: 280px 1fr;
     }
 }
 
 .workstation-panel {
     background: var(--bg-surface);
     border: 1px solid var(--border-hairline);
-    border-radius: var(--radius-md);
-    padding: 22px;
+    border-radius: var(--radius-sm);
+    padding: 0;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .panel-cap {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 18px;
-    padding-bottom: 12px;
+    margin-bottom: 0;
+    padding: 8px 14px;
     border-bottom: 1px solid var(--border-hairline);
+    background: #090b10;
+    flex-shrink: 0;
+}
+
+.panel-cap-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-toggle-sidebar {
+    background: transparent;
+    border: 1px solid var(--border-hairline);
+    color: var(--titanium-400);
+    border-radius: var(--radius-xs);
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-left: auto;
+    transition: var(--transition);
+}
+
+.btn-toggle-sidebar:hover {
+    color: var(--titanium-100);
+    border-color: var(--border-focus);
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-expand-sidebar-dock {
+    display: none;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 8px;
+    background: rgba(56, 189, 248, 0.1);
+    border: 1px solid rgba(56, 189, 248, 0.35);
+    border-radius: var(--radius-xs);
+    color: var(--hud-phosphor);
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-expand-sidebar-dock:hover {
+    background: rgba(56, 189, 248, 0.2);
+    border-color: var(--hud-phosphor);
+    color: #fff;
 }
 
 .panel-cap-title {
@@ -682,11 +809,12 @@ input[type="range"]::-webkit-slider-thumb {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 14px 20px;
+    padding: 8px 14px;
     background: var(--bg-surface-elevated);
     border: 1px solid var(--border-hairline);
     border-radius: var(--radius-xs);
-    margin-bottom: 16px;
+    margin: 8px 10px 8px 10px;
+    flex-shrink: 0;
 }
 
 .findings-banner.pneumonia {
@@ -702,15 +830,15 @@ input[type="range"]::-webkit-slider-thumb {
 .banner-left {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 12px;
 }
 
 .finding-badge {
     font-family: var(--font-mono);
     font-size: 10px;
     font-weight: 700;
-    letter-spacing: 1px;
-    padding: 4px 8px;
+    letter-spacing: 0.8px;
+    padding: 3px 8px;
     border-radius: var(--radius-xs);
     background: rgba(255, 255, 255, 0.08);
 }
@@ -727,29 +855,29 @@ input[type="range"]::-webkit-slider-thumb {
 
 .finding-title {
     font-family: var(--font-display);
-    font-size: 18px;
+    font-size: 16px;
     font-weight: 700;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
 }
 
 .findings-banner.pneumonia .finding-title { color: var(--pathology-critical); }
 .findings-banner.normal .finding-title { color: var(--pathology-clear); }
 
 .finding-sub {
-    font-size: 12px;
+    font-size: 11px;
     color: var(--titanium-400);
 }
 
 .banner-right {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 10px;
 }
 
 .dpi-gauge {
     position: relative;
-    width: 60px;
-    height: 60px;
+    width: 44px;
+    height: 44px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -764,18 +892,177 @@ input[type="range"]::-webkit-slider-thumb {
 .dpi-percent {
     position: absolute;
     font-family: var(--font-mono);
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 700;
     color: #fff;
 }
 
 .latency-box {
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 10.5px;
     color: var(--titanium-500);
-    padding: 4px 8px;
+    padding: 3px 8px;
     background: rgba(255, 255, 255, 0.04);
     border-radius: var(--radius-xs);
+}
+
+.pacs-viewport-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+}
+
+/* ==========================================================================
+   Viewport Stage Container: Hero Canvas Stage + Diagnostic Inspector
+   ========================================================================== */
+.viewport-stage-container {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 10px;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    padding: 0 10px 10px 10px;
+    overflow: hidden;
+}
+
+.viewport-canvas-stage {
+    position: relative;
+    height: 100%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #020305;
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+}
+
+.viewport-inspector {
+    height: 100%;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.viewport-inspector::-webkit-scrollbar {
+    width: 4px;
+}
+
+.viewport-inspector::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.viewport-inspector::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 4px;
+}
+
+.viewport-inspector .multilabel-panel {
+    margin-bottom: 0;
+    background: var(--bg-surface-elevated);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-xs);
+    padding: 10px 12px;
+}
+
+.viewport-inspector .multilabel-findings-strip {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 5px !important;
+    width: 100% !important;
+}
+
+.viewport-inspector .pathology-chip {
+    padding: 6px 10px;
+    border-radius: var(--radius-xs);
+}
+
+.viewport-inspector .pathology-chip-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 3px;
+}
+
+.viewport-inspector .pathology-chip-left {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    flex: 1;
+}
+
+.viewport-inspector .pathology-chip-title {
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.viewport-inspector .pathology-chip-pct {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-left: 6px;
+}
+
+.viewport-inspector .pathology-chip-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 10px;
+    gap: 6px;
+}
+
+.viewport-inspector .zonation-module {
+    margin-top: 0;
+    background: var(--bg-surface-elevated);
+    border: 1px solid var(--border-hairline);
+    border-radius: var(--radius-xs);
+    padding: 10px 12px;
+}
+
+.viewport-inspector .zonation-grid {
+    grid-template-columns: 1fr;
+    gap: 5px;
+}
+
+.viewport-inspector .clinical-findings-box {
+    margin-top: 0;
+    padding: 9px 12px;
+    background: var(--bg-surface-elevated);
+    border-left: 3px solid var(--hud-phosphor);
+    border-radius: 0 var(--radius-xs) var(--radius-xs) 0;
+}
+
+.viewport-inspector .pacs-actions {
+    margin-top: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding-top: 4px;
+    padding-bottom: 6px;
+}
+
+.viewport-inspector .pacs-actions .btn-titanium {
+    width: 100%;
+    justify-content: center;
+    padding: 7px 10px;
+    font-size: 11px;
 }
 
 /* ==========================================================================
@@ -784,13 +1071,17 @@ input[type="range"]::-webkit-slider-thumb {
 .dicom-viewport {
     position: relative;
     width: 100%;
-    aspect-ratio: 1 / 1;
-    max-height: 520px;
+    height: 100%;
+    max-height: 100%;
+    aspect-ratio: unset;
     background: #000;
-    border: 1px solid var(--border-hairline);
-    border-radius: var(--radius-xs);
+    border: none;
+    border-radius: 0;
     overflow: hidden;
     user-select: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .hud-corner {
@@ -808,8 +1099,8 @@ input[type="range"]::-webkit-slider-thumb {
 
 .hud-corner.top-left { top: 12px; left: 14px; }
 .hud-corner.top-right { top: 12px; right: 14px; text-align: right; }
-.hud-corner.bottom-left { bottom: 12px; left: 14px; }
-.hud-corner.bottom-right { bottom: 12px; right: 14px; text-align: right; }
+.hud-corner.bottom-left { bottom: 5px; left: 12px; font-size: 9px; opacity: 0.75; }
+.hud-corner.bottom-right { bottom: 5px; right: 12px; text-align: right; font-size: 9px; opacity: 0.75; }
 
 .split-frame {
     position: relative;
@@ -1263,49 +1554,66 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .triage-actions-bar {
-    display: flex;
-    gap: 8px;
-    padding: 8px 14px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px;
+    padding: 6px 8px;
     background: #08090d;
     border-bottom: 1px solid var(--border-hairline);
+    overflow: hidden;
 }
 
 .btn-quick-upload {
-    flex: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 6px;
+    gap: 3.5px;
     background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.12);
-    color: var(--titanium-200);
-    font-family: var(--font-sans);
-    font-size: 11px;
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    color: var(--titanium-300);
+    font-family: var(--font-clinical);
+    font-size: 10px;
     font-weight: 600;
-    padding: 6px 10px;
-    border-radius: 6px;
+    padding: 5px 3px;
+    border-radius: var(--radius-xs);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: var(--transition);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    width: 100%;
+}
+
+.btn-quick-upload svg {
+    flex-shrink: 0;
+    width: 11px;
+    height: 11px;
+}
+
+.btn-quick-upload span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .btn-quick-upload:hover {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: var(--titanium-300);
+    background: rgba(255, 255, 255, 0.09);
+    border-color: var(--titanium-200);
     color: #ffffff;
-    box-shadow: 0 0 12px rgba(255, 255, 255, 0.08);
 }
 
 .btn-quick-upload.btn-danger-action {
     color: #f87171;
     border-color: rgba(239, 68, 68, 0.25);
-    flex: 0 0 auto;
+    flex: initial;
 }
 
 .btn-quick-upload.btn-danger-action:hover {
     background: rgba(239, 68, 68, 0.15);
     border-color: #ef4444;
     color: #ffffff;
-    box-shadow: 0 0 12px rgba(239, 68, 68, 0.25);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.25);
 }
 
 .btn-danger-subtle {
@@ -1851,21 +2159,21 @@ input[type="range"]::-webkit-slider-thumb {
 /* Workstation Floating Toast */
 .alveon-toast {
     position: fixed;
-    bottom: 24px;
+    top: 60px;
     right: 24px;
     background: #0d1117;
     color: #38bdf8;
     border: 1px solid #0284c7;
     border-radius: var(--radius-sm);
-    padding: 10px 18px;
+    padding: 8px 16px;
     font-family: var(--font-mono);
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     font-weight: 600;
     letter-spacing: 0.02em;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.6), 0 0 15px rgba(56, 189, 248, 0.2);
     z-index: 9999;
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateY(-8px);
     transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1), transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     pointer-events: none;
 }
@@ -2107,65 +2415,72 @@ input[type="range"]::-webkit-slider-thumb {
    Diagnostic PACS Viewport Calipers & Measurement Toolbar
    ========================================================================== */
 .pacs-measure-toolbar {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 7px 12px;
-    background: linear-gradient(180deg, rgba(20, 24, 33, 0.92) 0%, rgba(13, 17, 23, 0.95) 100%);
-    border: 1px solid var(--border-hairline);
-    border-bottom: none;
-    border-radius: var(--radius-xs) var(--radius-xs) 0 0;
-    backdrop-filter: blur(12px);
-    z-index: 22;
-    flex-wrap: wrap;
+    justify-content: center;
+    gap: 5px;
+    padding: 5px 12px;
+    background: rgba(13, 17, 26, 0.88);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    border-radius: 9999px;
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(255, 255, 255, 0.08) inset;
+    z-index: 35;
+    flex-wrap: nowrap;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pacs-measure-toolbar:hover {
+    background: rgba(18, 23, 36, 0.96);
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 0 16px 44px rgba(0, 0, 0, 0.8), 0 0 1px 1px rgba(255, 255, 255, 0.14) inset;
 }
 
 .measure-tools-group {
     display: flex;
     align-items: center;
     gap: 6px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
 }
 
 .measure-group-label {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.8px;
-    color: var(--titanium-500);
-    margin-right: 4px;
-    user-select: none;
+    display: none;
 }
 
 .measure-tool-btn {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 5px 9px;
-    background: rgba(255, 255, 255, 0.03);
-    border: 1px solid var(--border-hairline);
-    border-radius: var(--radius-xs);
-    color: var(--titanium-400);
+    gap: 4px;
+    padding: 3px 8px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 9999px;
+    color: var(--titanium-300);
     font-family: var(--font-mono);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
     user-select: none;
+    white-space: nowrap;
 }
 
 .measure-tool-btn:hover {
     color: var(--titanium-100);
-    background: rgba(255, 255, 255, 0.07);
-    border-color: rgba(255, 255, 255, 0.18);
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.22);
 }
 
 .measure-tool-btn.active {
     color: #38bdf8;
-    background: rgba(14, 165, 233, 0.12);
+    background: rgba(14, 165, 233, 0.18);
     border-color: #38bdf8;
-    box-shadow: 0 0 12px rgba(14, 165, 233, 0.25), inset 0 0 8px rgba(14, 165, 233, 0.1);
+    box-shadow: 0 0 12px rgba(14, 165, 233, 0.3), inset 0 0 8px rgba(14, 165, 233, 0.1);
 }
 
 .measure-tool-btn svg {
@@ -2181,22 +2496,25 @@ input[type="range"]::-webkit-slider-thumb {
 .measure-clear-btn {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 4px 8px;
-    background: transparent;
-    border: 1px solid var(--border-hairline);
-    border-radius: var(--radius-xs);
-    color: var(--titanium-500);
+    gap: 4px;
+    padding: 3px 8px;
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 9999px;
+    color: #f87171;
     font-family: var(--font-mono);
     font-size: 10px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+    user-select: none;
 }
 
 .measure-clear-btn:hover {
-    color: #f87171;
-    border-color: rgba(239, 68, 68, 0.35);
-    background: rgba(239, 68, 68, 0.08);
+    color: #ffffff;
+    border-color: #ef4444;
+    background: rgba(239, 68, 68, 0.3);
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
 }
 
 .measure-badge-hint {
@@ -2443,7 +2761,7 @@ input[type="range"]::-webkit-slider-thumb {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    max-width: 75px;
+    max-width: 190px;
 }
 
 .pathology-chip-severity {

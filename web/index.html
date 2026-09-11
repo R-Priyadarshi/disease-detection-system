@@ -14,17 +14,36 @@
     <div class="workstation-container">
         <!-- Top Institutional Header -->
         <header class="pacs-header" id="pacs-header">
-            <div class="brand-cluster">
-                <!-- Bespoke Sculpted Optical Aperture Logo -->
+            <a href="/landing" class="brand-cluster" id="brand-cluster-link" title="ALVEON Overview & Landing Page">
+                <!-- Bespoke Sculpted Optical Apex Logo (ALVEON Apex-Lens) -->
                 <div class="alveon-emblem" id="alveon-emblem" aria-hidden="true">
-                    <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg" class="emblem-svg">
-                        <path d="M12 28C8.5 24 8 16 14 10C20 4 28 8 28 14" stroke="#e2e8f0" stroke-width="1.75" stroke-linecap="round"/>
-                        <path d="M28 12C31.5 16 32 24 26 30C20 36 12 32 12 26" stroke="#94a3b8" stroke-width="1.75" stroke-linecap="round"/>
-                        <circle cx="20" cy="20" r="2.5" fill="#f8fafc"/>
-                        <line x1="20" y1="6" x2="20" y2="10" stroke="#64748b" stroke-width="1"/>
-                        <line x1="20" y1="30" x2="20" y2="34" stroke="#64748b" stroke-width="1"/>
-                        <line x1="6" y1="20" x2="10" y2="20" stroke="#64748b" stroke-width="1"/>
-                        <line x1="30" y1="20" x2="34" y2="20" stroke="#64748b" stroke-width="1"/>
+                    <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" class="emblem-svg">
+                        <defs>
+                            <radialGradient id="alv-reticle-glow-ws" cx="31" cy="26" r="8" gradientUnits="userSpaceOnUse">
+                                <stop offset="0%" stop-color="#ef4444" stop-opacity="0.95"/>
+                                <stop offset="50%" stop-color="#f59e0b" stop-opacity="0.5"/>
+                                <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+                            </radialGradient>
+                        </defs>
+                        <!-- Thoracic Ribcage Arcs (3 Paired Bilateral Ribs) -->
+                        <path d="M11 14C15.5 12.8 19.5 14 24 16C28.5 14 32.5 12.8 37 14" stroke="#94a3b8" stroke-width="1.5" stroke-linecap="round" opacity="0.85"/>
+                        <path d="M9 22C14.5 20 19.5 22 24 24C28.5 22 33.5 20 39 22" stroke="#e2e8f0" stroke-width="1.6" stroke-linecap="round" opacity="0.95"/>
+                        <path d="M10 30C15 28 19.5 30 24 32C28.5 30 33 28 38 30" stroke="#64748b" stroke-width="1.5" stroke-linecap="round" opacity="0.8"/>
+
+                        <!-- Central Spinal Radiographic Column -->
+                        <line x1="24" y1="7" x2="24" y2="41" stroke="#cbd5e1" stroke-width="1.8" stroke-dasharray="3 2" opacity="0.85"/>
+
+                        <!-- AI Grad-CAM Targeting Circle (Detection Ring) -->
+                        <circle cx="31" cy="26" r="9.5" stroke="#38bdf8" stroke-width="1.3" stroke-dasharray="2.5 2"/>
+                        <circle cx="31" cy="26" r="7" fill="url(#alv-reticle-glow-ws)"/>
+                        <circle cx="31" cy="26" r="3.8" fill="#ef4444"/>
+                        <circle cx="31" cy="26" r="1.8" fill="#ffffff"/>
+
+                        <!-- Diagnostic Caliper Crosshairs -->
+                        <line x1="31" y1="12.5" x2="31" y2="18" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round"/>
+                        <line x1="31" y1="34" x2="31" y2="39.5" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round"/>
+                        <line x1="17.5" y1="26" x2="23" y2="26" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round"/>
+                        <line x1="39" y1="26" x2="44.5" y2="26" stroke="#38bdf8" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
                 </div>
                 <div class="brand-titles">
@@ -34,7 +53,7 @@
                     </div>
                     <span class="brand-subtext">Precision Radiographic Diagnostic & Emergency Triage Suite</span>
                 </div>
-            </div>
+            </a>
 
             <!-- Workstation Mode & Security Header Controls -->
             <div class="telemetry-bar" id="telemetry-bar">
@@ -254,10 +273,13 @@
                 <div class="panel-mode-switcher">
                     <button type="button" class="panel-mode-tab active" id="tab-btn-worklist">
                         <span class="prio-dot-pulse"></span>
-                        ER Triage Queue (<span id="worklist-stat-badge">3 STAT</span>)
+                        ER Triage (<span id="worklist-stat-badge">3 STAT</span>)
                     </button>
                     <button type="button" class="panel-mode-tab" id="tab-btn-ingest">
-                        Study Ingest & Drop
+                        Ingest & Drop
+                    </button>
+                    <button type="button" class="btn-toggle-sidebar" id="sidebar-collapse-btn" title="Collapse Sidebar (Theater Mode)">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
                     </button>
                 </div>
 
@@ -274,30 +296,30 @@
                     <!-- ER Ingestion & Worklist Management Actions -->
                     <div class="triage-actions-bar">
                         <button type="button" class="btn-quick-upload" id="worklist-folder-btn" title="Upload entire patient directory or cohort folder">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
                             </svg>
-                            📁 Ingest Folder
+                            <span>Folder</span>
                         </button>
                         <button type="button" class="btn-quick-upload" id="worklist-files-btn" title="Upload individual or multiple radiograph files">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M12 5v14M5 12h14"></path>
                             </svg>
-                            + Files
+                            <span>Files</span>
                         </button>
                         <button type="button" class="btn-quick-upload" id="worklist-select-mode-btn" title="Toggle selection mode to choose multiple studies to purge">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
                                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
                                 <polyline points="9 11 12 14 22 4"></polyline>
                             </svg>
-                            Select
+                            <span>Select</span>
                         </button>
                         <button type="button" class="btn-quick-upload btn-danger-action" id="worklist-purge-all-btn" title="Purge all studies from queue memory">
-                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                            <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2">
                                 <polyline points="3 6 5 6 21 6"></polyline>
                                 <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
                             </svg>
-                            Purge All
+                            <span>Purge</span>
                         </button>
                     </div>
 
@@ -414,7 +436,13 @@
             <!-- Right Workspace: Radiologic Viewport & Pathological Analysis -->
             <section class="workstation-panel viewport-panel" id="viewport-panel">
                 <div class="panel-cap">
-                    <h2 class="panel-cap-title">RADIOLOGIC VIEWPORT & PATHOLOGY LOCALIZATION</h2>
+                    <div class="panel-cap-left">
+                        <button type="button" class="btn-expand-sidebar-dock" id="sidebar-expand-btn" title="Expand Triage Worklist" style="display: none;">
+                            <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                            <span>Triage Queue</span>
+                        </button>
+                        <h2 class="panel-cap-title">DIAGNOSTIC VIEWPORT & LOCALIZATION</h2>
+                    </div>
                     <div class="viewport-modes" id="viewport-modes">
                         <button type="button" class="view-mode-btn active" data-mode="split">Split Wipe</button>
                         <button type="button" class="view-mode-btn" data-mode="side">Dual Screen</button>
@@ -457,7 +485,7 @@
 
                 <!-- Active Radiologic Viewport -->
                 <div class="pacs-viewport-wrapper" id="diagnosis-content">
-                    <!-- Diagnostic Findings Banner -->
+                    <!-- Diagnostic Findings HUD Ribbon -->
                     <div class="findings-banner" id="diagnosis-banner">
                         <div class="banner-left">
                             <div class="finding-badge" id="diagnosis-badge">PATHOLOGY PRESENT</div>
@@ -469,236 +497,243 @@
 
                         <div class="banner-right">
                             <div class="dpi-gauge">
-                                <svg class="dpi-ring" width="60" height="60">
-                                    <circle class="dpi-ring-bg" stroke="rgba(255,255,255,0.08)" stroke-width="5" fill="transparent" r="25" cx="30" cy="30"/>
-                                    <circle class="dpi-ring-val" id="confidence-ring" stroke="#e11d48" stroke-width="5" stroke-linecap="round" fill="transparent" r="25" cx="30" cy="30"/>
+                                <svg class="dpi-ring" width="40" height="40">
+                                    <circle class="dpi-ring-bg" stroke="rgba(255,255,255,0.08)" stroke-width="3.5" fill="transparent" r="16" cx="20" cy="20"/>
+                                    <circle class="dpi-ring-val" id="confidence-ring" stroke="#e11d48" stroke-width="3.5" stroke-linecap="round" fill="transparent" r="16" cx="20" cy="20"/>
                                 </svg>
                                 <span class="dpi-percent" id="confidence-percentage">100%</span>
                             </div>
                             <div class="latency-box" id="latency-chip">14.2 ms</div>
-                            <button type="button" class="btn-titanium" id="banner-report-btn" title="Open Clinical Consultation Suite & Voice Dictation (R)" style="background: rgba(14, 165, 233, 0.18); border: 1px solid rgba(14, 165, 233, 0.45); color: #38bdf8; font-weight: 600; font-size: 11.5px; padding: 6px 12px; border-radius: 6px; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; transition: all 0.2s; box-shadow: 0 0 10px rgba(14, 165, 233, 0.15);">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                            <button type="button" class="btn-titanium" id="banner-report-btn" title="Open Clinical Consultation Suite & Voice Dictation (R)">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
                                     <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
                                     <line x1="12" y1="19" x2="12" y2="23"/>
                                     <line x1="8" y1="23" x2="16" y2="23"/>
                                 </svg>
-                                <span>🎙️ Clinical Consultation (R)</span>
+                                <span>🎙️ Consultation</span>
                             </button>
                             <button type="button" class="btn-signoff" id="btn-signoff">
-                                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5">
                                     <polyline points="20 6 9 17 4 12"/>
                                 </svg>
-                                <span id="signoff-btn-text">Sign Off & Attest (S)</span>
+                                <span id="signoff-btn-text">Sign Off (S)</span>
                             </button>
                         </div>
                     </div>
 
-                    <!-- AI Multi-Label Thoracic Pathology Panel (6 Conditions) -->
-                    <div class="multilabel-panel" id="multilabel-panel">
-                        <div class="multilabel-header">
-                            <div class="multilabel-title-group">
-                                <span class="multilabel-icon">🫁</span>
-                                <span class="multilabel-eyebrow">AI MULTI-LABEL THORACIC PATHOLOGY PANEL (6 CONDITIONS)</span>
-                            </div>
-                            <div class="multilabel-acuity-tag" id="multilabel-acuity-tag">COMPOSITE ACUITY: STAT CRITICAL</div>
-                        </div>
-                        <div class="multilabel-findings-strip" id="multilabel-findings-strip">
-                            <!-- Populated dynamically via app.js -->
-                        </div>
-                        <div class="multilabel-impression" id="multilabel-impression" style="display: none;">
-                            <span class="impression-label">CLINICAL IMPRESSION:</span>
-                            <span class="impression-text" id="multilabel-impression-text"></span>
-                        </div>
-                    </div>
-
-                    <!-- Diagnostic PACS Caliper & Annotation Toolbar -->
-                    <div class="pacs-measure-toolbar" id="pacs-measure-toolbar">
-                        <div class="measure-tools-group">
-                            <span class="measure-group-label">CALIPERS / TOOLS:</span>
-                            <button type="button" class="measure-tool-btn active" data-tool="pointer" id="tool-pointer" title="Pointer / Split Swipe (V)">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 3 10 21 13 14 20 11 3 3"/></svg>
-                                <span>Pointer</span>
-                            </button>
-                            <button type="button" class="measure-tool-btn" data-tool="ruler" id="tool-ruler" title="Linear Caliper in mm (R)">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.3 8.7 8.7 21.3a2.1 2.1 0 0 1-3 0l-3-3a2.1 2.1 0 0 1 0-3L15.3 2.7a2.1 2.1 0 0 1 3 0l3 3a2.1 2.1 0 0 1 0 3z"/><line x1="7.5" y1="10.5" x2="9.5" y2="12.5"/><line x1="10.5" y1="7.5" x2="12.5" y2="9.5"/><line x1="13.5" y1="4.5" x2="15.5" y2="6.5"/></svg>
-                                <span>📏 Caliper (mm)</span>
-                            </button>
-                            <button type="button" class="measure-tool-btn" data-tool="ctr" id="tool-ctr" title="Cardiothoracic Ratio (C)">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-                                <span>🫀 CTR Index</span>
-                            </button>
-                            <button type="button" class="measure-tool-btn" data-tool="roi" id="tool-roi" title="Elliptical ROI Density (O)">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>
-                                <span>⭕ Elliptical ROI</span>
-                            </button>
-                            <button type="button" class="measure-tool-btn" data-tool="arrow" id="tool-arrow" title="Diagnostic Arrow Callout (A)">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>
-                                <span>↗️ Arrow</span>
-                            </button>
-                            <button type="button" class="measure-tool-btn" id="tool-prior-comparison" title="Longitudinal Prior Study Comparison & Subtraction (P)" style="background: rgba(14, 165, 233, 0.15); border-color: rgba(56, 189, 248, 0.4); color: #38bdf8;">
-                                <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
-                                <span>⚖️ Prior Comparison</span>
-                            </button>
-                        </div>
-                        <div class="measure-actions-group">
-                            <button type="button" class="measure-clear-btn" id="btn-clear-measurements" title="Clear Calipers & Annotations">
-                                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                                <span>Clear Markups</span>
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- PACS Image Canvas Viewport with DICOM HUD -->
-                    <div class="dicom-viewport" id="dicom-viewport">
-                        <!-- 4-Corner DICOM HUD Markers -->
-                        <div class="hud-corner top-left">
-                            <div id="hud-patient-id">PATIENT: #MRN-90214</div>
-                            <div id="hud-patient-name">NAME: VANCE^ELEANOR</div>
-                            <button type="button" class="hud-action-tag" id="hud-tag-trigger">DICOM TAGS ↗</button>
-                        </div>
-                        <div class="hud-corner top-right">
-                            <div id="hud-modality">MODALITY: DX (16-bit)</div>
-                            <div id="hud-sensor">125 kVp • 14 ms</div>
-                        </div>
-                        <div class="hud-corner bottom-left">
-                            <div id="hud-wl-display">W: 1500  L: -600</div>
-                            <div id="hud-loupe-display">LOUPE: OFF</div>
-                        </div>
-                        <div class="hud-corner bottom-right">
-                            <div>ALVEON PACS v3.0</div>
-                            <div id="hud-study-status">STATUS: PENDING</div>
-                        </div>
-
-                        <!-- Split Comparison Canvas with CSS clip-path -->
-                        <div class="split-frame" id="split-slider-wrapper">
-                            <img id="view-underlay" class="plate-img" alt="Grad-CAM Thermal Layer">
-                            <div class="split-curtain" id="split-clipped">
-                                <img id="view-overlay" class="plate-img" alt="Raw Radiograph">
-                            </div>
-                            <!-- Handle Line -->
-                            <div class="split-divider" id="slider-handle">
-                                <div class="reticle-handle">
-                                    <svg viewBox="0 0 16 16" width="12" height="12" fill="#fff">
-                                        <polygon points="5,8 0,4 0,12"/>
-                                        <polygon points="11,8 16,4 16,12"/>
-                                    </svg>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Side-by-Side Dual View & Prior Comparison -->
-                        <div class="dual-frame" id="side-by-side-wrapper" hidden>
-                            <div class="dual-screen" id="dual-screen-left">
-                                <span class="screen-tag" id="screen-tag-left">CURRENT STUDY (TODAY)</span>
-                                <img id="side-orig" class="dual-img" alt="Current Study">
-                            </div>
-                            <div class="dual-screen" id="dual-screen-right" style="position: relative;">
-                                <div class="dual-screen-header-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%; position: absolute; top: 8px; left: 0; padding: 0 12px; z-index: 10;">
-                                    <span class="screen-tag" id="screen-tag-right" style="position: static;">PRIOR BASELINE (HISTORICAL)</span>
-                                    <button type="button" class="btn-micro-toggle" id="btn-toggle-subtraction" title="Toggle Digital Subtraction Radiography Map" style="background: rgba(14, 165, 233, 0.25); border: 1px solid #38bdf8; color: #38bdf8; font-size: 10px; padding: 3px 8px; border-radius: 4px; cursor: pointer; display: none;">
-                                        <span>🎨 Subtraction Map</span>
+                    <!-- Split Viewport Stage: Hero Image Canvas + Right Diagnostic Inspector -->
+                    <div class="viewport-stage-container">
+                        <!-- Hero Image Canvas Stage -->
+                        <div class="viewport-canvas-stage">
+                            <!-- Floating PACS Caliper & Annotation Capsule Dock -->
+                            <div class="pacs-measure-toolbar" id="pacs-measure-toolbar">
+                                <div class="measure-tools-group">
+                                    <button type="button" class="measure-tool-btn active" data-tool="pointer" id="tool-pointer" title="Pointer / Split Swipe (V)">
+                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><polygon points="3 3 10 21 13 14 20 11 3 3"/></svg>
+                                        <span>Pointer</span>
+                                    </button>
+                                    <button type="button" class="measure-tool-btn" data-tool="ruler" id="tool-ruler" title="Linear Caliper in mm (R)">
+                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M21.3 8.7 8.7 21.3a2.1 2.1 0 0 1-3 0l-3-3a2.1 2.1 0 0 1 0-3L15.3 2.7a2.1 2.1 0 0 1 3 0l3 3a2.1 2.1 0 0 1 0 3z"/><line x1="7.5" y1="10.5" x2="9.5" y2="12.5"/><line x1="10.5" y1="7.5" x2="12.5" y2="9.5"/><line x1="13.5" y1="4.5" x2="15.5" y2="6.5"/></svg>
+                                        <span>📏 Caliper</span>
+                                    </button>
+                                    <button type="button" class="measure-tool-btn" data-tool="ctr" id="tool-ctr" title="Cardiothoracic Ratio (C)">
+                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                                        <span>🫀 CTR</span>
+                                    </button>
+                                    <button type="button" class="measure-tool-btn" data-tool="roi" id="tool-roi" title="Elliptical ROI Density (O)">
+                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><ellipse cx="12" cy="12" rx="9" ry="6"/></svg>
+                                        <span>⭕ ROI</span>
+                                    </button>
+                                    <button type="button" class="measure-tool-btn" data-tool="arrow" id="tool-arrow" title="Diagnostic Arrow Callout (A)">
+                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="19" x2="19" y2="5"/><polyline points="9 5 19 5 19 15"/></svg>
+                                        <span>↗️ Arrow</span>
+                                    </button>
+                                    <button type="button" class="measure-tool-btn" id="tool-prior-comparison" title="Longitudinal Prior Study Comparison & Subtraction (P)">
+                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
+                                        <span>⚖️ Prior</span>
                                     </button>
                                 </div>
-                                <img id="side-heatmap" class="dual-img" alt="Prior Study or Grad-CAM">
-                                <div class="interval-delta-badge" id="interval-delta-badge" style="display: none; position: absolute; bottom: 10px; left: 12px; right: 12px; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 6px; padding: 6px 12px; font-size: 11px; color: #e2e8f0; align-items: center; justify-content: space-between; z-index: 10;">
-                                    <div style="display: flex; align-items: center; gap: 6px;">
-                                        <span class="delta-icon" style="font-size: 13px;">📉</span>
-                                        <span id="interval-delta-text" style="font-weight: 600; color: #38bdf8;">Stable / -13.0% Δ Opacity</span>
+                                <div class="measure-actions-group">
+                                    <button type="button" class="measure-clear-btn" id="btn-clear-measurements" title="Clear Calipers & Annotations">
+                                        <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                        <span>Clear</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- PACS Image Canvas Viewport with DICOM HUD -->
+                            <div class="dicom-viewport" id="dicom-viewport">
+                                <!-- 4-Corner DICOM HUD Markers -->
+                                <div class="hud-corner top-left">
+                                    <div id="hud-patient-id">PATIENT: #MRN-90214</div>
+                                    <div id="hud-patient-name">NAME: VANCE^ELEANOR</div>
+                                    <button type="button" class="hud-action-tag" id="hud-tag-trigger">DICOM TAGS ↗</button>
+                                </div>
+                                <div class="hud-corner top-right">
+                                    <div id="hud-modality">MODALITY: DX (16-bit)</div>
+                                    <div id="hud-sensor">125 kVp • 14 ms</div>
+                                </div>
+                                <div class="hud-corner bottom-left">
+                                    <div id="hud-wl-display">W: 1500  L: -600</div>
+                                    <div id="hud-loupe-display">LOUPE: OFF</div>
+                                </div>
+                                <div class="hud-corner bottom-right">
+                                    <div>ALVEON PACS v5.1</div>
+                                    <div id="hud-study-status">STATUS: PENDING</div>
+                                </div>
+
+                                <!-- Split Comparison Canvas with CSS clip-path -->
+                                <div class="split-frame" id="split-slider-wrapper">
+                                    <img id="view-underlay" class="plate-img" alt="Grad-CAM Thermal Layer">
+                                    <div class="split-curtain" id="split-clipped">
+                                        <img id="view-overlay" class="plate-img" alt="Raw Radiograph">
                                     </div>
-                                    <span style="font-size: 10px; color: #94a3b8;">Rigid Co-Registered</span>
+                                    <!-- Handle Line -->
+                                    <div class="split-divider" id="slider-handle">
+                                        <div class="reticle-handle">
+                                            <svg viewBox="0 0 16 16" width="12" height="12" fill="#fff">
+                                                <polygon points="5,8 0,4 0,12"/>
+                                                <polygon points="11,8 16,4 16,12"/>
+                                            </svg>
+                                        </div>
+                                    </div>
                                 </div>
+
+                                <!-- Side-by-Side Dual View & Prior Comparison -->
+                                <div class="dual-frame" id="side-by-side-wrapper" hidden>
+                                    <div class="dual-screen" id="dual-screen-left">
+                                        <span class="screen-tag" id="screen-tag-left">CURRENT STUDY (TODAY)</span>
+                                        <img id="side-orig" class="dual-img" alt="Current Study">
+                                    </div>
+                                    <div class="dual-screen" id="dual-screen-right" style="position: relative;">
+                                        <div class="dual-screen-header-row" style="display: flex; justify-content: space-between; align-items: center; width: 100%; position: absolute; top: 8px; left: 0; padding: 0 12px; z-index: 10;">
+                                            <span class="screen-tag" id="screen-tag-right" style="position: static;">PRIOR BASELINE (HISTORICAL)</span>
+                                            <button type="button" class="btn-micro-toggle" id="btn-toggle-subtraction" title="Toggle Digital Subtraction Radiography Map" style="background: rgba(14, 165, 233, 0.25); border: 1px solid #38bdf8; color: #38bdf8; font-size: 10px; padding: 3px 8px; border-radius: 4px; cursor: pointer; display: none;">
+                                                <span>🎨 Subtraction Map</span>
+                                            </button>
+                                        </div>
+                                        <img id="side-heatmap" class="dual-img" alt="Prior Study or Grad-CAM">
+                                        <div class="interval-delta-badge" id="interval-delta-badge" style="display: none; position: absolute; bottom: 10px; left: 12px; right: 12px; background: rgba(15, 23, 42, 0.9); backdrop-filter: blur(8px); border: 1px solid rgba(56, 189, 248, 0.4); border-radius: 6px; padding: 6px 12px; font-size: 11px; color: #e2e8f0; align-items: center; justify-content: space-between; z-index: 10;">
+                                            <div style="display: flex; align-items: center; gap: 6px;">
+                                                <span class="delta-icon" style="font-size: 13px;">📉</span>
+                                                <span id="interval-delta-text" style="font-weight: 600; color: #38bdf8;">Stable / -13.0% Δ Opacity</span>
+                                            </div>
+                                            <span style="font-size: 10px; color: #94a3b8;">Rigid Co-Registered</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- 2.5x Magnifying Loupe Overlay -->
+                                <div class="loupe-lens" id="loupe-lens" hidden>
+                                    <div class="loupe-crosshair"></div>
+                                </div>
+
+                                <!-- Diagnostic Caliper & Annotation Canvas Overlay -->
+                                <canvas id="pacs-annotation-canvas" class="pacs-annotation-canvas"></canvas>
                             </div>
                         </div>
 
-                        <!-- 2.5x Magnifying Loupe Overlay -->
-                        <div class="loupe-lens" id="loupe-lens" hidden>
-                            <div class="loupe-crosshair"></div>
-                        </div>
-
-                        <!-- Diagnostic Caliper & Annotation Canvas Overlay -->
-                        <canvas id="pacs-annotation-canvas" class="pacs-annotation-canvas"></canvas>
-                    </div>
-
-                    <!-- Anatomical Pulmonary Quadrant Zonation Module -->
-                    <div class="zonation-module" id="zonation-module">
-                        <div class="zonation-header">
-                            <span class="submodule-title">ANATOMICAL PULMONARY QUADRANT CONCENTRATION</span>
-                            <span class="dominant-chip" id="dominant-zone-chip">Dominant: Right Lower Lobe</span>
-                        </div>
-                        <div class="zonation-grid">
-                            <div class="zone-bar-wrap">
-                                <div class="zone-label-row">
-                                    <span>Right Upper Lobe (RUL)</span>
-                                    <span class="mono-num" id="zone-rul-val">8%</span>
+                        <!-- Right Diagnostic AI Inspector -->
+                        <aside class="viewport-inspector" id="viewport-inspector">
+                            <!-- AI Multi-Label Thoracic Pathology Panel (6 Conditions) -->
+                            <div class="multilabel-panel" id="multilabel-panel">
+                                <div class="multilabel-header">
+                                    <div class="multilabel-title-group">
+                                        <span class="multilabel-icon">🫁</span>
+                                        <span class="multilabel-eyebrow">AI MULTI-LABEL INFERENCE (6)</span>
+                                    </div>
+                                    <div class="multilabel-acuity-tag" id="multilabel-acuity-tag">STAT CRITICAL</div>
                                 </div>
-                                <div class="zone-progress"><div class="zone-fill" id="zone-rul-fill"></div></div>
-                            </div>
-                            <div class="zone-bar-wrap">
-                                <div class="zone-label-row">
-                                    <span>Right Lower Lobe (RLL)</span>
-                                    <span class="mono-num" id="zone-rll-val">49%</span>
+                                <div class="multilabel-findings-strip" id="multilabel-findings-strip">
+                                    <!-- Populated dynamically via app.js -->
                                 </div>
-                                <div class="zone-progress"><div class="zone-fill" id="zone-rll-fill"></div></div>
-                            </div>
-                            <div class="zone-bar-wrap">
-                                <div class="zone-label-row">
-                                    <span>Left Upper Lobe (LUL)</span>
-                                    <span class="mono-num" id="zone-lul-val">6%</span>
+                                <div class="multilabel-impression" id="multilabel-impression" style="display: none;">
+                                    <span class="impression-label">CLINICAL IMPRESSION:</span>
+                                    <span class="impression-text" id="multilabel-impression-text"></span>
                                 </div>
-                                <div class="zone-progress"><div class="zone-fill" id="zone-lul-fill"></div></div>
                             </div>
-                            <div class="zone-bar-wrap">
-                                <div class="zone-label-row">
-                                    <span>Left Lower Lobe (LLL)</span>
-                                    <span class="mono-num" id="zone-lll-val">37%</span>
-                                </div>
-                                <div class="zone-progress"><div class="zone-fill" id="zone-lll-fill"></div></div>
-                            </div>
-                        </div>
-                    </div>
 
-                    <!-- Clinical Findings Guidance & Consultation Actions -->
-                    <div class="clinical-findings-box">
-                        <div class="findings-icon">
-                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/>
-                            </svg>
-                        </div>
-                        <div class="findings-text-content">
-                            <h4>Pathological Evaluation & Impression</h4>
-                            <p id="clinical-recommendation-text">High likelihood of consolidative pneumonia detected with localized alveolar opacification.</p>
-                        </div>
-                    </div>
+                            <!-- Anatomical Pulmonary Quadrant Zonation Module -->
+                            <div class="zonation-module" id="zonation-module">
+                                <div class="zonation-header">
+                                    <span class="submodule-title">ANATOMICAL ZONATION</span>
+                                    <span class="dominant-chip" id="dominant-zone-chip">Dominant: RLL</span>
+                                </div>
+                                <div class="zonation-grid">
+                                    <div class="zone-bar-wrap">
+                                        <div class="zone-label-row">
+                                            <span>Right Upper Lobe (RUL)</span>
+                                            <span class="mono-num" id="zone-rul-val">8%</span>
+                                        </div>
+                                        <div class="zone-progress"><div class="zone-fill" id="zone-rul-fill"></div></div>
+                                    </div>
+                                    <div class="zone-bar-wrap">
+                                        <div class="zone-label-row">
+                                            <span>Right Lower Lobe (RLL)</span>
+                                            <span class="mono-num" id="zone-rll-val">49%</span>
+                                        </div>
+                                        <div class="zone-progress"><div class="zone-fill" id="zone-rll-fill"></div></div>
+                                    </div>
+                                    <div class="zone-bar-wrap">
+                                        <div class="zone-label-row">
+                                            <span>Left Upper Lobe (LUL)</span>
+                                            <span class="mono-num" id="zone-lul-val">6%</span>
+                                        </div>
+                                        <div class="zone-progress"><div class="zone-fill" id="zone-lul-fill"></div></div>
+                                    </div>
+                                    <div class="zone-bar-wrap">
+                                        <div class="zone-label-row">
+                                            <span>Left Lower Lobe (LLL)</span>
+                                            <span class="mono-num" id="zone-lll-val">37%</span>
+                                        </div>
+                                        <div class="zone-progress"><div class="zone-fill" id="zone-lll-fill"></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Clinical Findings Guidance & Consultation Actions -->
+                            <div class="clinical-findings-box">
+                                <div class="findings-icon">
+                                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l5.414 5.414a1 1 0 0 1 .293.707V19a2 2 0 0 1-2 2z"/>
+                                    </svg>
+                                </div>
+                                <div class="findings-text-content">
+                                    <h4>Pathological Evaluation</h4>
+                                    <p id="clinical-recommendation-text">High likelihood of consolidative pneumonia detected with localized alveolar opacification.</p>
+                                </div>
+                            </div>
 
-                    <!-- PACS Export Bar -->
-                    <div class="pacs-actions">
-                        <button type="button" class="btn-titanium" id="open-report-btn">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                <polyline points="14 2 14 8 20 8"/>
-                                <line x1="16" y1="13" x2="8" y2="13"/>
-                                <line x1="16" y1="17" x2="8" y2="17"/>
-                            </svg>
-                            🎙️ Clinical Consultation & Voice Report (R)
-                        </button>
-                        <button type="button" class="btn-titanium" id="download-pdf-btn">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                                <polyline points="14 2 14 8 20 8"/>
-                                <line x1="12" y1="18" x2="12" y2="12"/>
-                                <polyline points="9 15 12 18 15 15"/>
-                            </svg>
-                            Download Certified PDF
-                        </button>
-                        <button type="button" class="btn-titanium" id="download-overlay-btn">
-                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                <polyline points="7 10 12 15 17 10"/>
-                                <line x1="12" y1="15" x2="12" y2="3"/>
-                            </svg>
-                            Export Plate
-                        </button>
+                            <!-- PACS Export Bar -->
+                            <div class="pacs-actions">
+                                <button type="button" class="btn-titanium" id="open-report-btn">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                        <line x1="16" y1="13" x2="8" y2="13"/>
+                                        <line x1="16" y1="17" x2="8" y2="17"/>
+                                    </svg>
+                                    🎙️ Consultation & Voice (R)
+                                </button>
+                                <button type="button" class="btn-titanium" id="download-pdf-btn">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                                        <polyline points="14 2 14 8 20 8"/>
+                                        <line x1="12" y1="18" x2="12" y2="12"/>
+                                        <polyline points="9 15 12 18 15 15"/>
+                                    </svg>
+                                    Download PDF
+                                </button>
+                                <button type="button" class="btn-titanium" id="download-overlay-btn">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                        <polyline points="7 10 12 15 17 10"/>
+                                        <line x1="12" y1="15" x2="12" y2="3"/>
+                                    </svg>
+                                    Export Plate
+                                </button>
+                            </div>
+                        </aside>
                     </div>
                 </div>
 

@@ -596,3 +596,56 @@ class AuditDeidentificationResponse(BaseModel):
     phi_detected: List[Dict[str, Any]]
     hipaa_checklist: Dict[str, bool]
     recommendations: List[str]
+
+# --- Option D: Radiology Report Persistence Schemas ---
+
+class SaveReportRequest(BaseModel):
+    study_uid: str
+    patient_mrn: str
+    patient_name: Optional[str] = "Anonymous Patient"
+    examination_technique: Optional[str] = "Chest Radiograph, Single View (AP/PA)."
+    clinical_indication: Optional[str] = "Emergency triage evaluation."
+    findings_lungs: Optional[str] = "Lungs clear bilaterally."
+    findings_pleura: Optional[str] = "Costophrenic sulci clear."
+    findings_cardiomediastinum: Optional[str] = "Normal cardiac silhouette."
+    findings_bones_soft_tissues: Optional[str] = "Intact thoracic cage."
+    impression: str
+    acr_actionable_code: Optional[str] = "ACR Category 3"
+    caliper_measurements: Optional[List[Dict[str, Any]]] = None
+    status: Optional[str] = "FINAL_SIGNED"
+
+class ReportResponse(BaseModel):
+    status: str = "success"
+    report_id: str
+    signature_hash: str
+    signed_at: str
+    study_uid: str
+    patient_mrn: str
+    attesting_physician: str
+    caliper_count: int
+
+class SavedReportDetail(BaseModel):
+    id: str
+    study_uid: str
+    patient_mrn: str
+    patient_name: str
+    user_id: str
+    attesting_physician: str
+    examination_technique: Optional[str] = None
+    clinical_indication: Optional[str] = None
+    findings_lungs: Optional[str] = None
+    findings_pleura: Optional[str] = None
+    findings_cardiomediastinum: Optional[str] = None
+    findings_bones_soft_tissues: Optional[str] = None
+    impression: str
+    acr_actionable_code: Optional[str] = None
+    caliper_measurements: Optional[List[Dict[str, Any]]] = None
+    digital_signature_hash: str
+    status: str
+    signed_at: str
+
+class ReportsListResponse(BaseModel):
+    status: str = "success"
+    total_reports: int
+    reports: List[SavedReportDetail]
+

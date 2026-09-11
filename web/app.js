@@ -228,6 +228,34 @@ document.addEventListener('DOMContentLoaded', () => {
     if (tabBtnWorklist) tabBtnWorklist.addEventListener('click', () => setOperationalTab('worklist'));
     if (tabBtnIngest) tabBtnIngest.addEventListener('click', () => setOperationalTab('ingest'));
 
+    // Sidebar Collapse / Expand (Theater Mode)
+    const sidebarCollapseBtn = document.getElementById('sidebar-collapse-btn');
+    const sidebarExpandBtn = document.getElementById('sidebar-expand-btn');
+    const workstationGrid = document.querySelector('.workstation-grid');
+
+    function toggleSidebar(collapsed) {
+        if (!workstationGrid) return;
+        if (collapsed) {
+            workstationGrid.classList.add('sidebar-collapsed');
+            if (sidebarExpandBtn) sidebarExpandBtn.style.display = 'inline-flex';
+        } else {
+            workstationGrid.classList.remove('sidebar-collapsed');
+            if (sidebarExpandBtn) sidebarExpandBtn.style.display = 'none';
+        }
+        // Trigger canvas resize recalculation after transition
+        setTimeout(() => {
+            window.dispatchEvent(new Event('resize'));
+        }, 270);
+    }
+
+    if (sidebarCollapseBtn) {
+        sidebarCollapseBtn.addEventListener('click', () => toggleSidebar(true));
+    }
+    if (sidebarExpandBtn) {
+        sidebarExpandBtn.addEventListener('click', () => toggleSidebar(false));
+    }
+
+
     // ---------------------------------------------------------
     // 3. EMERGENCY TRIAGE WORKLIST LOGIC
     // ---------------------------------------------------------
@@ -680,6 +708,22 @@ document.addEventListener('DOMContentLoaded', () => {
         // Update Sign-off Button State
         updateSignoffButtonState(study.status === 'SIGNED');
 
+        // Check SQLite database for saved radiology report & calipers
+        fetch(`/api/v1/reports/study/${encodeURIComponent(study.study_id)}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(savedReport => {
+                if (savedReport && savedReport.id) {
+                    study.status = 'SIGNED';
+                    updateSignoffButtonState(true);
+                    if (hudStudyStatus) hudStudyStatus.textContent = 'STATUS: SIGNED (DB)';
+                    if (savedReport.caliper_measurements && Array.isArray(savedReport.caliper_measurements) && savedReport.caliper_measurements.length > 0) {
+                        measurements = savedReport.caliper_measurements;
+                        setTimeout(renderAllMeasurements, 80);
+                    }
+                }
+            })
+            .catch(() => {});
+
         // Construct normalized prediction object for workstation components
         const primaryFinding = study.primary_finding || study.diagnosis;
         const defaultImpression = primaryFinding && primaryFinding !== 'NORMAL'
@@ -817,6 +861,26 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!res.ok) throw new Error('Electronic sign-off attestation failed');
             const data = await res.json();
 
+            // Persist report & caliper measurements to embedded SQLite database
+            try {
+                const reportPayload = {
+                    study_uid: selectedStudyId,
+                    patient_mrn: currentPrediction.dicom_metadata?.patient_id || study.patient_mrn || 'MRN-STAT',
+                    patient_name: currentPrediction.dicom_metadata?.patient_name || study.patient_name || 'Anonymous Patient',
+                    impression: payload.findings_summary,
+                    acr_actionable_code: currentPrediction.is_pneumonia ? "ACR Category 2" : "ACR Category 3",
+                    caliper_measurements: measurements || [],
+                    status: "FINAL_SIGNED"
+                };
+                await fetch('/api/v1/reports/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(reportPayload)
+                });
+            } catch (persistErr) {
+                console.warn('SQLite report persistence background log:', persistErr);
+            }
+
             // Update local study status
             if (study) study.status = 'SIGNED';
             if (currentPrediction) currentPrediction.status = 'SIGNED';
@@ -826,7 +890,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateWorklistCounters();
             renderWorklistQueue();
 
-            showWorkstationToast(`✓ Study Signed: Audit Stamp ${data.audit_hash}`);
+            showWorkstationToast(`✓ Report Signed & Saved to DB: Audit ${data.audit_hash}`);
         } catch (err) {
             console.error('Sign-off error:', err);
             alert('Attestation Error: ' + err.message);
@@ -2732,7 +2796,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         }
 
-        async function switchClinicalPersona(username) {
+        async function switchClinicalPersona(username, showToast = true) {
             try {
                 const res = await fetch('/api/v1/auth/login', {
                     method: 'POST',
@@ -2771,7 +2835,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     btnSignoff.title = canSign ? 'Sign Off & Attest (S)' : 'Restricted: Attending Radiologist Review Required';
                 }
 
-                showWorkstationToast(`👤 Switched Persona: ${currentUserSession.full_name} (${currentUserSession.role})`);
+                if (showToast) {
+                    showWorkstationToast(`👤 Switched Persona: ${currentUserSession.full_name} (${currentUserSession.role})`);
+                }
             } catch (err) {
                 console.error('Failed to switch persona:', err);
             }
@@ -2781,12 +2847,12 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (rolePopover) rolePopover.style.display = 'none';
-                switchClinicalPersona(btn.dataset.username);
+                switchClinicalPersona(btn.dataset.username, true);
             });
         });
 
-        // Initialize default Attending login
-        switchClinicalPersona('dr.vance');
+        // Initialize default Attending login without intrusive boot toast
+        switchClinicalPersona('dr.vance', false);
     }
 
     // ---------------------------------------------------------
