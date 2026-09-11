@@ -1376,6 +1376,48 @@ async def get_tri_planar_mpr(series_id: str, req: VolumetricMPRRequest):
         )
     except KeyError:
         raise HTTPException(status_code=404, detail=f"Volumetric series '{series_id}' not found.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"MPR processing error: {str(e)}")
+
+@router.post("/api/v1/volumetric/upload-series", tags=["3D Volumetric CT & MPR"])
+async def upload_volumetric_ct_series(
+    files: List[UploadFile] = File(..., description="Multiple DICOM CT slice files (.dcm) forming a 3D volume"),
+    series_name: Optional[str] = Form(None, description="Optional clinical label for the reconstructed 3D volume")
+):
+    """
+    Assembles a cohort of uploaded native DICOM CT slices into an active 3D volume.
+    Calibrates Hounsfield Units, sorts spatially by Z-slice coordinate, and registers into the MPR engine.
+    """
+    import pydicom
+    import io
+
+    datasets = []
+    for f in files:
+        raw_bytes = await f.read()
+        if len(raw_bytes) > 0:
+            try:
+                ds = pydicom.dcmread(io.BytesIO(raw_bytes), force=True)
+                if hasattr(ds, "pixel_array"):
+                    datasets.append(ds)
+            except Exception:
+                continue
+
+    if not datasets:
+        raise HTTPException(
+            status_code=400,
+            detail="No valid DICOM CT slices with readable pixel arrays were uploaded."
+        )
+
+    engine = get_volumetric_engine()
+    try:
+        vol_meta = engine.register_uploaded_dicom_series(datasets, series_name=series_name)
+        return {
+            "status": "success",
+            "message": f"Successfully reconstructed 3D CT volume from {len(datasets)} uploaded DICOM slices.",
+            "series": vol_meta.model_dump()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"3D CT volume assembly error: {str(e)}")
 
 
 # --- 4. Hospital Modality & VNA Simulator ---

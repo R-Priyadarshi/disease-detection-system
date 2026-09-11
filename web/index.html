@@ -9,6 +9,10 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/style.css">
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#020617">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 </head>
 <body>
     <div class="workstation-container">
@@ -2081,5 +2085,18 @@ Click "Transmit Order" or "Generate Results" to test live MLLP / JSON parsing.</
 
 
     <script src="/static/app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/service-worker.js')
+                    .then(reg => {
+                        console.log('[ALVEON PWA] Service Worker active with scope:', reg.scope);
+                    })
+                    .catch(err => {
+                        console.warn('[ALVEON PWA] Service Worker registration failed:', err);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>

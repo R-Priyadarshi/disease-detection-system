@@ -52,6 +52,20 @@ def create_app() -> FastAPI:
                 return FileResponse(str(index_file))
             return {"message": f"{settings.PROJECT_NAME} is active. Visit /docs for API documentation."}
 
+        @app.api_route("/manifest.json", methods=["GET", "HEAD"], include_in_schema=False)
+        async def serve_manifest():
+            manifest_file = web_dir / "manifest.json"
+            if manifest_file.exists():
+                return FileResponse(str(manifest_file), media_type="application/manifest+json")
+            return {"error": "manifest.json not found"}
+
+        @app.api_route("/service-worker.js", methods=["GET", "HEAD"], include_in_schema=False)
+        async def serve_service_worker():
+            sw_file = web_dir / "service-worker.js"
+            if sw_file.exists():
+                return FileResponse(str(sw_file), media_type="application/javascript")
+            return {"error": "service-worker.js not found"}
+
     return app
 
 app = create_app()

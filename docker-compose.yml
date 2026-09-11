@@ -21,6 +21,7 @@ services:
       - ORTHANC_HOST=orthanc
       - ORTHANC_HTTP_PORT=8042
       - ORTHANC_DICOM_PORT=4242
+      - DATABASE_URL=postgresql://alveon_user:alveon_secure_pass@postgres:5432/alveon_clinical_db
     volumes:
       - alveon_dicom_storage:/app/data/dicom_storage
       - alveon_data:/app/data
@@ -33,6 +34,29 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - alveon-network
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: alveon-postgres-db
+    restart: always
+    environment:
+      - POSTGRES_USER=alveon_user
+      - POSTGRES_PASSWORD=alveon_secure_pass
+      - POSTGRES_DB=alveon_clinical_db
+    volumes:
+      - alveon_postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U alveon_user -d alveon_clinical_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - alveon-network
 
@@ -78,4 +102,6 @@ volumes:
   alveon_data:
     driver: local
   orthanc_storage:
+    driver: local
+  alveon_postgres_data:
     driver: local

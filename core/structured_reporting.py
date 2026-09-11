@@ -130,12 +130,17 @@ class StructuredReportingEngine:
         if isinstance(zone, dict):
             dom_zone = zone.get("predominant_zone") or zone.get("dominant_zone") or "Right Lower Lobe"
 
-        # Check specific condition flags
-        has_pneu = any((f.get("finding_key") == "PNEUMONIA" or "pneumonia" in f.get("label", "").lower()) and (f.get("is_detected") or f.get("status") == "POSITIVE") for f in findings) or "PNEUMONIA" in diag
-        has_ptx = any((f.get("finding_key") == "PNEUMOTHORAX" or "pneumothorax" in f.get("label", "").lower()) and (f.get("is_detected") or f.get("status") == "POSITIVE") for f in findings) or "PNEUMOTHORAX" in diag
-        has_eff = any((f.get("finding_key") == "EFFUSION" or "effusion" in f.get("label", "").lower()) and (f.get("is_detected") or f.get("status") == "POSITIVE") for f in findings) or "EFFUSION" in diag
-        has_cardio = any((f.get("finding_key") == "CARDIOMEGALY" or "cardiomegaly" in f.get("label", "").lower()) and (f.get("is_detected") or f.get("status") == "POSITIVE") for f in findings) or "CARDIOMEGALY" in diag
-        has_atelectasis = any((f.get("finding_key") == "ATELECTASIS" or "atelectasis" in f.get("label", "").lower()) and (f.get("is_detected") or f.get("status") == "POSITIVE") for f in findings)
+        # Check specific condition flags across full 14 NIH findings
+        has_pneu = any((f.get("finding_key") == "PNEUMONIA" or "pneumonia" in f.get("label", "").lower() or f.get("name") == "PNEUMONIA") and (f.get("is_detected") or f.get("status") == "POSITIVE") for f in findings) or "PNEUMONIA" in diag
+        has_ptx = any((f.get("finding_key") == "PNEUMOTHORAX" or "pneumothorax" in f.get("label", "").lower() or f.get("name") == "PNEUMOTHORAX") and (f.get("is_detected") or f.get("status") == "POSITIVE") for f in findings) or "PNEUMOTHORAX" in diag
+        has_eff = any((f.get("finding_key") == "PLEURAL_EFFUSION" or "effusion" in f.get("label", "").lower() or f.get("name") == "PLEURAL_EFFUSION") and (f.get("is_detected") or f.get("status") == "POSITIVE") for f in findings) or "EFFUSION" in diag
+        has_cardio = any((f.get("finding_key") == "CARDIOMEGALY" or "cardiomegaly" in f.get("label", "").lower() or f.get("name") == "CARDIOMEGALY") and (f.get("is_detected") or f.get("status") == "POSITIVE") for f in findings) or "CARDIOMEGALY" in diag
+        has_atelectasis = any((f.get("finding_key") == "ATELECTASIS" or "atelectasis" in f.get("label", "").lower() or f.get("name") == "ATELECTASIS") and (f.get("is_detected") or f.get("status") == "POSITIVE") for f in findings)
+        has_edema = any((f.get("name") == "EDEMA" or "edema" in f.get("label", "").lower()) and f.get("is_detected") for f in findings)
+        has_mass = any((f.get("name") == "MASS" or "mass" in f.get("label", "").lower()) and f.get("is_detected") for f in findings)
+        has_nodule = any((f.get("name") == "NODULE" or "nodule" in f.get("label", "").lower()) and f.get("is_detected") for f in findings)
+        has_emphysema = any((f.get("name") == "EMPHYSEMA" or "emphysema" in f.get("label", "").lower()) and f.get("is_detected") for f in findings)
+        has_fibrosis = any((f.get("name") == "FIBROSIS" or "fibrosis" in f.get("label", "").lower()) and f.get("is_detected") for f in findings)
 
         report = StructuredReportModel()
         report.clinical_indication = f"ER evaluation for {patient_name} ({patient_mrn}). Rule out acute thoracic pathology."
@@ -144,18 +149,28 @@ class StructuredReportingEngine:
         if has_pneu:
             report.findings_lungs = (
                 f"Focal alveolar airspace consolidation with air bronchograms identified predominantly in the {dom_zone} "
-                f"({conf}% AI diagnostic certainty). No cavitary lesions or miliary pattern."
+                f"({conf}% AI diagnostic certainty). No cavitary breakdown."
             )
+        elif has_edema:
+            report.findings_lungs = "Diffuse bilateral perihilar batwing vascular opacities consistent with alveolar interstitial edema."
+        elif has_mass:
+            report.findings_lungs = "Focal well-demarcated parenchymal mass lesion exceeding 30mm identified in mid pulmonary zone."
+        elif has_nodule:
+            report.findings_lungs = "Solitary non-calcified circumscribed pulmonary nodule (<30mm). Follow-up Fleischner CT recommended."
+        elif has_emphysema:
+            report.findings_lungs = "Bilateral lung hyperinflation with flattening of diaphragmatic leaves consistent with chronic emphysema."
+        elif has_fibrosis:
+            report.findings_lungs = "Coarse reticular linear interstitial opacities with volume traction in peripheral subpleural bases."
         elif has_atelectasis:
-            report.findings_lungs = f"Subsegmental linear discoid atelectatic opacities in the lung bases. No focal consolidative pneumonia."
+            report.findings_lungs = "Subsegmental linear discoid atelectatic opacities in the lung bases. No focal consolidative pneumonia."
         elif has_ptx:
-            report.findings_lungs = f"Apical visceral pleural reflection with absence of peripheral lung vascular markings. Hyperlucent pleural space."
+            report.findings_lungs = "Apical visceral pleural reflection with absence of peripheral lung vascular markings. Hyperlucent pleural space."
         else:
             report.findings_lungs = "Lungs are well-expanded and clear bilaterally without focal consolidation, mass, or edema."
 
         # Pleura
         if has_ptx:
-            report.findings_pleura = "Acute pneumothorax. Apical pleural cap separation. Urgent evaluation required."
+            report.findings_pleura = "Acute pneumothorax. Apical pleural cap separation. Urgent clinical evaluation required."
         elif has_eff:
             report.findings_pleura = "Blunting of the costophrenic angle consistent with dependent pleural fluid accumulation / effusion."
         else:
@@ -169,15 +184,26 @@ class StructuredReportingEngine:
 
         # Impression & ACR Codes
         if has_ptx:
-            report.impression = "1. STAT CRITICAL: Tension pneumothorax identified. Immediate clinical intervention indicated."
+            report.impression = "1. STAT CRITICAL: Tension pneumothorax identified. Immediate thoracic decompression indicated."
             report.acr_actionable_code = "ACR Category 1 (Critical Finding - Immediate Verbal Notification)"
         elif has_pneu:
-            report.impression = f"1. Acute focal pneumonia localized to the {dom_zone}. Clinical correlation recommended."
+            report.impression = f"1. Acute focal pneumonia localized to the {dom_zone}. Clinical correlation and targeted antibiotic therapy advised."
             report.acr_actionable_code = "ACR Category 2 (Urgent Finding - Notification within 2 Hours)"
+        elif has_edema:
+            report.impression = "1. Severe cardiogenic / non-cardiogenic pulmonary edema with perihilar congestion. Urgent diuresis evaluation recommended."
+            report.acr_actionable_code = "ACR Category 1 (Critical Finding - Immediate Verbal Notification)"
+        elif has_mass:
+            report.impression = "1. Solitary pulmonary mass lesion >30mm. High-resolution diagnostic chest CT with IV contrast strongly recommended."
+            report.acr_actionable_code = "ACR Category 2 (Urgent Finding - Actionable Notification)"
         elif has_eff or has_cardio:
-            report.impression = "1. Evidence of cardiomegaly and/or pleural effusion. Recommend echocardiography and clinical review."
+            report.impression = "1. Evidence of cardiomegaly and/or pleural effusion. Recommend clinical review and diagnostic echocardiography."
             report.acr_actionable_code = "ACR Category 2 (Urgent Finding)"
+        elif has_nodule:
+            report.impression = "1. Indeterminate solitary pulmonary nodule. High-resolution chest CT advised per Fleischner Society guidelines."
+            report.acr_actionable_code = "ACR Category 3 (Routine / Non-Critical Finding)"
         else:
+            report.impression = "1. No acute cardiopulmonary abnormality detected. Bilateral clear lung fields."
+            report.acr_actionable_code = "ACR Category 3 (Routine / Negative)"
             report.impression = "1. No acute cardiopulmonary abnormality. Normal chest radiograph."
             report.acr_actionable_code = "ACR Category 3 (Routine / Negative)"
 

@@ -1,0 +1,33 @@
+{
+  "name": "ALVEON Clinical PACS & Diagnostic AI",
+  "short_name": "ALVEON PACS",
+  "description": "Enterprise Zero-Footprint Diagnostic Radiography Workstation, 3D Volumetric CT & Emergency Triage AI",
+  "start_url": "/workstation",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#020617",
+  "theme_color": "#0f172a",
+  "categories": ["medical", "health", "productivity"],
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Emergency Triage",
+      "short_name": "Triage",
+      "description": "Open Emergency Department Acuity Worklist",
+      "url": "/workstation"
+    },
+    {
+      "name": "Clinical Showcase",
+      "short_name": "Showcase",
+      "description": "View Platform Benchmarks & Overview",
+      "url": "/landing"
+    }
+  ]
+}

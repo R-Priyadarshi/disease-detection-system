@@ -17,12 +17,38 @@ import json
 import time
 import datetime
 from pathlib import Path
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional, Tuple, Union
+import logging
+
+logger = logging.getLogger("alveon.database")
 
 DB_PATH = Path(os.environ.get("ALVEON_DB_PATH", Path(__file__).resolve().parent.parent / "data" / "alveon.db"))
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-def get_db_connection() -> sqlite3.Connection:
-    """Creates a thread-safe connection to the SQLite database with WAL mode."""
+def get_db_type() -> str:
+    """Returns the active database engine type ('postgresql' or 'sqlite')."""
+    if DATABASE_URL and (DATABASE_URL.startswith("postgresql://") or DATABASE_URL.startswith("postgres://")):
+        return "postgresql"
+    return "sqlite"
+
+def get_db_connection():
+    """
+    Creates a thread-safe connection to the clinical database.
+    Defaults to embedded SQLite with Write-Ahead Logging (WAL) mode for zero-cost operation.
+    Optionally connects to enterprise PostgreSQL when DATABASE_URL is configured.
+    """
+    db_type = get_db_type()
+    if db_type == "postgresql":
+        try:
+            import psycopg2
+            import psycopg2.extras
+            conn = psycopg2.connect(DATABASE_URL)
+            conn.cursor_factory = psycopg2.extras.DictCursor
+            return conn
+        except Exception as e:
+            logger.warning(f"PostgreSQL connection failed ({e}); falling back smoothly to local SQLite.")
+
+    # SQLite (Zero-cost, built-in, thread-safe WAL mode)
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(DB_PATH), timeout=15.0)
     conn.row_factory = sqlite3.Row

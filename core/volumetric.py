@@ -6,6 +6,7 @@ Hounsfield Unit (HU) windowing transformations, and cine loop navigation.
 
 import io
 import base64
+import uuid
 import numpy as np
 from PIL import Image
 from typing import Dict, Any, List, Optional, Tuple
@@ -393,6 +394,73 @@ class VolumetricCTEngine:
                 "metadata": sag_meta
             }
         }
+
+    def register_uploaded_dicom_series(
+        self,
+        dicom_datasets: List[Any],
+        series_name: Optional[str] = None
+    ) -> VolumetricSeries:
+        """
+        Assembles a cohort of real multi-slice DICOM CT datasets into a calibrated 3D volume.
+        Sorts slices spatially along the patient's anatomical longitudinal Z-axis using ImagePositionPatient.
+        Calibrates raw pixel arrays into true Hounsfield Units: HU = PixelValue * RescaleSlope + RescaleIntercept.
+        """
+        if not dicom_datasets:
+            raise ValueError("No DICOM datasets provided for 3D reconstruction.")
+
+        # Filter out datasets without pixel data
+        slices = [ds for ds in dicom_datasets if hasattr(ds, "pixel_array")]
+        if not slices:
+            raise ValueError("Uploaded DICOM slices do not contain valid pixel arrays.")
+
+        # Sort slices by spatial coordinate: ImagePositionPatient[2] (Z axis) or InstanceNumber
+        def get_z_pos(ds):
+            if hasattr(ds, "ImagePositionPatient") and len(ds.ImagePositionPatient) >= 3:
+                try:
+                    return float(ds.ImagePositionPatient[2])
+                except Exception:
+                    pass
+            return float(getattr(ds, "InstanceNumber", 0))
+
+        slices.sort(key=get_z_pos)
+
+        # Extract dimensions and calibration
+        sample = slices[0]
+        h, w = sample.pixel_array.shape[:2]
+        depth = len(slices)
+
+        slope = float(getattr(sample, "RescaleSlope", 1.0))
+        intercept = float(getattr(sample, "RescaleIntercept", -1024.0 if getattr(sample, "Modality", "") == "CT" else 0.0))
+
+        vol_hu = np.zeros((depth, h, w), dtype=np.int16)
+
+        for i, s in enumerate(slices):
+            arr = s.pixel_array.astype(np.float32)
+            hu_slice = np.clip(arr * slope + intercept, -1024, 3071).astype(np.int16)
+            vol_hu[i] = hu_slice
+
+        series_uid = str(getattr(sample, "SeriesInstanceUID", f"SERIES-REAL-CT-{uuid.uuid4().hex[:6].upper()}"))
+        pat_id = str(getattr(sample, "PatientID", f"MRN-{uuid.uuid4().hex[:5].upper()}"))
+        pat_name = str(getattr(sample, "PatientName", "CT^CLINICAL_PATIENT")).replace("^", " ")
+        thick = float(getattr(sample, "SliceThickness", 2.5))
+        spacing = [float(x) for x in getattr(sample, "PixelSpacing", [1.0, 1.0])]
+
+        vol_meta = VolumetricSeries(
+            series_id=series_uid,
+            patient_id=pat_id,
+            patient_name=pat_name,
+            modality=str(getattr(sample, "Modality", "CT")),
+            description=series_name or str(getattr(sample, "SeriesDescription", f"Uploaded 3D CT Volume ({depth} Slices)")),
+            num_slices=depth,
+            dimensions=[depth, h, w],
+            slice_thickness_mm=thick,
+            pixel_spacing_mm=spacing,
+            default_window="LUNG" if "CHEST" in str(getattr(sample, "StudyDescription", "")).upper() else "BRAIN"
+        )
+
+        self._volumes[series_uid] = vol_hu
+        self._metadata[series_uid] = vol_meta
+        return vol_meta
 
 
 def get_volumetric_engine() -> VolumetricCTEngine:

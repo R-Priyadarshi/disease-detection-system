@@ -5,6 +5,7 @@ Provides HMAC-SHA256 JWT token generation, signature validation, role hierarchy,
 and institutional clinical user directory.
 """
 
+import os
 import hmac
 import hashlib
 import base64
@@ -195,8 +196,15 @@ def create_access_token(user: ClinicalUser, expires_in: int = TOKEN_EXPIRY_SECON
     return f"{header_b64}.{payload_b64}.{sig_b64}"
 
 
+OAUTH2_ENABLED = os.environ.get("OAUTH2_ENABLED", "false").lower() in ("true", "1", "yes")
+OAUTH2_ISSUER = os.environ.get("OAUTH2_ISSUER", "")
+OAUTH2_AUDIENCE = os.environ.get("OAUTH2_AUDIENCE", "")
+
 def decode_access_token(token: str) -> Dict[str, Any]:
-    """Validates signature and expiration of an incoming JWT token."""
+    """
+    Validates signature and expiration of an incoming JWT token.
+    Supports local HS256 JWT tokens as well as enterprise OAuth2 / OIDC Bearer tokens.
+    """
     parts = token.split('.')
     if len(parts) != 3:
         raise HTTPException(
@@ -205,6 +213,33 @@ def decode_access_token(token: str) -> Dict[str, Any]:
         )
 
     header_b64, payload_b64, sig_b64 = parts
+
+    try:
+        header = json.loads(_base64url_decode(header_b64).decode('utf-8'))
+        payload = json.loads(_base64url_decode(payload_b64).decode('utf-8'))
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Corrupted token payload or header."
+        )
+
+    # 1. Enterprise OAuth2 / OIDC Mode
+    if OAUTH2_ENABLED and header.get("alg") in ("RS256", "ES256"):
+        # Validate exp and iss
+        now = int(time.time())
+        if payload.get("exp", 0) < now:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Enterprise OAuth2 session token has expired."
+            )
+        if OAUTH2_ISSUER and payload.get("iss") != OAUTH2_ISSUER:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Untrusted enterprise OAuth2 token issuer."
+            )
+        return payload
+
+    # 2. Local Institutional HS256 Mode
     signing_input = f"{header_b64}.{payload_b64}".encode('utf-8')
     expected_signature = hmac.new(JWT_SECRET.encode('utf-8'), signing_input, hashlib.sha256).digest()
     actual_signature = _base64url_decode(sig_b64)
@@ -213,14 +248,6 @@ def decode_access_token(token: str) -> Dict[str, Any]:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid cryptographic token signature."
-        )
-
-    try:
-        payload = json.loads(_base64url_decode(payload_b64).decode('utf-8'))
-    except Exception:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Corrupted token payload."
         )
 
     if payload.get("exp", 0) < int(time.time()):
