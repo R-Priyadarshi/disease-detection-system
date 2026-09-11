@@ -65,6 +65,7 @@ async function runWorkstationDeepDive(page, baseUrl, label) {
 
     // 2. Check Header & Telemetry Bar
     console.log('\n--- Checking Header & Master Navigation ---');
+    await page.waitForSelector('#pacs-header, header', { timeout: 30000 });
     const headerTitle = await page.$eval('#pacs-header, header', el => el ? el.innerText : '');
     check(headerTitle.includes('ALVEON'), 'Header brand title contains ALVEON');
 

@@ -686,8 +686,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---------------------------------------------------------
     // 4. ZERO-LATENCY STUDY VIEWPORT SWITCHER
     // ---------------------------------------------------------
-    function loadWorklistStudy(study) {
+    function loadWorklistStudy(study, skipBroadcast = false) {
         selectedStudyId = study.study_id;
+
+        if (!skipBroadcast && typeof broadcastStudyNavigate === 'function') {
+            broadcastStudyNavigate(study.study_id);
+        }
 
         // Re-highlight active study card
         document.querySelectorAll('.study-card').forEach(card => {
@@ -1068,6 +1072,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (typeof setActiveMeasureTool === 'function') {
                 setActiveMeasureTool('pointer');
                 showWorkstationToast('Pointer / Split Wipe Mode Active');
+            }
+        }
+        if (e.key === 'l' || e.key === 'L') {
+            if (typeof setActiveMeasureTool === 'function') {
+                setActiveMeasureTool('laser');
+                showWorkstationToast('🔴 Live Collaborative Laser Pointer Active');
             }
         }
 
@@ -1866,10 +1876,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---------------------------------------------------------
     function resetSplitSlider() { setSplitPosition(50); }
 
-    function setSplitPosition(pct) {
+    function setSplitPosition(pct, skipBroadcast = false) {
         const clamped = Math.max(0, Math.min(100, pct));
         if (splitSliderWrapper) splitSliderWrapper.style.setProperty('--split-pos', `${clamped}%`);
         if (sliderHandle) sliderHandle.style.left = `${clamped}%`;
+        if (!skipBroadcast && typeof broadcastViewportSync === 'function') {
+            broadcastViewportSync({ split_position: Math.round(clamped) });
+        }
     }
 
     function onPointerDown(e) {
@@ -1913,11 +1926,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    function applyViewMode(mode) {
+    function applyViewMode(mode, skipBroadcast = false) {
         currentViewMode = mode;
         document.querySelectorAll('#viewport-modes .view-mode-btn').forEach(b => {
             b.classList.toggle('active', b.dataset.mode === mode);
         });
+
+        if (!skipBroadcast && typeof broadcastViewportSync === 'function') {
+            broadcastViewportSync({ view_mode: mode });
+        }
 
         if (!splitSliderWrapper || !sideBySideWrapper || !splitClipped || !sliderHandle) return;
 
@@ -2136,6 +2153,14 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 dicomViewportElem.classList.remove('measuring');
             }
+            if (tool === 'laser') {
+                dicomViewportElem.classList.add('laser-active');
+            } else {
+                dicomViewportElem.classList.remove('laser-active');
+                if (typeof broadcastLaserPointer === 'function') {
+                    broadcastLaserPointer(0.5, 0.5, false);
+                }
+            }
         }
 
         if (tool !== 'ctr') {
@@ -2157,6 +2182,9 @@ document.addEventListener('DOMContentLoaded', () => {
             currentDrawing = null;
             ctrPendingCardiac = null;
             renderAllMeasurements();
+            if (typeof broadcastClearAnnotations === 'function') {
+                broadcastClearAnnotations();
+            }
             showWorkstationToast('All viewport calipers and markups cleared.');
         });
     }
@@ -2397,7 +2425,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Canvas Mouse & Touch Event Handlers
     if (pacsCanvas) {
         function handleStart(e) {
-            if (activeMeasureTool === 'pointer') return;
+            if (activeMeasureTool === 'pointer' || activeMeasureTool === 'laser') return;
             e.preventDefault();
             const coords = getCanvasCoords(e);
             currentDrawing = {
@@ -2411,6 +2439,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function handleMove(e) {
+            if (activeMeasureTool === 'laser') {
+                if (!pacsCanvas) return;
+                const rect = pacsCanvas.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                    const normX = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+                    const normY = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
+                    if (typeof broadcastLaserPointer === 'function') {
+                        broadcastLaserPointer(normX, normY, true);
+                    }
+                }
+                return;
+            }
             if (!currentDrawing) return;
             e.preventDefault();
             const coords = getCanvasCoords(e);
@@ -2433,15 +2475,17 @@ document.addEventListener('DOMContentLoaded', () => {
             // Minimum length check (6px) to avoid accidental taps
             if (dist >= 6) {
                 const mmPerPx = getMmPerPixel();
+                let addedMeasurement = null;
                 if (currentDrawing.tool === 'ruler') {
-                    measurements.push({
+                    addedMeasurement = {
                         type: 'ruler',
                         x1: currentDrawing.startX,
                         y1: currentDrawing.startY,
                         x2: currentDrawing.currentX,
                         y2: currentDrawing.currentY,
                         mm: dist * mmPerPx
-                    });
+                    };
+                    measurements.push(addedMeasurement);
                 } else if (currentDrawing.tool === 'ctr') {
                     if (!ctrPendingCardiac) {
                         ctrPendingCardiac = {
@@ -2461,12 +2505,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             mm: dist * mmPerPx
                         };
                         const ratio = ctrPendingCardiac.mm / Math.max(thoracic.mm, 0.1);
-                        measurements.push({
+                        addedMeasurement = {
                             type: 'ctr',
                             cardiac: ctrPendingCardiac,
                             thoracic: thoracic,
                             ratio: ratio
-                        });
+                        };
+                        measurements.push(addedMeasurement);
                         ctrPendingCardiac = null;
                         showWorkstationToast(`CTR Computed: ${ratio.toFixed(2)} (${ratio > 0.50 ? 'Cardiomegaly' : 'Normal'})`);
                     }
@@ -2476,20 +2521,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     const rx = Math.abs(currentDrawing.currentX - currentDrawing.startX) / 2;
                     const ry = Math.abs(currentDrawing.currentY - currentDrawing.startY) / 2;
                     const areaMm2 = Math.PI * (rx * mmPerPx) * (ry * mmPerPx);
-                    measurements.push({
+                    addedMeasurement = {
                         type: 'roi',
                         cx, cy, rx, ry,
                         areaCm2: areaMm2 / 100.0
-                    });
+                    };
+                    measurements.push(addedMeasurement);
                 } else if (currentDrawing.tool === 'arrow') {
-                    measurements.push({
+                    addedMeasurement = {
                         type: 'arrow',
                         x1: currentDrawing.startX,
                         y1: currentDrawing.startY,
                         x2: currentDrawing.currentX,
                         y2: currentDrawing.currentY,
                         label: 'Pathology Focus'
-                    });
+                    };
+                    measurements.push(addedMeasurement);
+                }
+
+                if (addedMeasurement && typeof broadcastCaliper === 'function') {
+                    broadcastCaliper(addedMeasurement);
                 }
             }
 
@@ -2500,6 +2551,12 @@ document.addEventListener('DOMContentLoaded', () => {
         pacsCanvas.addEventListener('mousedown', handleStart);
         window.addEventListener('mousemove', handleMove);
         window.addEventListener('mouseup', handleEnd);
+
+        pacsCanvas.addEventListener('mouseleave', () => {
+            if (activeMeasureTool === 'laser' && typeof broadcastLaserPointer === 'function') {
+                broadcastLaserPointer(0.5, 0.5, false);
+            }
+        });
 
         pacsCanvas.addEventListener('touchstart', handleStart, { passive: false });
         window.addEventListener('touchmove', handleMove, { passive: false });
@@ -2768,13 +2825,20 @@ document.addEventListener('DOMContentLoaded', () => {
     // v4.0 ENTERPRISE MODULES: AUTH/RBAC, 3D VOLUMETRIC MPR, HIPAA AUDIT LEDGER
     // =========================================================================
 
-    let currentUserSession = {
+    const urlUserParam = (new URLSearchParams(window.location.search)).get('user');
+    let currentUserSession = window.__customUserPersona || (urlUserParam === 'dr.adams' || urlUserParam === 'adams' ? {
+        username: "dr.adams",
+        full_name: "Dr. Sarah Adams, MD",
+        role: "REFERRING_PHYSICIAN",
+        initials: "SA",
+        token: null
+    } : {
         username: "dr.vance",
         full_name: "Dr. Eleanor Vance, MD",
         role: "ATTENDING_RADIOLOGIST",
         initials: "EV",
         token: null
-    };
+    });
 
     // ---------------------------------------------------------
     // 19. USER AUTHENTICATION & ROLE-BASED ACCESS CONTROL (RBAC)
@@ -4834,6 +4898,432 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---------------------------------------------------------
+    // 32. REAL-TIME TELE-RADIOLOGY & MULTI-USER WEBSOCKET COLLABORATION
+    // ---------------------------------------------------------
+    let teleSocket = null;
+    let activeTeleSessionId = "SESSION-STUDY-CHEST-9901";
+    let isTeleMirrorActive = true;
+    let telePingTimer = null;
+    let lastSplitBroadcastTime = 0;
+    let lastLaserBroadcastTime = 0;
+
+    function broadcastTeleMessage(payload) {
+        if (teleSocket && teleSocket.readyState === WebSocket.OPEN) {
+            try {
+                teleSocket.send(JSON.stringify(payload));
+            } catch (err) {
+                console.warn('[Tele-Radiology WS] Send failed:', err);
+            }
+        }
+    }
+
+    function broadcastLaserPointer(x, y, active) {
+        const now = Date.now();
+        if (active && (now - lastLaserBroadcastTime < 25)) return; // 40 Hz throttle
+        lastLaserBroadcastTime = now;
+        broadcastTeleMessage({
+            type: "LASER_POINTER",
+            x: Number(x.toFixed(4)),
+            y: Number(y.toFixed(4)),
+            active: !!active
+        });
+    }
+
+    function broadcastViewportSync(viewportState) {
+        const now = Date.now();
+        if (viewportState.split_position !== undefined) {
+            if (now - lastSplitBroadcastTime < 40) return; // 25 Hz throttle
+            lastSplitBroadcastTime = now;
+        }
+        broadcastTeleMessage({
+            type: "VIEWPORT_SYNC",
+            viewport: viewportState
+        });
+    }
+
+    function broadcastCaliper(annotation) {
+        broadcastTeleMessage({
+            type: "CALIPER_SYNC",
+            annotation: annotation
+        });
+    }
+
+    function broadcastClearAnnotations() {
+        broadcastTeleMessage({
+            type: "CLEAR_ANNOTATIONS"
+        });
+    }
+
+    function broadcastStudyNavigate(studyId) {
+        broadcastTeleMessage({
+            type: "STUDY_NAVIGATE",
+            study_id: studyId
+        });
+    }
+
+    // Expose for programmatic and test access
+    window.AlveonTeleRadiology = {
+        getSocket: () => teleSocket,
+        getSessionId: () => activeTeleSessionId,
+        getMeasurements: () => measurements,
+        broadcastMessage: broadcastTeleMessage,
+        broadcastLaser: broadcastLaserPointer,
+        broadcastViewport: broadcastViewportSync,
+        broadcastCaliper: broadcastCaliper,
+        broadcastClear: broadcastClearAnnotations,
+        broadcastStudy: broadcastStudyNavigate
+    };
+    Object.defineProperty(window, 'measurements', {
+        get: () => measurements,
+        set: (val) => { measurements = val; },
+        configurable: true
+    });
+    window.broadcastLaserPointer = broadcastLaserPointer;
+    window.broadcastCaliper = broadcastCaliper;
+    window.broadcastViewportSync = broadcastViewportSync;
+    window.broadcastClearAnnotations = broadcastClearAnnotations;
+    window.broadcastStudyNavigate = broadcastStudyNavigate;
+    window.setSplitPosition = setSplitPosition;
+    window.applyViewMode = applyViewMode;
+
+    function initTeleRadiology() {
+        const teleCollabBtn = document.getElementById('tele-collab-btn');
+        const teleDialog = document.getElementById('tele-collab-dialog');
+        const closeBtn = document.getElementById('close-tele-collab-btn');
+        const dismissBtn = document.getElementById('dismiss-tele-collab-btn');
+        const copyLinkBtn = document.getElementById('copy-tele-session-link-btn');
+        const mirrorToggle = document.getElementById('tele-mirror-toggle');
+        const connectionIndicator = document.getElementById('tele-connection-indicator');
+        const sessionIdDisplay = document.getElementById('tele-session-id-display');
+        const currentUserNameDisplay = document.getElementById('tele-current-user-name');
+        const rosterCount = document.getElementById('tele-roster-count');
+        const rosterList = document.getElementById('tele-roster-list');
+        const chatStream = document.getElementById('tele-chat-stream');
+        const chatForm = document.getElementById('tele-chat-form');
+        const chatInput = document.getElementById('tele-chat-input');
+        const latencyDisplay = document.getElementById('tele-latency-display');
+        const remoteLaser = document.getElementById('remote-laser-reticle');
+        const laserPeerLabel = document.getElementById('laser-peer-label');
+
+        // Parse session from URL or default
+        const urlParams = new URLSearchParams(window.location.search);
+        const paramSession = urlParams.get('teleSession') || urlParams.get('session');
+        if (paramSession) {
+            activeTeleSessionId = paramSession.trim();
+        } else if (selectedStudyId) {
+            activeTeleSessionId = `SESSION-${selectedStudyId}`;
+        }
+
+        if (sessionIdDisplay) sessionIdDisplay.textContent = activeTeleSessionId;
+        if (currentUserNameDisplay && currentUserSession) {
+            currentUserNameDisplay.textContent = `${currentUserSession.full_name} (${currentUserSession.role.replace('_', ' ')})`;
+        }
+
+        if (mirrorToggle) {
+            mirrorToggle.addEventListener('change', () => {
+                isTeleMirrorActive = mirrorToggle.checked;
+                showWorkstationToast(isTeleMirrorActive ? '🔄 Viewport Mirroring Enabled' : '⏸️ Viewport Mirroring Paused (Independent Mode)');
+            });
+        }
+
+        // Open/Close modal
+        if (teleCollabBtn && teleDialog) {
+            teleCollabBtn.addEventListener('click', () => {
+                teleDialog.showModal();
+            });
+        }
+        if (closeBtn && teleDialog) {
+            closeBtn.addEventListener('click', () => teleDialog.close());
+        }
+        if (dismissBtn && teleDialog) {
+            dismissBtn.addEventListener('click', () => teleDialog.close());
+        }
+
+        // Copy shareable consultation link
+        if (copyLinkBtn) {
+            copyLinkBtn.addEventListener('click', () => {
+                const url = new URL(window.location.href);
+                url.searchParams.set('teleSession', activeTeleSessionId);
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(url.toString()).then(() => {
+                        showWorkstationToast('📋 Tele-Radiology Consultation Link Copied!');
+                    }).catch(() => {
+                        prompt('Copy Consultation Link:', url.toString());
+                    });
+                } else {
+                    prompt('Copy Consultation Link:', url.toString());
+                }
+            });
+        }
+
+        function appendChatMessage(msg) {
+            if (!chatStream) return;
+            const msgEl = document.createElement('div');
+            msgEl.className = `tele-chat-msg ${msg.isSelf ? 'self' : 'peer'}`;
+
+            const timeStr = msg.timestamp ? new Date(msg.timestamp * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : new Date().toLocaleTimeString();
+
+            msgEl.innerHTML = `
+                <div class="sender-line" style="color: ${msg.color || '#38bdf8'};">
+                    <span>${escapeHtml(msg.sender || 'Clinician')} <span style="font-size: 9px; opacity: 0.7;">(${escapeHtml((msg.role || 'MD').replace('_', ' '))})</span></span>
+                    <span style="font-size: 9px; opacity: 0.6; font-family: monospace;">${timeStr}</span>
+                </div>
+                <div class="msg-content">${escapeHtml(msg.text)}</div>
+            `;
+            chatStream.appendChild(msgEl);
+            chatStream.scrollTop = chatStream.scrollHeight;
+        }
+
+        function appendSystemMessage(text) {
+            if (!chatStream) return;
+            const sysEl = document.createElement('div');
+            sysEl.className = 'tele-chat-msg system';
+            sysEl.style.fontSize = '11px';
+            sysEl.style.color = '#64748b';
+            sysEl.style.fontStyle = 'italic';
+            sysEl.style.textAlign = 'center';
+            sysEl.textContent = text;
+            chatStream.appendChild(sysEl);
+            chatStream.scrollTop = chatStream.scrollHeight;
+        }
+
+        function renderRoster(peers) {
+            if (!rosterList) return;
+            rosterList.innerHTML = '';
+            if (rosterCount) {
+                rosterCount.textContent = `${peers.length} Online`;
+            }
+
+            peers.forEach(peer => {
+                const item = document.createElement('div');
+                item.className = 'tele-peer-item';
+                const isCurrent = currentUserSession && peer.user_id === currentUserSession.username;
+                item.innerHTML = `
+                    <div class="tele-peer-avatar" style="background: ${peer.avatar_color || '#38bdf8'};">
+                        ${escapeHtml((peer.name || 'DR').slice(0, 2).toUpperCase())}
+                    </div>
+                    <div class="tele-peer-info">
+                        <div class="tele-peer-name">${escapeHtml(peer.name)} ${isCurrent ? '<span style="font-size: 10px; color: #34d399;">(You)</span>' : ''}</div>
+                        <div class="tele-peer-role">${escapeHtml((peer.role || '').replace('_', ' '))}</div>
+                    </div>
+                    <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #10b981;"></span>
+                `;
+                rosterList.appendChild(item);
+            });
+        }
+
+        // Connect WebSocket
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const user = currentUserSession || { username: 'dr.vance', full_name: 'Dr. Eleanor Vance, MD', role: 'ATTENDING_RADIOLOGIST' };
+            const avatarColor = user.username === 'dr.vance' ? '%2338bdf8' : '%23f43f5e';
+            const wsUrl = `${protocol}//${window.location.host}/ws/tele-radiology/${encodeURIComponent(activeTeleSessionId)}?user_id=${encodeURIComponent(user.username)}&name=${encodeURIComponent(user.full_name)}&role=${encodeURIComponent(user.role)}&avatar_color=${avatarColor}&study_id=${encodeURIComponent(selectedStudyId || 'STUDY-CHEST-9901')}`;
+
+            try {
+                teleSocket = new WebSocket(wsUrl);
+            } catch (err) {
+                console.error('[Tele-Radiology WS Init Error]', err);
+                return;
+            }
+
+            teleSocket.onopen = () => {
+                if (connectionIndicator) {
+                    connectionIndicator.classList.add('online');
+                    connectionIndicator.style.background = '#10b981';
+                    connectionIndicator.style.boxShadow = '0 0 8px #10b981';
+                }
+                const headerBeacon = document.querySelector('.tele-pulse-dot');
+                if (headerBeacon) headerBeacon.style.background = '#10b981';
+
+                // Start ping heartbeat
+                clearInterval(telePingTimer);
+                telePingTimer = setInterval(() => {
+                    if (teleSocket && teleSocket.readyState === WebSocket.OPEN) {
+                        teleSocket.send(JSON.stringify({ type: 'PING', timestamp: Date.now() / 1000 }));
+                    }
+                }, 10000);
+            };
+
+            teleSocket.onclose = () => {
+                if (connectionIndicator) {
+                    connectionIndicator.classList.remove('online');
+                    connectionIndicator.style.background = '#ef4444';
+                    connectionIndicator.style.boxShadow = 'none';
+                }
+                clearInterval(telePingTimer);
+                setTimeout(connectWebSocket, 3000);
+            };
+
+            teleSocket.onerror = (err) => {
+                console.warn('[Tele-Radiology WS Error]', err);
+            };
+
+            teleSocket.onmessage = (evt) => {
+                let msg;
+                try {
+                    msg = JSON.parse(evt.data);
+                } catch (e) {
+                    return;
+                }
+
+                switch (msg.type) {
+                    case 'SESSION_INIT':
+                        if (sessionIdDisplay) sessionIdDisplay.textContent = msg.session_id;
+                        renderRoster(msg.peers || []);
+                        if (msg.chat_history && Array.isArray(msg.chat_history)) {
+                            msg.chat_history.forEach(m => {
+                                appendChatMessage({
+                                    sender: m.name,
+                                    role: m.role,
+                                    text: m.text,
+                                    isSelf: currentUserSession && m.user_id === currentUserSession.username,
+                                    timestamp: m.timestamp,
+                                    color: m.avatar_color
+                                });
+                            });
+                        }
+                        if (msg.annotations && Array.isArray(msg.annotations) && msg.annotations.length > 0) {
+                            measurements = msg.annotations;
+                            renderAllMeasurements();
+                        }
+                        if (msg.viewport_state && isTeleMirrorActive) {
+                            if (msg.viewport_state.view_mode && msg.viewport_state.view_mode !== currentViewMode) {
+                                applyViewMode(msg.viewport_state.view_mode, true);
+                            }
+                            if (typeof msg.viewport_state.split_position === 'number') {
+                                setSplitPosition(msg.viewport_state.split_position, true);
+                            }
+                        }
+                        break;
+
+                    case 'PEER_JOINED':
+                        renderRoster(msg.peers || []);
+                        appendSystemMessage(`👋 ${msg.peer.name} (${msg.peer.role.replace('_', ' ')}) joined consultation.`);
+                        showWorkstationToast(`👋 ${msg.peer.name} joined session`);
+                        break;
+
+                    case 'PEER_LEFT':
+                        renderRoster(msg.peers || []);
+                        appendSystemMessage(`🚪 ${msg.name} left consultation.`);
+                        break;
+
+                    case 'VIEWPORT_SYNC':
+                        if (isTeleMirrorActive && msg.viewport) {
+                            if (msg.viewport.view_mode && msg.viewport.view_mode !== currentViewMode) {
+                                applyViewMode(msg.viewport.view_mode, true);
+                            }
+                            if (typeof msg.viewport.split_position === 'number') {
+                                setSplitPosition(msg.viewport.split_position, true);
+                            }
+                        }
+                        break;
+
+                    case 'LASER_POINTER':
+                        if (remoteLaser) {
+                            if (msg.active) {
+                                remoteLaser.style.display = 'block';
+                                remoteLaser.style.left = `${(msg.x * 100).toFixed(2)}%`;
+                                remoteLaser.style.top = `${(msg.y * 100).toFixed(2)}%`;
+                                if (laserPeerLabel) {
+                                    laserPeerLabel.textContent = msg.name || 'Consulting Peer';
+                                    if (msg.avatar_color) {
+                                        laserPeerLabel.style.borderColor = msg.avatar_color;
+                                        laserPeerLabel.style.color = msg.avatar_color;
+                                    }
+                                }
+                            } else {
+                                remoteLaser.style.display = 'none';
+                            }
+                        }
+                        break;
+
+                    case 'CALIPER_SYNC':
+                        if (msg.annotation) {
+                            const exists = measurements.some(m => 
+                                m.type === msg.annotation.type &&
+                                Math.abs((m.x1 || m.cx || 0) - (msg.annotation.x1 || msg.annotation.cx || 0)) < 1
+                            );
+                            if (!exists) {
+                                measurements.push(msg.annotation);
+                                renderAllMeasurements();
+                                showWorkstationToast(`📏 Remote Caliper from ${msg.sender_name}`);
+                            }
+                        }
+                        break;
+
+                    case 'CLEAR_ANNOTATIONS':
+                        measurements = [];
+                        currentDrawing = null;
+                        ctrPendingCardiac = null;
+                        renderAllMeasurements();
+                        showWorkstationToast(`All viewport markups cleared by ${msg.sender_name}`);
+                        break;
+
+                    case 'CHAT_MESSAGE':
+                        if (msg.message) {
+                            const isSelf = currentUserSession && msg.message.user_id === currentUserSession.username;
+                            appendChatMessage({
+                                sender: msg.message.name,
+                                role: msg.message.role,
+                                text: msg.message.text,
+                                isSelf: isSelf,
+                                timestamp: msg.message.timestamp,
+                                color: msg.message.avatar_color
+                            });
+                            if (!isSelf && (!teleDialog || !teleDialog.open)) {
+                                showWorkstationToast(`💬 ${msg.message.name}: "${msg.message.text.slice(0, 35)}..."`);
+                            }
+                        }
+                        break;
+
+                    case 'STUDY_NAVIGATE':
+                        if (isTeleMirrorActive && msg.study_id && msg.study_id !== selectedStudyId) {
+                            const study = worklistStudies.find(s => s.study_id === msg.study_id);
+                            if (study) {
+                                loadWorklistStudy(study, true);
+                                showWorkstationToast(`🔄 Viewport Synced to ${study.patient_name} by ${msg.sender_name}`);
+                            }
+                        }
+                        break;
+
+                    case 'PONG':
+                        if (msg.timestamp && latencyDisplay) {
+                            const rtt = Math.max(2, Math.round((Date.now() / 1000 - msg.timestamp) * 1000));
+                            latencyDisplay.textContent = `${rtt} ms`;
+                        }
+                        break;
+                }
+            };
+        }
+
+        // Chat form submit
+        if (chatForm && chatInput) {
+            chatForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const text = chatInput.value.trim();
+                if (!text) return;
+                broadcastTeleMessage({
+                    type: "CHAT_MESSAGE",
+                    text: text,
+                    urgency: "NORMAL"
+                });
+                // Optimistically render self
+                appendChatMessage({
+                    sender: currentUserSession ? currentUserSession.full_name : "Me",
+                    role: currentUserSession ? currentUserSession.role : "ATTENDING_RADIOLOGIST",
+                    text: text,
+                    isSelf: true,
+                    timestamp: Date.now() / 1000,
+                    color: "#38bdf8"
+                });
+                chatInput.value = '';
+            });
+        }
+
+        connectWebSocket();
+    }
+
+    // ---------------------------------------------------------
     // INITIAL BOOT: FETCH WORKLIST & INIT ALL ENTERPRISE MODALS
     // ---------------------------------------------------------
     initPacsHubModal();
@@ -4854,6 +5344,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initClinicalTourSystem();
     initAnonymizerSystem();
     initMobileTabletUI();
+    initTeleRadiology();
     fetchWorklist();
 });
 

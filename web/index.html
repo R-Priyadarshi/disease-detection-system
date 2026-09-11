@@ -99,6 +99,16 @@
 
                 <div class="telemetry-divider"></div>
 
+                <!-- Real-Time Tele-Radiology Collaborative Session Button -->
+                <button type="button" class="header-action-btn tele-collab-header-btn" id="tele-collab-btn" title="Real-Time Tele-Radiology & Multi-User Consultation (WSS)" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(52, 211, 153, 0.5); color: #34d399;">
+                    <span class="tele-pulse-dot"></span>
+                    <span style="font-size: 13px;">📡</span>
+                    <span style="font-weight: 600;" id="tele-btn-label">Tele-Consult</span>
+                    <span class="tele-peer-count-badge" id="tele-peer-count" style="display: none;">0</span>
+                </button>
+
+                <div class="telemetry-divider"></div>
+
                 <!-- Launch OHIF Diagnostic Viewer Quick Button -->
                 <a href="/viewer" target="_blank" class="header-action-btn ohif-btn-header" id="open-ohif-viewer-btn" title="Launch Industry-Standard OHIF Diagnostic Viewer v3">
                     <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
@@ -558,6 +568,10 @@
                                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5"/><path d="M8 21H3v-5"/><path d="M21 3l-7 7"/><path d="M3 21l7-7"/></svg>
                                         <span>⚖️ Prior</span>
                                     </button>
+                                    <button type="button" class="measure-tool-btn" data-tool="laser" id="tool-laser" title="Live Collaborative Laser Pointer (L)">
+                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
+                                        <span>🔴 Laser</span>
+                                    </button>
                                 </div>
                                 <div class="measure-actions-group">
                                     <button type="button" class="measure-clear-btn" id="btn-clear-measurements" title="Clear Calipers & Annotations">
@@ -632,6 +646,13 @@
                                 <!-- 2.5x Magnifying Loupe Overlay -->
                                 <div class="loupe-lens" id="loupe-lens" hidden>
                                     <div class="loupe-crosshair"></div>
+                                </div>
+
+                                <!-- Collaborative Remote Laser Pointer Reticle -->
+                                <div class="remote-laser-reticle" id="remote-laser-reticle" style="display: none;">
+                                    <div class="laser-beam-ring"></div>
+                                    <div class="laser-dot"></div>
+                                    <span class="laser-peer-label" id="laser-peer-label">Dr. Eleanor Vance</span>
                                 </div>
 
                                 <!-- Diagnostic Caliper & Annotation Canvas Overlay -->
@@ -2041,6 +2062,93 @@ Click "Transmit Order" or "Generate Results" to test live MLLP / JSON parsing.</
                         <span>STANDARD: <strong>HIPAA § 164.514(b)(2) / PS 3.15</strong></span>
                     </div>
                     <button type="button" class="btn-titanium" id="dismiss-anonymize-dialog-btn">Close Anonymizer</button>
+                </div>
+            </div>
+        </dialog>
+
+        <!-- 8. Real-Time Tele-Radiology & Multi-User Synchronous Review Dialog -->
+        <dialog id="tele-collab-dialog" class="pacs-hub-modal">
+            <div class="pacs-hub-shell" style="max-width: 980px;">
+                <div class="pacs-hub-header">
+                    <div class="hub-header-left">
+                        <div class="hub-icon-box" style="background: rgba(16, 185, 129, 0.15); border-color: rgba(52, 211, 153, 0.4); color: #34d399;">
+                            <span style="font-size: 18px;">📡</span>
+                        </div>
+                        <div>
+                            <div class="hub-main-title">Real-Time Tele-Radiology & Multi-User Consultation</div>
+                            <div class="hub-subtitle">Sub-15ms WebSocket Protocol • Viewport Mirroring • Peer Laser Pointer • HIPAA § 164.312(e)</div>
+                        </div>
+                    </div>
+                    <button type="button" class="modal-x" id="close-tele-collab-btn" aria-label="Close modal">&times;</button>
+                </div>
+
+                <div class="pacs-hub-body" style="padding: 18px 24px;">
+                    <!-- Session Status & Invitation Bar -->
+                    <div class="tele-session-banner" style="display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span class="tele-status-indicator online" id="tele-connection-indicator" style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: #10b981; box-shadow: 0 0 8px #10b981;"></span>
+                            <div>
+                                <div style="font-size: 11px; color: #94a3b8; text-transform: uppercase; font-weight: 700;">Active Clinical Session</div>
+                                <div style="font-size: 13px; font-weight: 700; color: #38bdf8; font-family: monospace;" id="tele-session-id-display">SESSION-STUDY-CHEST-9901</div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; color: #e2e8f0; cursor: pointer; user-select: none;">
+                                <input type="checkbox" id="tele-mirror-toggle" checked>
+                                <span>Mirror Viewport & W/L Live</span>
+                            </label>
+                            <button type="button" class="tool-btn" id="copy-tele-session-link-btn" style="border-color: #38bdf8; color: #38bdf8;">
+                                <span>📋 Copy Consultation Link</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 2-Column Split: Active Clinicians Roster & Departmental Chat -->
+                    <div class="tele-collab-split" style="display: grid; grid-template-columns: 280px 1fr; gap: 16px; min-height: 380px;">
+                        <!-- Left Roster: Connected Doctors -->
+                        <div class="tele-roster-panel" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 14px; display: flex; flex-direction: column;">
+                            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                                <span>Connected Clinicians</span>
+                                <span class="badge-sub" id="tele-roster-count">1 Online</span>
+                            </div>
+                            <div class="tele-roster-list" id="tele-roster-list" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                                <!-- Dynamic peer items -->
+                            </div>
+                            <div class="tele-persona-box" style="margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255,255,255,0.08); font-size: 11px; color: #64748b;">
+                                <span>Connected As: <strong id="tele-current-user-name" style="color: #e2e8f0;">Dr. Eleanor Vance, MD</strong></span>
+                            </div>
+                        </div>
+
+                        <!-- Right Chat: Departmental Consultation Stream -->
+                        <div class="tele-chat-panel" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 14px; display: flex; flex-direction: column;">
+                            <div style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                                <span>Synchronous Consultation Chat</span>
+                                <span style="font-size: 10px; color: #34d399;">TLS Encrypted WSS</span>
+                            </div>
+                            <div class="tele-chat-stream" id="tele-chat-stream" style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 6px 0; max-height: 280px;">
+                                <div class="tele-chat-msg system" style="font-size: 11px; color: #64748b; font-style: italic; text-align: center;">
+                                    Session initialized. Real-time tele-radiology stream active.
+                                </div>
+                            </div>
+                            <form class="tele-chat-input-row" id="tele-chat-form" style="display: flex; gap: 8px; margin-top: 12px;">
+                                <input type="text" id="tele-chat-input" class="pacs-input" placeholder="Type consultation note or finding... (Enter to send)" style="flex: 1; font-size: 12px;">
+                                <button type="submit" class="btn-master" id="tele-chat-send-btn" style="width: auto; padding: 8px 16px;">
+                                    <span>Send</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="pacs-hub-footer" style="padding: 12px 20px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08);">
+                    <div style="font-size: 11px; color: #64748b;">
+                        <span>PROTOCOL: <strong>WebSocket RFC 6455 / WSS</strong></span>
+                        <span style="margin: 0 8px;">•</span>
+                        <span>LATENCY: <strong id="tele-latency-display" style="color: #34d399;">12 ms</strong></span>
+                    </div>
+                    <div style="display: flex; gap: 8px;">
+                        <button type="button" class="btn-titanium" id="dismiss-tele-collab-btn">Close Window</button>
+                    </div>
                 </div>
             </div>
         </dialog>
