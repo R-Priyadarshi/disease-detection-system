@@ -489,7 +489,7 @@ class RoutingRulesResponse(BaseModel):
 
 class ModalityRouteRequest(BaseModel):
     study_id: str
-    target_modality_id: str
+    target_modality_id: Optional[str] = None
     patient_mrn: Optional[str] = None
     primary_finding: Optional[str] = None
 

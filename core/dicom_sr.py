@@ -119,6 +119,12 @@ class DicomSREngine:
         cn.CodeMeaning = "Diagnostic Imaging Report"
         ds.ConceptNameCodeSequence = Sequence([cn])
 
+        # Content Template Sequence (TID 1500 Measurement Report)
+        tmpl = Dataset()
+        tmpl.MappingResource = "DCMR"
+        tmpl.TemplateIdentifier = "1500"
+        ds.ContentTemplateSequence = Sequence([tmpl])
+
         # Content Sequence (Tree of findings, measurements, and ACR classification)
         content_items = []
 
