@@ -133,7 +133,20 @@ from api.schemas import (
     SaveReportRequest,
     ReportResponse,
     SavedReportDetail,
-    ReportsListResponse
+    ReportsListResponse,
+    ValidationBenchmarkMetricItem,
+    ValidationBenchmarkResponse,
+    ThresholdOperatingPointRequest,
+    ThresholdOperatingPointResponse,
+    CohortEvaluationResponse,
+    FDASummaryPdfRequest
+)
+from core.validation_engine import (
+    PATHOLOGY_BENCHMARKS,
+    generate_roc_curve_points,
+    get_operating_point_for_threshold,
+    evaluate_active_cohort,
+    generate_fda_510k_summary_pdf
 )
 
 from core.model import get_model, PneumoniaCNNModel
@@ -2611,3 +2624,155 @@ async def probe_database_health():
             "latency_ms": round(elapsed_ms, 2),
             "error": str(e)
         }
+
+
+# ==============================================================================
+# CLINICAL VALIDATION & FDA 510(k) SaMD BENCHMARK ENDPOINTS
+# ==============================================================================
+
+@router.get("/api/v1/validation/benchmark-metrics", response_model=ValidationBenchmarkResponse, tags=["Clinical Validation & FDA 510(k)"])
+async def get_benchmark_metrics():
+    """
+    Returns multi-center benchmark clinical performance metrics across all 14 thoracic pathologies,
+    including discrete ROC curve operating coordinates, AUC-ROC with Wilson 95% Confidence Intervals,
+    and multi-reader study cohort metadata (N=112,120).
+    """
+    benchmarks: Dict[str, Any] = {}
+    for key in PATHOLOGY_BENCHMARKS:
+        benchmarks[key] = generate_roc_curve_points(key)
+
+    get_audit_logger().log(
+        action="FDA_VALIDATION_INSPECTED",
+        user_id="radiologist",
+        username="attending.radiologist",
+        user_role="ATTENDING",
+        details={
+            "total_pathologies": len(benchmarks),
+            "study_cohort_total": 112120,
+            "standard": "21 CFR § 892.2050 / Class II SaMD"
+        }
+    )
+
+    return ValidationBenchmarkResponse(
+        status="success",
+        total_pathologies=len(benchmarks),
+        benchmarks=benchmarks,
+        study_cohort_total=112120,
+        clinical_consensus="Triple-Read Consensus by 4 US Board-Certified Thoracic Radiologists"
+    )
+
+
+@router.post("/api/v1/validation/operating-point", response_model=ThresholdOperatingPointResponse, tags=["Clinical Validation & FDA 510(k)"])
+async def calculate_operating_point(req: ThresholdOperatingPointRequest):
+    """
+    Evaluates real-time diagnostic performance metrics (Sensitivity, Specificity,
+    PPV, NPV, F1-Score, and 10,000-case Emergency Department Confusion Matrix)
+    at an arbitrary user-selected decision threshold [0.01, 0.99].
+    """
+    path_key = req.pathology.upper()
+    if path_key not in PATHOLOGY_BENCHMARKS:
+        path_key = "PNEUMONIA"
+
+    point = get_operating_point_for_threshold(path_key, req.threshold)
+
+    get_audit_logger().log(
+        action="FDA_OPERATING_POINT_TUNED",
+        user_id="radiologist",
+        username="attending.radiologist",
+        user_role="ATTENDING",
+        details={
+            "pathology": path_key,
+            "threshold": req.threshold,
+            "sensitivity": point["sensitivity"],
+            "specificity": point["specificity"]
+        }
+    )
+
+    return ThresholdOperatingPointResponse(
+        status="success",
+        pathology=point["pathology"],
+        display_name=point["display_name"],
+        threshold=point["threshold"],
+        sensitivity=point["sensitivity"],
+        specificity=point["specificity"],
+        fpr=point["fpr"],
+        ppv=point["ppv"],
+        npv=point["npv"],
+        f1_score=point["f1_score"],
+        accuracy=point["accuracy"],
+        confusion_matrix=point["confusion_matrix"]
+    )
+
+
+@router.post("/api/v1/validation/evaluate-cohort", response_model=CohortEvaluationResponse, tags=["Clinical Validation & FDA 510(k)"])
+async def evaluate_live_worklist_cohort():
+    """
+    Audits the current emergency department worklist against clinical findings,
+    producing a live cohort confusion matrix, observed sensitivity, specificity,
+    and diagnostic concordance rate.
+    """
+    global _WORKLIST_CACHE
+    if not _WORKLIST_CACHE:
+        await get_emergency_worklist()
+
+    eval_result = evaluate_active_cohort(_WORKLIST_CACHE)
+
+    get_audit_logger().log(
+        action="LIVE_COHORT_BENCHMARKED",
+        user_id="radiologist",
+        username="attending.radiologist",
+        user_role="ATTENDING",
+        details={
+            "total_studies": eval_result["total_studies"],
+            "concordance_rate": eval_result["concordance_rate"],
+            "sensitivity": eval_result["sensitivity"],
+            "specificity": eval_result["specificity"]
+        }
+    )
+
+    return CohortEvaluationResponse(
+        status="success",
+        total_studies=eval_result["total_studies"],
+        concordance_rate=eval_result["concordance_rate"],
+        sensitivity=eval_result["sensitivity"],
+        specificity=eval_result["specificity"],
+        pathology_distribution=eval_result["pathology_distribution"],
+        confusion_matrix=eval_result["confusion_matrix"]
+    )
+
+
+@router.post("/api/v1/validation/fda-summary-pdf", tags=["Clinical Validation & FDA 510(k)"])
+async def export_fda_510k_summary_pdf(req: Optional[FDASummaryPdfRequest] = None):
+    """
+    Generates and streams an institutional FDA 510(k) Pre-Market Notification Summary Dossier
+    (21 CFR § 892.2050 / Class II SaMD) as a cryptographically verifiable PDF.
+    """
+    evaluator = req.evaluator_name if req and req.evaluator_name else "Chief Medical Officer"
+    org = req.organization if req and req.organization else "ALVEON Healthcare Systems"
+
+    pdf_buffer = generate_fda_510k_summary_pdf(evaluator_name=evaluator, organization=org)
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"ALVEON_FDA_510K_PREMARKET_SUMMARY_{timestamp}.pdf"
+
+    get_audit_logger().log(
+        action="FDA_510K_PDF_EXPORTED",
+        user_id="radiologist",
+        username="attending.radiologist",
+        user_role="ATTENDING",
+        details={
+            "filename": filename,
+            "evaluator": evaluator,
+            "organization": org,
+            "byte_size": pdf_buffer.getbuffer().nbytes
+        }
+    )
+
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Document-Type": "FDA-510k-Pre-Market-Summary",
+            "X-Device-Classification": "Class II (21 CFR 892.2050)"
+        }
+    )

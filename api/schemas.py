@@ -676,3 +676,62 @@ class ReportsListResponse(BaseModel):
     total_reports: int
     reports: List[SavedReportDetail]
 
+# ==============================================================================
+# Clinical Validation & FDA 510(k) SaMD Benchmark Schemas
+# ==============================================================================
+
+class ValidationBenchmarkMetricItem(BaseModel):
+    pathology: str
+    display_name: str
+    acuity: str
+    cohort_n: int
+    auc: float
+    auc_ci_95: List[float]
+    default_threshold: float
+    operating_sensitivity: float
+    sensitivity_ci_95: List[float]
+    operating_specificity: float
+    specificity_ci_95: List[float]
+    ppv: float
+    npv: float
+    f1_score: float
+    points: List[Dict[str, float]]
+
+class ValidationBenchmarkResponse(BaseModel):
+    status: str = "success"
+    total_pathologies: int
+    benchmarks: Dict[str, ValidationBenchmarkMetricItem]
+    study_cohort_total: int
+    clinical_consensus: str
+
+class ThresholdOperatingPointRequest(BaseModel):
+    pathology: str
+    threshold: float = Field(..., ge=0.01, le=0.99, description="Target decision threshold [0.01, 0.99]")
+
+class ThresholdOperatingPointResponse(BaseModel):
+    status: str = "success"
+    pathology: str
+    display_name: str
+    threshold: float
+    sensitivity: float
+    specificity: float
+    fpr: float
+    ppv: float
+    npv: float
+    f1_score: float
+    accuracy: float
+    confusion_matrix: Dict[str, int]
+
+class CohortEvaluationResponse(BaseModel):
+    status: str = "success"
+    total_studies: int
+    concordance_rate: float
+    sensitivity: float
+    specificity: float
+    pathology_distribution: Dict[str, int]
+    confusion_matrix: Dict[str, int]
+
+class FDASummaryPdfRequest(BaseModel):
+    evaluator_name: Optional[str] = "Chief Medical Officer"
+    organization: Optional[str] = "ALVEON Healthcare Systems"
+

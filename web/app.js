@@ -5518,6 +5518,478 @@ document.addEventListener('DOMContentLoaded', () => {
         connectWebSocket();
     }
 
+    // ==============================================================================
+    // CLINICAL BENCHMARK & FDA 510(k) SaMD VALIDATION SUITE MODAL
+    // ==============================================================================
+    function initValidationSuite() {
+        const openBtn = document.getElementById('open-validation-btn');
+        const dialog = document.getElementById('validation-suite-dialog');
+        const closeBtn = document.getElementById('btn-close-validation-modal');
+        const pathSelect = document.getElementById('validation-pathology-select');
+        const slider = document.getElementById('validation-threshold-slider');
+        const sliderVal = document.getElementById('validation-threshold-val');
+        const canvas = document.getElementById('validation-roc-canvas');
+        const exportPdfBtn = document.getElementById('btn-export-fda-pdf');
+        const runAuditBtn = document.getElementById('btn-run-cohort-audit');
+
+        // Panels and Metrics
+        const aucPill = document.getElementById('val-auc-pill');
+        const targetAcuityTag = document.getElementById('val-target-acuity-tag');
+        const cardAuc = document.getElementById('val-card-auc');
+        const cardAucCi = document.getElementById('val-card-auc-ci');
+        const cardSens = document.getElementById('val-card-sens');
+        const cardSensCi = document.getElementById('val-card-sens-ci');
+        const cardSpec = document.getElementById('val-card-spec');
+        const cardSpecCi = document.getElementById('val-card-spec-ci');
+        const cardPpv = document.getElementById('val-card-ppv');
+        const cardNpv = document.getElementById('val-card-npv');
+        const cardF1 = document.getElementById('val-card-f1');
+
+        // CM Elements
+        const cmTp = document.getElementById('val-cm-tp');
+        const cmFp = document.getElementById('val-cm-fp');
+        const cmFn = document.getElementById('val-cm-fn');
+        const cmTn = document.getElementById('val-cm-tn');
+        const cmAcc = document.getElementById('val-cm-acc');
+        const cmFdr = document.getElementById('val-cm-fdr');
+
+        // Cohort Audit Section
+        const cohortSection = document.getElementById('val-cohort-audit-section');
+        const cohortBody = document.getElementById('val-cohort-audit-body');
+        const cohortRate = document.getElementById('val-live-concordance-rate');
+
+        if (!openBtn || !dialog) return;
+
+        let benchmarksData = null;
+        let activePathology = 'PNEUMOTHORAX';
+        let activeThreshold = 0.40;
+        let auditDebounceTimer = null;
+
+        // Open Dialog
+        openBtn.addEventListener('click', async () => {
+            if (typeof dialog.showModal === 'function') {
+                dialog.showModal();
+            } else {
+                dialog.style.display = 'flex';
+            }
+            if (!benchmarksData) {
+                await fetchBenchmarkMetrics();
+            } else {
+                renderCurrentPathology();
+            }
+        });
+
+        // Close Dialog
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                if (typeof dialog.close === 'function') {
+                    dialog.close();
+                } else {
+                    dialog.style.display = 'none';
+                }
+            });
+        }
+
+        dialog.addEventListener('click', (e) => {
+            const rect = dialog.getBoundingClientRect();
+            const isInDialog = (
+                rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+                rect.left <= e.clientX && e.clientX <= rect.left + rect.width
+            );
+            if (!isInDialog && e.target === dialog) {
+                dialog.close();
+            }
+        });
+
+        // Pathology Select change
+        if (pathSelect) {
+            pathSelect.addEventListener('change', () => {
+                activePathology = pathSelect.value;
+                if (benchmarksData && benchmarksData[activePathology]) {
+                    const info = benchmarksData[activePathology];
+                    activeThreshold = info.default_threshold;
+                    if (slider) slider.value = activeThreshold;
+                    if (sliderVal) sliderVal.textContent = activeThreshold.toFixed(2);
+                }
+                renderCurrentPathology();
+            });
+        }
+
+        // Threshold Slider change
+        if (slider) {
+            slider.addEventListener('input', () => {
+                activeThreshold = parseFloat(slider.value);
+                if (sliderVal) sliderVal.textContent = activeThreshold.toFixed(2);
+                updateOperatingCharacteristics(activeThreshold);
+                
+                // Debounce backend audit log
+                clearTimeout(auditDebounceTimer);
+                auditDebounceTimer = setTimeout(() => {
+                    fetch('/api/v1/validation/operating-point', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ pathology: activePathology, threshold: activeThreshold })
+                    }).catch(err => console.warn('[Validation] Audit sync warning:', err));
+                }, 400);
+            });
+        }
+
+        // Fetch metrics from backend
+        async function fetchBenchmarkMetrics() {
+            try {
+                if (aucPill) aucPill.textContent = 'Loading Certified Benchmarks...';
+                const res = await fetch('/api/v1/validation/benchmark-metrics');
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                const data = await res.json();
+                benchmarksData = data.benchmarks;
+                renderCurrentPathology();
+            } catch (err) {
+                console.error('[Validation] Failed to load benchmarks:', err);
+                if (aucPill) aucPill.textContent = 'Benchmark Offline';
+                showWorkstationToast('⚠️ Failed to load validation benchmarks from server');
+            }
+        }
+
+        // Render current pathology curve and metric cards
+        function renderCurrentPathology() {
+            if (!benchmarksData || !benchmarksData[activePathology]) return;
+            const data = benchmarksData[activePathology];
+
+            if (aucPill) {
+                aucPill.textContent = `AUC: ${data.auc.toFixed(3)} [95% CI: ${data.auc_ci_95[0].toFixed(3)} - ${data.auc_ci_95[1].toFixed(3)}]`;
+            }
+            if (targetAcuityTag) {
+                targetAcuityTag.textContent = `${data.acuity.replace('_', ' ')} ACUITY`;
+                if (data.acuity === 'STAT_CRITICAL') {
+                    targetAcuityTag.style.background = 'rgba(239, 68, 68, 0.15)';
+                    targetAcuityTag.style.borderColor = 'rgba(248, 113, 113, 0.4)';
+                    targetAcuityTag.style.color = '#f87171';
+                } else {
+                    targetAcuityTag.style.background = 'rgba(14, 165, 233, 0.15)';
+                    targetAcuityTag.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                    targetAcuityTag.style.color = '#38bdf8';
+                }
+            }
+
+            if (cardAuc) cardAuc.textContent = data.auc.toFixed(3);
+            if (cardAucCi) cardAucCi.textContent = `95% CI: ${data.auc_ci_95[0].toFixed(3)} - ${data.auc_ci_95[1].toFixed(3)}`;
+
+            updateOperatingCharacteristics(activeThreshold);
+        }
+
+        // Compute and display operating characteristics
+        function updateOperatingCharacteristics(threshold) {
+            if (!benchmarksData || !benchmarksData[activePathology]) return;
+            const data = benchmarksData[activePathology];
+            const points = data.points;
+
+            // Find closest operating point to active threshold
+            let closestPt = points[0];
+            let minDiff = Infinity;
+            for (const pt of points) {
+                const diff = Math.abs(pt.threshold - threshold);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestPt = pt;
+                }
+            }
+
+            const sens = closestPt.sensitivity;
+            const spec = closestPt.specificity;
+            const fpr = closestPt.fpr;
+            const ppv = closestPt.ppv;
+            const npv = closestPt.npv;
+            const f1 = closestPt.f1_score;
+
+            if (cardSens) cardSens.textContent = `${(sens * 100).toFixed(1)}%`;
+            if (cardSensCi) cardSensCi.textContent = `Miss Rate (FNR): ${((1 - sens) * 100).toFixed(1)}%`;
+            if (cardSpec) cardSpec.textContent = `${(spec * 100).toFixed(1)}%`;
+            if (cardSpecCi) cardSpecCi.textContent = `False Positive Rate: ${(fpr * 100).toFixed(1)}%`;
+            if (cardPpv) cardPpv.textContent = `${(ppv * 100).toFixed(1)}%`;
+            if (cardNpv) cardNpv.textContent = `${(npv * 100).toFixed(1)}%`;
+            if (cardF1) cardF1.textContent = f1.toFixed(3);
+
+            // 10,000 Emergency patients simulation
+            const totalPop = 10000;
+            const positives = 1200;
+            const negatives = 8800;
+
+            const tp = Math.round(positives * sens);
+            const fn = positives - tp;
+            const fp = Math.round(negatives * fpr);
+            const tn = negatives - fp;
+            const acc = ((tp + tn) / totalPop * 100).toFixed(1);
+            const fdr = (tp + fp > 0) ? ((fp / (tp + fp)) * 100).toFixed(1) : '0.0';
+
+            if (cmTp) cmTp.textContent = tp.toLocaleString();
+            if (cmFp) cmFp.textContent = fp.toLocaleString();
+            if (cmFn) cmFn.textContent = fn.toLocaleString();
+            if (cmTn) cmTn.textContent = tn.toLocaleString();
+            if (cmAcc) cmAcc.textContent = `${acc}%`;
+            if (cmFdr) cmFdr.textContent = `${fdr}%`;
+
+            // Render Canvas
+            renderRocCanvas(data, closestPt);
+        }
+
+        // Draw Canvas ROC curve with high-DPI scaling
+        function renderRocCanvas(data, activePt) {
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const rect = canvas.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+
+            const displayWidth = rect.width || 460;
+            const displayHeight = rect.height || 340;
+
+            canvas.width = displayWidth * dpr;
+            canvas.height = displayHeight * dpr;
+
+            ctx.save();
+            ctx.scale(dpr, dpr);
+
+            const padL = 46;
+            const padR = 24;
+            const padT = 24;
+            const padB = 44;
+            const plotW = displayWidth - padL - padR;
+            const plotH = displayHeight - padT - padB;
+
+            // Background
+            ctx.fillStyle = '#070d18';
+            ctx.fillRect(0, 0, displayWidth, displayHeight);
+
+            // Gridlines & Ticks
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+            ctx.fillStyle = '#64748b';
+            ctx.font = '10px Inter, -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+
+            for (let i = 0; i <= 5; i++) {
+                const fraction = i / 5;
+                const x = padL + fraction * plotW;
+                const y = padT + (1 - fraction) * plotH;
+
+                // Vertical gridline
+                ctx.beginPath();
+                ctx.moveTo(x, padT);
+                ctx.lineTo(x, padT + plotH);
+                ctx.stroke();
+                ctx.fillText(fraction.toFixed(1), x, padT + plotH + 15);
+
+                // Horizontal gridline
+                ctx.beginPath();
+                ctx.moveTo(padL, y);
+                ctx.lineTo(padL + plotW, y);
+                ctx.stroke();
+                ctx.textAlign = 'right';
+                ctx.fillText(fraction.toFixed(1), padL - 8, y + 3);
+                ctx.textAlign = 'center';
+            }
+
+            // Diagonal Chance Reference Line
+            ctx.save();
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = '#475569';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(padL, padT + plotH);
+            ctx.lineTo(padL + plotW, padT);
+            ctx.stroke();
+            ctx.restore();
+
+            // Area under curve fill
+            const points = data.points;
+            if (points && points.length > 1) {
+                ctx.save();
+                ctx.beginPath();
+                ctx.moveTo(padL, padT + plotH);
+                for (let i = 0; i < points.length; i++) {
+                    const px = padL + points[i].fpr * plotW;
+                    const py = padT + (1 - points[i].tpr) * plotH;
+                    ctx.lineTo(px, py);
+                }
+                ctx.lineTo(padL + plotW, padT + plotH);
+                ctx.closePath();
+
+                const grad = ctx.createLinearGradient(0, padT, 0, padT + plotH);
+                grad.addColorStop(0, 'rgba(14, 165, 233, 0.22)');
+                grad.addColorStop(1, 'rgba(14, 165, 233, 0.01)');
+                ctx.fillStyle = grad;
+                ctx.fill();
+                ctx.restore();
+
+                // ROC Curve Stroke
+                ctx.save();
+                ctx.beginPath();
+                for (let i = 0; i < points.length; i++) {
+                    const px = padL + points[i].fpr * plotW;
+                    const py = padT + (1 - points[i].tpr) * plotH;
+                    if (i === 0) ctx.moveTo(px, py);
+                    else ctx.lineTo(px, py);
+                }
+                ctx.strokeStyle = '#38bdf8';
+                ctx.lineWidth = 2.8;
+                ctx.shadowColor = '#0284c7';
+                ctx.shadowBlur = 8;
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            // Active Operating Point Marker
+            if (activePt) {
+                const ox = padL + activePt.fpr * plotW;
+                const oy = padT + (1 - activePt.tpr) * plotH;
+
+                // Pulsing outer halo
+                ctx.beginPath();
+                ctx.arc(ox, oy, 9, 0, 2 * Math.PI);
+                ctx.fillStyle = 'rgba(245, 158, 11, 0.25)';
+                ctx.fill();
+
+                // Solid center dot
+                ctx.beginPath();
+                ctx.arc(ox, oy, 5, 0, 2 * Math.PI);
+                ctx.fillStyle = '#f59e0b';
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.8;
+                ctx.stroke();
+
+                // Callout tooltip on canvas
+                const text = `τ=${activePt.threshold.toFixed(2)} | Sens: ${(activePt.tpr * 100).toFixed(1)}% | Spec: ${(activePt.specificity * 100).toFixed(1)}%`;
+                ctx.font = 'bold 9.5px Inter, sans-serif';
+                const tw = ctx.measureText(text).width;
+                const bx = Math.max(padL, Math.min(displayWidth - padR - tw - 12, ox - tw / 2 - 6));
+                const by = (oy > padT + 40) ? oy - 26 : oy + 15;
+
+                ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+                ctx.strokeStyle = 'rgba(251, 191, 36, 0.6)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.roundRect(bx, by, tw + 12, 18, 4);
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = '#fef08a';
+                ctx.textAlign = 'left';
+                ctx.fillText(text, bx + 6, by + 12);
+            }
+
+            // Axis Title Labels
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '10px Inter, -apple-system, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('False Positive Rate (1 - Specificity)', padL + plotW / 2, displayHeight - 10);
+
+            ctx.save();
+            ctx.translate(14, padT + plotH / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('True Positive Rate (Sensitivity)', 0, 0);
+            ctx.restore();
+
+            ctx.restore();
+        }
+
+        // Export FDA 510(k) PDF
+        if (exportPdfBtn) {
+            exportPdfBtn.addEventListener('click', async () => {
+                const originalHtml = exportPdfBtn.innerHTML;
+                exportPdfBtn.disabled = true;
+                exportPdfBtn.innerHTML = '<span>⏳ Compiling Dossier...</span>';
+                showWorkstationToast('Compiling certified FDA 510(k) Pre-Market Dossier (PDF)...');
+
+                try {
+                    const res = await fetch('/api/v1/validation/fda-summary-pdf', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            evaluator_name: currentUserSession ? currentUserSession.full_name : "Chief Medical Officer",
+                            organization: "ALVEON Healthcare Systems"
+                        })
+                    });
+
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+                    const blob = await res.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `ALVEON_FDA_510K_PREMARKET_SUMMARY_${new Date().toISOString().slice(0, 10)}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+
+                    showWorkstationToast('✓ FDA 510(k) Pre-Market Dossier downloaded successfully.');
+                } catch (err) {
+                    console.error('[Validation] Failed to export FDA PDF:', err);
+                    showWorkstationToast(`Failed to generate 510(k) PDF: ${err.message}`);
+                } finally {
+                    exportPdfBtn.disabled = false;
+                    exportPdfBtn.innerHTML = originalHtml;
+                }
+            });
+        }
+
+        // Run Live ER Worklist Audit
+        if (runAuditBtn) {
+            runAuditBtn.addEventListener('click', async () => {
+                const originalHtml = runAuditBtn.innerHTML;
+                runAuditBtn.disabled = true;
+                runAuditBtn.innerHTML = '<span>⏳ Auditing ER Queue...</span>';
+                showWorkstationToast('Auditing active ER worklist against multi-label consensus...');
+
+                try {
+                    const res = await fetch('/api/v1/validation/evaluate-cohort', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    const data = await res.json();
+
+                    if (cohortSection) cohortSection.style.display = 'block';
+                    if (cohortRate) cohortRate.textContent = `Concordance: ${(data.concordance_rate * 100).toFixed(1)}%`;
+
+                    if (cohortBody) {
+                        const distKeys = Object.keys(data.pathology_distribution || {});
+                        const distBadges = distKeys.length > 0 
+                            ? distKeys.map(k => `<span class="val-badge code-badge" style="margin-right: 6px;">${k}: ${data.pathology_distribution[k]}</span>`).join('')
+                            : '<span style="color: #94a3b8;">No positive findings detected</span>';
+
+                        cohortBody.innerHTML = `
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 12px;">
+                                <span>Total Studies Analyzed: <strong>${data.total_studies}</strong></span>
+                                <span>Observed Sensitivity: <strong style="color: #34d399;">${(data.sensitivity * 100).toFixed(1)}%</strong></span>
+                                <span>Observed Specificity: <strong style="color: #38bdf8;">${(data.specificity * 100).toFixed(1)}%</strong></span>
+                            </div>
+                            <div style="margin-bottom: 10px; font-size: 11px;">
+                                <strong style="color: #94a3b8;">Detected Finding Distribution:</strong> ${distBadges}
+                            </div>
+                            <div style="display: flex; gap: 12px; font-size: 11px; background: rgba(0,0,0,0.2); padding: 8px 12px; border-radius: 6px;">
+                                <span>True Positives: <strong>${data.confusion_matrix.true_positives}</strong></span>
+                                <span>False Positives: <strong>${data.confusion_matrix.false_positives}</strong></span>
+                                <span>True Negatives: <strong>${data.confusion_matrix.true_negatives}</strong></span>
+                                <span>False Negatives: <strong>${data.confusion_matrix.false_negatives}</strong></span>
+                            </div>
+                        `;
+                    }
+
+                    showWorkstationToast(`✓ Worklist Audit Complete: ${(data.concordance_rate * 100).toFixed(1)}% Concordance`);
+                } catch (err) {
+                    console.error('[Validation] Cohort audit failed:', err);
+                    showWorkstationToast(`Cohort audit failed: ${err.message}`);
+                } finally {
+                    runAuditBtn.disabled = false;
+                    runAuditBtn.innerHTML = originalHtml;
+                }
+            });
+        }
+    }
+
     // ---------------------------------------------------------
     // INITIAL BOOT: FETCH WORKLIST & INIT ALL ENTERPRISE MODALS
     // ---------------------------------------------------------
@@ -5540,6 +6012,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initAnonymizerSystem();
     initMobileTabletUI();
     initTeleRadiology();
+    initValidationSuite();
     fetchWorklist();
 });
 

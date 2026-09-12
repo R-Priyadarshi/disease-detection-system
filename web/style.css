@@ -6685,3 +6685,485 @@ body.bedside-high-contrast .workstation-panel {
     gap: 8px;
 }
 
+/* ==============================================================================
+   CLINICAL BENCHMARK & FDA 510(k) SaMD VALIDATION SUITE MODAL
+   ============================================================================== */
+
+.validation-modal-window {
+    max-width: 1060px;
+    width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    background: #0c1424;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 35px rgba(14, 165, 233, 0.15);
+    border-radius: 14px;
+    display: flex;
+    flex-direction: column;
+    color: #f8fafc;
+    box-sizing: border-box;
+}
+
+.validation-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    padding: 18px 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.7);
+}
+
+.val-title-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.val-header-icon {
+    font-size: 22px;
+}
+
+.val-header-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #f8fafc;
+    margin: 0;
+    letter-spacing: 0.3px;
+}
+
+.val-meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.val-badge {
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.val-badge.fda-badge {
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    color: #fbbf24;
+}
+
+.val-badge.code-badge {
+    background: rgba(14, 165, 233, 0.15);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    color: #38bdf8;
+}
+
+.val-badge.cohort-badge {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(52, 211, 153, 0.4);
+    color: #34d399;
+}
+
+.val-badge.consensus-badge {
+    background: rgba(168, 85, 247, 0.15);
+    border: 1px solid rgba(192, 132, 252, 0.4);
+    color: #c084fc;
+}
+
+.validation-modal-toolbar {
+    padding: 14px 24px;
+    background: rgba(15, 23, 42, 0.45);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.val-control-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.val-control-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.val-select {
+    background: #1e293b;
+    color: #f8fafc;
+    border: 1px solid rgba(56, 189, 248, 0.3);
+    border-radius: 6px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    outline: none;
+    cursor: pointer;
+}
+
+.val-slider-group {
+    flex: 1;
+    min-width: 210px;
+    max-width: 290px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+}
+
+.val-slider-label-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.val-threshold-badge {
+    background: rgba(56, 189, 248, 0.2);
+    border: 1px solid rgba(56, 189, 248, 0.4);
+    color: #38bdf8;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.val-slider {
+    width: 100%;
+    accent-color: #0284c7;
+    cursor: pointer;
+}
+
+.val-toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.val-action-btn {
+    font-size: 11.5px;
+    padding: 7px 14px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.fda-download-btn {
+    background: linear-gradient(135deg, #0284c7, #2563eb) !important;
+    border: 1px solid #38bdf8 !important;
+    color: #ffffff !important;
+    width: auto !important;
+    margin-top: 0 !important;
+}
+
+.val-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+}
+
+.validation-modal-body {
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: 1fr 1.15fr;
+    gap: 20px;
+}
+
+.val-panel {
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+}
+
+.val-panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.val-panel-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.val-panel-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 6px;
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(52, 211, 153, 0.4);
+    color: #34d399;
+}
+
+.val-panel-sub {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 6px;
+    border-radius: 4px;
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(248, 113, 113, 0.4);
+    color: #f87171;
+    letter-spacing: 0.5px;
+}
+
+.val-canvas-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #070d18;
+    border: 1px solid rgba(56, 189, 248, 0.15);
+    border-radius: 8px;
+    padding: 8px;
+    overflow: hidden;
+}
+
+#validation-roc-canvas {
+    max-width: 100%;
+    height: auto;
+}
+
+.val-roc-legend {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    margin-top: 10px;
+    font-size: 10.5px;
+    color: #94a3b8;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-line.model-line {
+    width: 16px;
+    height: 3px;
+    background: #38bdf8;
+    border-radius: 2px;
+}
+
+.legend-line.chance-line {
+    width: 16px;
+    height: 1px;
+    border-top: 2px dashed #64748b;
+}
+
+.legend-dot.op-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f59e0b;
+    border: 2px solid white;
+    box-shadow: 0 0 6px #f59e0b;
+}
+
+.val-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.val-metric-card {
+    background: #0a1120;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 10px 12px;
+}
+
+.metric-label {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #94a3b8;
+    margin-bottom: 4px;
+}
+
+.metric-val {
+    font-size: 16px;
+    font-weight: 800;
+    color: #f8fafc;
+}
+
+.metric-sub {
+    font-size: 9.5px;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.text-emerald {
+    color: #34d399 !important;
+}
+
+.text-cyan {
+    color: #38bdf8 !important;
+}
+
+.text-amber {
+    color: #fbbf24 !important;
+}
+
+.text-indigo {
+    color: #818cf8 !important;
+}
+
+.text-violet {
+    color: #a78bfa !important;
+}
+
+.val-cm-container {
+    background: #070d18;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.val-cm-title {
+    font-size: 10.5px;
+    font-weight: 600;
+    color: #cbd5e1;
+    margin-bottom: 8px;
+}
+
+.val-cm-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.cm-cell {
+    border-radius: 6px;
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+}
+
+.cm-cell.cm-header {
+    background: #1e293b;
+    color: #94a3b8;
+    font-size: 10px;
+    font-weight: 700;
+    text-align: center;
+    justify-content: center;
+    align-items: center;
+}
+
+.cm-cell.cm-tp {
+    background: rgba(16, 185, 129, 0.12);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+}
+
+.cm-cell.cm-fp {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+}
+
+.cm-cell.cm-fn {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.cm-cell.cm-tn {
+    background: rgba(14, 165, 233, 0.12);
+    border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.cm-cell-label {
+    font-size: 9.5px;
+    font-weight: 600;
+    color: #94a3b8;
+}
+
+.cm-cell-num {
+    font-size: 15px;
+    font-weight: 800;
+    color: #f8fafc;
+    margin-top: 2px;
+}
+
+.val-cm-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+    font-size: 10.5px;
+    color: #94a3b8;
+    padding: 4px 6px;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 4px;
+}
+
+.val-cohort-panel {
+    margin: 0 24px 16px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(52, 211, 153, 0.3);
+    border-radius: 10px;
+    padding: 14px;
+}
+
+.cohort-audit-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.concordance-badge {
+    background: rgba(16, 185, 129, 0.2);
+    border: 1px solid rgba(52, 211, 153, 0.4);
+    color: #34d399;
+    font-weight: 700;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 4px;
+}
+
+.validation-modal-footer {
+    padding: 14px 24px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(15, 23, 42, 0.6);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10.5px;
+    color: #64748b;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.val-footer-note {
+    flex: 1;
+    min-width: 250px;
+    line-height: 1.4;
+}
+
+.val-footer-attest {
+    font-size: 11px;
+    color: #94a3b8;
+    white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+    .validation-modal-body {
+        grid-template-columns: 1fr;
+    }
+    .val-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
