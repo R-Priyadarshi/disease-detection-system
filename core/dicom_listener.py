@@ -89,6 +89,8 @@ class DicomScpService:
             from api.routes import get_engine, _WORKLIST_CACHE, WorklistStudyItem, AnatomicalZonation, DicomMetadataModel, MultiLabelFindingItem
             model, gradcam = get_engine()
 
+            if raw_gray.ndim == 3:
+                raw_gray = cv2.cvtColor(raw_gray, cv2.COLOR_BGR2GRAY if raw_gray.shape[2] == 3 else cv2.COLOR_BGRA2GRAY)
             resized = cv2.resize(raw_gray, (settings.INPUT_WIDTH, settings.INPUT_HEIGHT), interpolation=cv2.INTER_AREA)
             tensor = resized.reshape(1, settings.INPUT_HEIGHT, settings.INPUT_WIDTH, 1).astype(np.float32) / settings.NORMALIZATION_SCALE
 

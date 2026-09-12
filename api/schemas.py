@@ -115,6 +115,33 @@ class PacsPushRequest(BaseModel):
     port: int = 11112
     ae_title: str = "ALVEON_PACS"
 
+class SecondaryCaptureExportRequest(BaseModel):
+    study_id: str
+    calipers: Optional[List[Dict[str, Any]]] = None
+    colormap: Optional[str] = "inferno"
+    include_hud: Optional[bool] = True
+    alpha: Optional[float] = 0.40
+
+class SecondaryCapturePushRequest(BaseModel):
+    study_id: str
+    calipers: Optional[List[Dict[str, Any]]] = None
+    colormap: Optional[str] = "inferno"
+    host: str = "127.0.0.1"
+    port: int = 11112
+    ae_title: str = "ALVEON_PACS"
+    include_hud: Optional[bool] = True
+    alpha: Optional[float] = 0.40
+
+class SecondaryCapturePushResponse(BaseModel):
+    status: str = "success"
+    success: bool = True
+    study_id: str
+    sop_instance_uid: str
+    destination: str
+    latency_ms: float
+    dicom_status: Optional[str] = "0x0000"
+    message: Optional[str] = None
+
 class WorklistResponse(BaseModel):
     status: str = "success"
     total_cases: int

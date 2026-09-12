@@ -248,6 +248,14 @@
                         </svg>
                         HIPAA Anonymizer (H)
                     </button>
+                    <button type="button" class="tool-btn" id="btn-export-dicom-sc" style="border-color: #f59e0b; color: #fbbf24;" title="Synthesize & Download Certified DICOM Secondary Capture (.dcm) with burned-in Grad-CAM heatmaps & calipers (S)">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2"/>
+                            <path d="M7 7h10v10H7z"/>
+                            <circle cx="12" cy="12" r="2.5"/>
+                        </svg>
+                        Export DICOM SC (.dcm)
+                    </button>
                     <button type="button" class="tool-btn" id="reset-pacs-btn">Reset All</button>
                 </div>
             </div>
@@ -757,6 +765,14 @@
                                         <line x1="12" y1="15" x2="12" y2="3"/>
                                     </svg>
                                     Export Plate
+                                </button>
+                                <button type="button" class="btn-titanium" id="btn-export-dicom-sc-sidebar" style="border-color: #f59e0b; color: #fbbf24;" title="Synthesize & Download Certified DICOM Secondary Capture (.dcm) with burned-in AI heatmaps & calipers">
+                                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="3" y="3" width="18" height="18" rx="2"/>
+                                        <path d="M7 7h10v10H7z"/>
+                                        <circle cx="12" cy="12" r="2.5"/>
+                                    </svg>
+                                    Export DICOM SC
                                 </button>
                             </div>
                         </aside>
@@ -1368,10 +1384,18 @@
                                 <div class="pacs-active-study-meta" id="pacs-push-target-meta">
                                     <span>Selected Study: <strong id="pacs-push-study-name">—</strong></span>
                                 </div>
-                                <button type="button" class="btn-pacs-action" id="btn-pacs-push">
-                                    <span>Forward Study via C-STORE</span>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px;">
+                                    <button type="button" class="btn-pacs-action" id="btn-pacs-push" title="Transmit raw radiograph DICOM dataset">
+                                        <span>Forward Study (C-STORE)</span>
+                                    </button>
+                                    <button type="button" class="btn-pacs-action" id="btn-pacs-push-sc" style="background: linear-gradient(135deg, #d97706, #b45309); border-color: #f59e0b;" title="Push DICOM Secondary Capture with burned-in AI heatmaps & calipers">
+                                        <span>🔥 Push Secondary Capture</span>
+                                    </button>
+                                </div>
+                                <button type="button" class="btn-pacs-action" id="btn-pacs-download-sc" style="margin-top: 8px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24;" title="Synthesize & download DICOM Secondary Capture (.dcm) file directly">
+                                    <span>💾 Download Secondary Capture (.dcm)</span>
                                 </button>
-                                <div class="pacs-console-log" id="pacs-push-log">Select study and click Forward...</div>
+                                <div class="pacs-console-log" id="pacs-push-log">Select study and click Forward or Push Secondary Capture...</div>
                             </div>
                         </div>
                     </div>

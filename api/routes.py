@@ -56,12 +56,12 @@ import json
 import time
 import datetime
 import hashlib
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 
 from core.config import settings
 from core.preprocessor import preprocessor, ImagePreprocessingError
 from core.sample_generator import ensure_sample_assets
-from core.dicom_handler import is_dicom_bytes, parse_dicom_file
+from core.dicom_handler import is_dicom_bytes, parse_dicom_file, synthesize_secondary_capture_dicom
 from api.schemas import (
     PredictionResponse,
     HealthResponse,
@@ -81,6 +81,9 @@ from api.schemas import (
     MultiLabelFindingItem,
     PacsPingRequest,
     PacsPushRequest,
+    SecondaryCaptureExportRequest,
+    SecondaryCapturePushRequest,
+    SecondaryCapturePushResponse,
     LoginRequest,
     TokenResponse,
     ClinicalUserSchema,
@@ -722,6 +725,179 @@ async def push_study_to_external_pacs(req: PacsPushRequest):
     ds = study_item_to_pydicom(study)
     client = get_pacs_client()
     return client.push_study(ds, host=req.host, port=req.port, remote_ae=req.ae_title)
+
+def _build_study_secondary_capture(
+    study: WorklistStudyItem,
+    calipers: Optional[List[Dict[str, Any]]] = None,
+    colormap: str = "inferno",
+    include_hud: bool = True,
+    alpha: float = 0.40
+) -> Tuple[bytes, Any]:
+    """Helper to synthesize a compliant Secondary Capture DICOM dataset for a given study."""
+    import base64
+    raw_gray = None
+    if hasattr(study, "image_b64") and study.image_b64:
+        b64_str = str(study.image_b64)
+        if "," in b64_str:
+            b64_str = b64_str.split(",", 1)[1]
+        try:
+            arr = np.frombuffer(base64.b64decode(b64_str), dtype=np.uint8)
+            raw_gray = cv2.imdecode(arr, cv2.IMREAD_GRAYSCALE)
+        except Exception:
+            raw_gray = None
+    if raw_gray is None:
+        raw_gray = np.full((512, 512), 128, dtype=np.uint8)
+
+    raw_heatmap = None
+    if hasattr(study, "gradcam_overlay_b64") and study.gradcam_overlay_b64:
+        hm_b64 = str(study.gradcam_overlay_b64)
+        if "," in hm_b64:
+            hm_b64 = hm_b64.split(",", 1)[1]
+        try:
+            hm_arr = np.frombuffer(base64.b64decode(hm_b64), dtype=np.uint8)
+            hm_decoded = cv2.imdecode(hm_arr, cv2.IMREAD_GRAYSCALE)
+            if hm_decoded is not None:
+                raw_heatmap = (hm_decoded.astype(np.float32) / 255.0)
+        except Exception:
+            raw_heatmap = None
+
+    if raw_heatmap is None:
+        try:
+            from core.model import get_model
+            from core.gradcam import GradCAMGenerator
+            model_wrapper = get_model()
+            gradcam_gen = GradCAMGenerator(model_wrapper)
+            tensor = preprocessor.preprocess_from_array(raw_gray)
+            raw_heatmap = gradcam_gen.compute_heatmap(tensor)
+        except Exception:
+            raw_heatmap = None
+
+    pt_name = getattr(study, "patient_name", "Anonymous Patient")
+    pt_id = getattr(study, "patient_mrn", "UNKNOWN_MRN")
+    age_sex = getattr(study, "patient_age_sex", "048Y / M")
+    parts = [p.strip() for p in age_sex.split("/")]
+    pt_age = parts[0] if len(parts) > 0 else "048Y"
+    pt_sex = parts[1] if len(parts) > 1 else "M"
+    if len(pt_age) < 4:
+        pt_age = pt_age.zfill(3) + "Y"
+
+    diag = getattr(study, "diagnosis", "NORMAL")
+    conf = getattr(study, "confidence_percentage", 95.0)
+    dom_zone = getattr(study, "dominant_zone", "Bilateral Lung Fields")
+
+    return synthesize_secondary_capture_dicom(
+        original_image=raw_gray,
+        heatmap=raw_heatmap,
+        calipers=calipers,
+        patient_id=pt_id,
+        patient_name=pt_name,
+        patient_age=pt_age,
+        patient_sex=pt_sex,
+        study_id=study.study_id,
+        diagnosis=diag,
+        confidence=conf,
+        dominant_zone=dom_zone,
+        colormap_name=colormap,
+        heatmap_alpha=alpha,
+        include_banner=include_hud
+    )
+
+@router.post("/api/v1/export/secondary-capture", tags=["DICOM Secondary Capture"])
+async def export_dicom_secondary_capture(req: SecondaryCaptureExportRequest):
+    """
+    Synthesizes and downloads an authentic DICOM Secondary Capture (.dcm) file
+    with burned-in Grad-CAM thermal heatmap overlay, quantitative calipers, and clinical HUD.
+    """
+    global _WORKLIST_CACHE
+    if not _WORKLIST_CACHE:
+        await get_emergency_worklist()
+    study = next((s for s in _WORKLIST_CACHE if s.study_id == req.study_id), None)
+    if not study:
+        raise HTTPException(status_code=404, detail=f"Study {req.study_id} not found.")
+
+    sc_bytes, ds = _build_study_secondary_capture(
+        study=study,
+        calipers=req.calipers,
+        colormap=req.colormap or "inferno",
+        include_hud=req.include_hud if req.include_hud is not None else True,
+        alpha=req.alpha if req.alpha is not None else 0.40
+    )
+
+    get_audit_logger().log(
+        action="DICOM_SC_EXPORT",
+        user_id="radiologist",
+        username="attending.radiologist",
+        user_role="ATTENDING",
+        patient_mrn=study.patient_mrn,
+        study_id=study.study_id,
+        details={
+            "sop_instance_uid": str(ds.SOPInstanceUID),
+            "caliper_count": len(req.calipers) if req.calipers else 0,
+            "colormap": req.colormap or "inferno",
+            "filesize_bytes": len(sc_bytes)
+        }
+    )
+
+    filename = f"ALVEON_SC_{study.study_id}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.dcm"
+    return StreamingResponse(
+        io.BytesIO(sc_bytes),
+        media_type="application/dicom",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-SOP-Instance-UID": str(ds.SOPInstanceUID),
+            "X-SOP-Class-UID": "1.2.840.10008.5.1.4.1.1.7"
+        }
+    )
+
+@router.post("/api/v1/pacs/push-secondary-capture", response_model=SecondaryCapturePushResponse, tags=["DICOM Secondary Capture"])
+async def push_secondary_capture_to_pacs(req: SecondaryCapturePushRequest):
+    """
+    Synthesizes a DICOM Secondary Capture (.dcm) with burned-in AI heatmaps & calipers,
+    and transmits it to an external hospital PACS AE via C-STORE.
+    """
+    global _WORKLIST_CACHE
+    if not _WORKLIST_CACHE:
+        await get_emergency_worklist()
+    study = next((s for s in _WORKLIST_CACHE if s.study_id == req.study_id), None)
+    if not study:
+        raise HTTPException(status_code=404, detail=f"Study {req.study_id} not found.")
+
+    sc_bytes, ds = _build_study_secondary_capture(
+        study=study,
+        calipers=req.calipers,
+        colormap=req.colormap or "inferno",
+        include_hud=req.include_hud if req.include_hud is not None else True,
+        alpha=req.alpha if req.alpha is not None else 0.40
+    )
+
+    client = get_pacs_client()
+    res = client.push_study(ds, host=req.host, port=req.port, remote_ae=req.ae_title)
+
+    get_audit_logger().log(
+        action="DICOM_SC_CSTORE_PUSH",
+        user_id="radiologist",
+        username="attending.radiologist",
+        user_role="ATTENDING",
+        patient_mrn=study.patient_mrn,
+        study_id=study.study_id,
+        details={
+            "destination": f"{req.ae_title}@{req.host}:{req.port}",
+            "sop_instance_uid": str(ds.SOPInstanceUID),
+            "cstore_success": res.get("success", False),
+            "latency_ms": res.get("latency_ms", 0.0)
+        }
+    )
+
+    return SecondaryCapturePushResponse(
+        status=res.get("status", "success"),
+        success=bool(res.get("success", True)),
+        study_id=req.study_id,
+        sop_instance_uid=str(ds.SOPInstanceUID),
+        destination=f"{req.ae_title}@{req.host}:{req.port}",
+        latency_ms=float(res.get("latency_ms", 0.0)),
+        dicom_status=str(res.get("dicom_status_code", "0x0000")),
+        message=res.get("message")
+    )
 
 @router.post("/api/v1/pacs/inject-cohort", tags=["External PACS & Connectivity"])
 async def inject_external_pacs_cohort():

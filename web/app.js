@@ -1017,6 +1017,18 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // DICOM Secondary Capture (.dcm) Export: 'E'
+        if (e.key === 'e' || e.key === 'E') {
+            const isEditing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+            if (!isEditing && !e.ctrlKey && !e.metaKey) {
+                const btnSc = document.getElementById('btn-export-dicom-sc');
+                if (btnSc) {
+                    e.preventDefault();
+                    btnSc.click();
+                }
+            }
+        }
+
         // Navigate Studies in Worklist: Arrow Down / J
         if (e.key === 'ArrowDown' || e.key === 'j' || e.key === 'J') {
             e.preventDefault();
@@ -2564,6 +2576,179 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---------------------------------------------------------
+    // 17D. DICOM SECONDARY CAPTURE (SC) EXPORT & CSTORE PUSH
+    // ---------------------------------------------------------
+    function getNormalizedCalipersPayload() {
+        if (!measurements || measurements.length === 0 || !pacsCanvas) return [];
+        const rect = pacsCanvas.getBoundingClientRect();
+        const w = Math.max(rect.width, 1);
+        const h = Math.max(rect.height, 1);
+
+        return measurements.map(m => {
+            if (m.type === 'ruler') {
+                return {
+                    type: 'ruler',
+                    x1: m.x1 / w,
+                    y1: m.y1 / h,
+                    x2: m.x2 / w,
+                    y2: m.y2 / h,
+                    length_mm: m.mm,
+                    label: `${m.mm ? m.mm.toFixed(1) : ''} mm`
+                };
+            } else if (m.type === 'ctr') {
+                return {
+                    type: 'ctr',
+                    cardiac: {
+                        x1: m.cardiac.x1 / w,
+                        y1: m.cardiac.y1 / h,
+                        x2: m.cardiac.x2 / w,
+                        y2: m.cardiac.y2 / h,
+                        mm: m.cardiac.mm
+                    },
+                    thoracic: {
+                        x1: m.thoracic.x1 / w,
+                        y1: m.thoracic.y1 / h,
+                        x2: m.thoracic.x2 / w,
+                        y2: m.thoracic.y2 / h,
+                        mm: m.thoracic.mm
+                    },
+                    ratio: m.ratio
+                };
+            } else if (m.type === 'roi') {
+                return {
+                    type: 'roi',
+                    cx: m.cx / w,
+                    cy: m.cy / h,
+                    rx: m.rx / w,
+                    ry: m.ry / h,
+                    areaCm2: m.areaCm2
+                };
+            } else if (m.type === 'arrow') {
+                return {
+                    type: 'arrow',
+                    x1: m.x1 / w,
+                    y1: m.y1 / h,
+                    x2: m.x2 / w,
+                    y2: m.y2 / h,
+                    label: m.label || 'Pathology Focus'
+                };
+            }
+            return m;
+        });
+    }
+
+    async function exportSecondaryCaptureDicom() {
+        const studyId = selectedStudyId || (currentPrediction && currentPrediction.study_id);
+        if (!studyId) {
+            showWorkstationToast('⚠️ Please select a patient study in the worklist first.');
+            return;
+        }
+
+        showWorkstationToast('Synthesizing DICOM Secondary Capture (.dcm)...');
+        try {
+            const payload = {
+                study_id: studyId,
+                calipers: getNormalizedCalipersPayload(),
+                colormap: selectedColormap || 'inferno',
+                include_hud: true,
+                alpha: 0.40
+            };
+
+            const res = await fetch('/api/v1/export/secondary-capture', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res && res.ok) {
+                const blob = await res.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const disposition = res.headers.get('content-disposition');
+                let fileName = `ALVEON_SC_${studyId}.dcm`;
+                if (disposition && disposition.includes('filename=')) {
+                    const match = disposition.match(/filename="?([^"]+)"?/);
+                    if (match && match[1]) fileName = match[1];
+                }
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(url);
+                showWorkstationToast(`💾 Exported DICOM SC: ${fileName}`);
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                showWorkstationToast(`Failed to export DICOM SC: ${errData.detail || 'Server error'}`);
+            }
+        } catch (err) {
+            console.error('DICOM SC export error:', err);
+            showWorkstationToast(`Network error exporting DICOM SC: ${err.message}`);
+        }
+    }
+
+    async function pushSecondaryCaptureToPacs() {
+        const studyId = selectedStudyId || (currentPrediction && currentPrediction.study_id);
+        if (!studyId) {
+            if (pacsPushLog) pacsPushLog.textContent = '[ABORTED] No active study selected to push Secondary Capture.';
+            showWorkstationToast('⚠️ Select a study in worklist first');
+            return;
+        }
+
+        const ae = pacsPushAe ? pacsPushAe.value.trim() : 'ALVEON_PACS';
+        const host = pacsPushHost ? pacsPushHost.value.trim() : '127.0.0.1';
+        const port = pacsPushPort ? parseInt(pacsPushPort.value.trim(), 10) : 11112;
+
+        if (pacsPushLog) {
+            pacsPushLog.textContent = `[SYNTHESIZING & TRANSMITTING SC]\nConnecting to ${host}:${port} (AE: ${ae})...\nEncoding DICOM PS 3.3 Secondary Capture dataset with burned-in Grad-CAM & Calipers...`;
+        }
+
+        const btnPushSc = document.getElementById('btn-pacs-push-sc');
+        if (btnPushSc) btnPushSc.disabled = true;
+
+        try {
+            const res = await fetch('/api/v1/pacs/push-secondary-capture', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    study_id: studyId,
+                    host,
+                    port,
+                    ae_title: ae,
+                    calipers: getNormalizedCalipersPayload(),
+                    colormap: selectedColormap || 'inferno',
+                    include_hud: true,
+                    alpha: 0.40
+                })
+            });
+
+            const data = await res.json();
+            if (data.success || data.status === 'success') {
+                if (pacsPushLog) {
+                    pacsPushLog.textContent = `[C-STORE SC SUCCESS 0x0000]\nTransmitted DICOM Secondary Capture dataset to ${data.destination || (ae + '@' + host + ':' + port)} in ${data.latency_ms} ms.\nSOP Instance UID: ${data.sop_instance_uid}\nStatus: ${data.status} (Burned-in Grad-CAM & Calipers)`;
+                }
+                showWorkstationToast(`🚀 DICOM SC Pushed to ${ae} (${data.latency_ms} ms)`);
+            } else {
+                if (pacsPushLog) {
+                    pacsPushLog.textContent = `[C-STORE SC FAILED] ${data.message || data.detail || 'Transmission rejected'}`;
+                }
+                showWorkstationToast(`❌ C-STORE SC Failed: ${data.message || 'Rejected'}`);
+            }
+        } catch (err) {
+            if (pacsPushLog) pacsPushLog.textContent = `[NETWORK ERROR] ${err.message}`;
+            showWorkstationToast(`Network error: ${err.message}`);
+        } finally {
+            if (btnPushSc) btnPushSc.disabled = false;
+        }
+    }
+
+    const btnExportDicomSc = document.getElementById('btn-export-dicom-sc');
+    if (btnExportDicomSc) btnExportDicomSc.addEventListener('click', exportSecondaryCaptureDicom);
+
+    const btnExportDicomScSidebar = document.getElementById('btn-export-dicom-sc-sidebar');
+    if (btnExportDicomScSidebar) btnExportDicomScSidebar.addEventListener('click', exportSecondaryCaptureDicom);
+
+    // ---------------------------------------------------------
     // 18. WORKSTATION TOAST NOTIFICATION
     // ---------------------------------------------------------
     function showWorkstationToast(message) {
@@ -2724,6 +2909,16 @@ document.addEventListener('DOMContentLoaded', () => {
                     btnPacsPush.disabled = false;
                 }
             });
+        }
+
+        const btnPacsPushSc = document.getElementById('btn-pacs-push-sc');
+        if (btnPacsPushSc) {
+            btnPacsPushSc.addEventListener('click', pushSecondaryCaptureToPacs);
+        }
+
+        const btnPacsDownloadSc = document.getElementById('btn-pacs-download-sc');
+        if (btnPacsDownloadSc) {
+            btnPacsDownloadSc.addEventListener('click', exportSecondaryCaptureDicom);
         }
 
         // 3. Clinical Cohort Ingestion SCU
