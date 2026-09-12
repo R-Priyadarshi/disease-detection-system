@@ -788,3 +788,30 @@ class FDASummaryPdfRequest(BaseModel):
     evaluator_name: Optional[str] = "Chief Medical Officer"
     organization: Optional[str] = "ALVEON Healthcare Systems"
 
+class EDStreamStatusResponse(BaseModel):
+    is_running: bool
+    cadence_seconds: float
+    total_streamed: int
+    stat_critical_count: int
+    uptime_seconds: float
+    active_listeners: int
+    last_injected_at: Optional[str] = None
+    last_injected_study: Optional[Dict[str, Any]] = None
+
+class EDStreamStartRequest(BaseModel):
+    cadence_seconds: Optional[float] = Field(30.0, ge=5.0, le=300.0, description="Streaming interval in seconds")
+
+class EDStreamCadenceRequest(BaseModel):
+    cadence_seconds: float = Field(..., ge=5.0, le=300.0, description="Target streaming interval in seconds")
+
+class EDStreamBurstRequest(BaseModel):
+    count: Optional[int] = Field(3, ge=1, le=10, description="Number of emergency studies to inject in burst")
+
+class EDStreamBurstResponse(BaseModel):
+    status: str = "success"
+    alert_level: str = "CODE_BLACK_MASS_CASUALTY"
+    count: int
+    studies: List[WorklistStudyItem]
+    telemetry: EDStreamStatusResponse
+
+

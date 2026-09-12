@@ -317,6 +317,34 @@
 
                 <!-- 1. LIVE EMERGENCY TRIAGE WORKLIST CONTAINER -->
                 <div class="triage-worklist-container" id="triage-worklist-container">
+                    <!-- Live Emergency Department Continuous Stream HUD -->
+                    <div class="ed-stream-dock" id="ed-stream-dock">
+                        <div class="ed-stream-header">
+                            <div class="ed-stream-status">
+                                <span class="ed-radar-pulse" id="ed-stream-pulse"></span>
+                                <span class="ed-stream-title" id="ed-stream-status-label">ED STREAM: STANDBY</span>
+                            </div>
+                            <div class="ed-stream-counters">
+                                <span class="ed-counter-badge" id="ed-streamed-count" title="Total studies received from emergency bay stream">📥 0 Influx</span>
+                                <span class="ed-counter-badge stat" id="ed-stat-count" title="STAT Critical cases triaged">🚨 0 STAT</span>
+                            </div>
+                        </div>
+                        <div class="ed-stream-controls">
+                            <button type="button" class="btn-stream-toggle" id="ed-stream-toggle-btn" title="Start/Pause continuous hospital trauma stream">
+                                <span id="ed-stream-btn-icon">▶</span>
+                                <span id="ed-stream-btn-text">Start Stream</span>
+                            </button>
+                            <div class="ed-cadence-pills" id="ed-cadence-group" title="Adjust emergency acquisition influx cadence">
+                                <button type="button" class="ed-cadence-btn" data-cadence="10" title="Rush Hour / Trauma Surge (10s)">10s</button>
+                                <button type="button" class="ed-cadence-btn active" data-cadence="30" title="Standard Shift Influx (30s)">30s</button>
+                                <button type="button" class="ed-cadence-btn" data-cadence="60" title="Night Shift / Off-Peak (60s)">60s</button>
+                            </div>
+                            <button type="button" class="btn-stream-burst" id="ed-stream-burst-btn" title="Simulate Mass Casualty Incident (MCI Code Black) - 3 Simultaneous Critical Cases">
+                                <span>⚡ MCI Surge</span>
+                            </button>
+                        </div>
+                    </div>
+
                     <!-- Triage Filter Bar -->
                     <div class="triage-filter-bar">
                         <button type="button" class="triage-filter-pill active" data-filter="all">All (<span id="count-all">5</span>)</button>

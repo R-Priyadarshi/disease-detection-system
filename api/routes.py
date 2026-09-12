@@ -144,8 +144,14 @@ from api.schemas import (
     ThresholdOperatingPointRequest,
     ThresholdOperatingPointResponse,
     CohortEvaluationResponse,
-    FDASummaryPdfRequest
+    FDASummaryPdfRequest,
+    EDStreamStatusResponse,
+    EDStreamStartRequest,
+    EDStreamCadenceRequest,
+    EDStreamBurstRequest,
+    EDStreamBurstResponse
 )
+from core.ed_stream_daemon import get_ed_stream_daemon
 from core.validation_engine import (
     PATHOLOGY_BENCHMARKS,
     generate_roc_curve_points,
@@ -2899,3 +2905,94 @@ async def export_fda_510k_summary_pdf(req: Optional[FDASummaryPdfRequest] = None
             "X-Device-Classification": "Class II (21 CFR 892.2050)"
         }
     )
+
+
+# ==============================================================================
+# 30. CONTINUOUS EMERGENCY DEPARTMENT STREAM SIMULATION DAEMON
+# ==============================================================================
+
+@router.get("/api/v1/ed-stream/status", response_model=EDStreamStatusResponse, tags=["Emergency Stream Daemon"])
+async def get_ed_stream_status():
+    """Returns real-time operating state and telemetry of the ED stream daemon."""
+    daemon = get_ed_stream_daemon()
+    return daemon.get_status()
+
+@router.post("/api/v1/ed-stream/start", response_model=EDStreamStatusResponse, tags=["Emergency Stream Daemon"])
+async def start_ed_stream(req: Optional[EDStreamStartRequest] = None):
+    """Starts continuous background generation and injection of emergency studies."""
+    daemon = get_ed_stream_daemon()
+    cadence = req.cadence_seconds if req and req.cadence_seconds else 30.0
+    daemon.start(cadence_seconds=cadence)
+    return daemon.get_status()
+
+@router.post("/api/v1/ed-stream/stop", response_model=EDStreamStatusResponse, tags=["Emergency Stream Daemon"])
+async def stop_ed_stream():
+    """Stops/pauses the continuous emergency stream daemon."""
+    daemon = get_ed_stream_daemon()
+    daemon.stop()
+    return daemon.get_status()
+
+@router.post("/api/v1/ed-stream/cadence", response_model=EDStreamStatusResponse, tags=["Emergency Stream Daemon"])
+async def set_ed_stream_cadence(req: EDStreamCadenceRequest):
+    """Updates the streaming interval in seconds."""
+    daemon = get_ed_stream_daemon()
+    daemon.set_cadence(req.cadence_seconds)
+    return daemon.get_status()
+
+@router.post("/api/v1/ed-stream/burst", response_model=EDStreamBurstResponse, tags=["Emergency Stream Daemon"])
+async def trigger_ed_stream_burst(req: Optional[EDStreamBurstRequest] = None):
+    """
+    Triggers an immediate Multi-Casualty Incident (MCI Code Black) emergency burst,
+    injecting multiple critical trauma/stroke cases in rapid succession.
+    """
+    daemon = get_ed_stream_daemon()
+    count = req.count if req and req.count else 3
+    burst_studies = await daemon.trigger_burst(count=count)
+    return EDStreamBurstResponse(
+        status="success",
+        alert_level="CODE_BLACK_MASS_CASUALTY",
+        count=len(burst_studies),
+        studies=burst_studies,
+        telemetry=EDStreamStatusResponse(**daemon.get_status())
+    )
+
+@router.post("/api/v1/ed-stream/inject-single", tags=["Emergency Stream Daemon"])
+async def inject_single_ed_study():
+    """Immediately injects a single realistic emergency department case."""
+    daemon = get_ed_stream_daemon()
+    study = await daemon.inject_study(is_burst=False)
+    return {
+        "status": "success",
+        "study": study,
+        "telemetry": daemon.get_status()
+    }
+
+@router.websocket("/ws/ed-stream")
+async def websocket_ed_stream_endpoint(websocket: WebSocket):
+    """
+    Dedicated real-time WebSocket connection for live Emergency Department streaming.
+    Pushes instantaneous arrival events and telemetry to connected workstation HUDs.
+    """
+    await websocket.accept()
+    daemon = get_ed_stream_daemon()
+    daemon.register_websocket(websocket)
+    try:
+        # Send initial status
+        await websocket.send_text(json.dumps({
+            "type": "ED_CONNECTED",
+            "telemetry": daemon.get_status()
+        }))
+        while True:
+            # Keep-alive listener
+            data = await websocket.receive_text()
+            try:
+                msg = json.loads(data)
+                if msg.get("type") == "PING":
+                    await websocket.send_text(json.dumps({"type": "PONG", "timestamp": time.time()}))
+            except Exception:
+                pass
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
+        daemon.unregister_websocket(websocket)
+

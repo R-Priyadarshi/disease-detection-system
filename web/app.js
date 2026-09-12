@@ -6222,6 +6222,324 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---------------------------------------------------------
+    // 30. CONTINUOUS EMERGENCY DEPARTMENT STREAM DAEMON (SECTION 30)
+    // ---------------------------------------------------------
+    function initEDStreamDaemon() {
+        const edDock = document.getElementById('ed-stream-dock');
+        const edPulse = document.getElementById('ed-stream-pulse');
+        const edStatusLabel = document.getElementById('ed-stream-status-label');
+        const edStreamedCount = document.getElementById('ed-streamed-count');
+        const edStatCount = document.getElementById('ed-stat-count');
+        const edToggleBtn = document.getElementById('ed-stream-toggle-btn');
+        const edBtnIcon = document.getElementById('ed-stream-btn-icon');
+        const edBtnText = document.getElementById('ed-stream-btn-text');
+        const edCadenceGroup = document.getElementById('ed-cadence-group');
+        const edBurstBtn = document.getElementById('ed-stream-burst-btn');
+
+        if (!edDock) return;
+
+        let edWs = null;
+        let edWsReconnectTimer = null;
+        let isEdStreaming = false;
+
+        function playEDStreamChime(isStat) {
+            if (isChimeMuted) return;
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+                const now = audioCtx.currentTime;
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+
+                osc.type = isStat ? 'sawtooth' : 'sine';
+                const startFreq = isStat ? 960 : 640;
+                const endFreq = isStat ? 440 : 880;
+
+                osc.frequency.setValueAtTime(startFreq, now);
+                osc.frequency.exponentialRampToValueAtTime(endFreq, now + 0.28);
+
+                const vol = isStat ? 0.14 : 0.07;
+                gain.gain.setValueAtTime(vol, now);
+                gain.gain.exponentialRampToValueAtTime(0.005, now + 0.28);
+
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.3);
+            } catch (e) {
+                // AudioContext autoplay fallback
+            }
+        }
+
+        function updateEDCounters(total, stat) {
+            if (edStreamedCount && total !== undefined) {
+                edStreamedCount.textContent = `📥 ${total} Influx`;
+            }
+            if (edStatCount && stat !== undefined) {
+                edStatCount.textContent = `🚨 ${stat} STAT`;
+            }
+        }
+
+        function updateEDHUD(status) {
+            if (status.is_running !== undefined) {
+                isEdStreaming = !!status.is_running;
+                if (isEdStreaming) {
+                    edDock.classList.add('streaming');
+                    if (edPulse) edPulse.classList.add('active');
+                    if (edStatusLabel) edStatusLabel.textContent = 'ED STREAM: ACTIVE';
+                    if (edBtnIcon) edBtnIcon.textContent = '⏸';
+                    if (edBtnText) edBtnText.textContent = 'Pause Stream';
+                    if (edToggleBtn) {
+                        edToggleBtn.classList.add('active');
+                        edToggleBtn.title = 'Pause continuous hospital trauma stream';
+                    }
+                } else {
+                    edDock.classList.remove('streaming');
+                    if (edPulse) edPulse.classList.remove('active');
+                    if (edStatusLabel) edStatusLabel.textContent = 'ED STREAM: STANDBY';
+                    if (edBtnIcon) edBtnIcon.textContent = '▶';
+                    if (edBtnText) edBtnText.textContent = 'Start Stream';
+                    if (edToggleBtn) {
+                        edToggleBtn.classList.remove('active');
+                        edToggleBtn.title = 'Start continuous hospital trauma stream';
+                    }
+                }
+            }
+
+            if (status.cadence_seconds !== undefined && edCadenceGroup) {
+                const cadence = Math.round(status.cadence_seconds);
+                const pills = edCadenceGroup.querySelectorAll('.ed-cadence-btn');
+                pills.forEach(btn => {
+                    if (parseInt(btn.getAttribute('data-cadence'), 10) === cadence) {
+                        btn.classList.add('active');
+                    } else {
+                        btn.classList.remove('active');
+                    }
+                });
+            }
+
+            if (status.total_streamed !== undefined || status.stat_critical_count !== undefined) {
+                updateEDCounters(status.total_streamed, status.stat_critical_count);
+            }
+        }
+
+        function refreshWorklistFromStream(newStudy) {
+            if (!newStudy || !newStudy.study_id) return;
+            const existingIdx = worklistStudies.findIndex(s => s.study_id === newStudy.study_id);
+            if (existingIdx >= 0) {
+                worklistStudies[existingIdx] = newStudy;
+            } else {
+                if (newStudy.priority === 'STAT_CRITICAL') {
+                    worklistStudies.unshift(newStudy);
+                } else {
+                    const firstNonStat = worklistStudies.findIndex(s => s.priority !== 'STAT_CRITICAL');
+                    if (firstNonStat >= 0) {
+                        worklistStudies.splice(firstNonStat, 0, newStudy);
+                    } else {
+                        worklistStudies.push(newStudy);
+                    }
+                }
+            }
+            if (worklistStudies.length > 50) {
+                worklistStudies = worklistStudies.slice(0, 50);
+            }
+            updateWorklistCounters();
+            renderWorklistQueue();
+        }
+
+        function handleEDStreamMessage(msg) {
+            if (!msg || !msg.type) return;
+
+            if (msg.type === 'ED_STREAM_STATUS') {
+                updateEDHUD(msg);
+            } else if (msg.type === 'ED_STREAM_STARTED') {
+                isEdStreaming = true;
+                updateEDHUD({ is_running: true, cadence_seconds: msg.cadence_seconds });
+                showWorkstationToast(`🚨 Emergency Department Stream Started (${msg.cadence_seconds}s cadence)`);
+            } else if (msg.type === 'ED_STREAM_STOPPED') {
+                isEdStreaming = false;
+                updateEDHUD({ is_running: false });
+                showWorkstationToast('⏸️ Emergency Department Stream Paused');
+            } else if (msg.type === 'ED_STUDY_ARRIVED') {
+                const study = msg.study;
+                if (!study) return;
+
+                if (msg.telemetry) {
+                    updateEDCounters(msg.telemetry.total_streamed, msg.telemetry.stat_critical_count);
+                }
+
+                const isStat = study.priority === 'STAT_CRITICAL';
+                playEDStreamChime(isStat);
+
+                if (isStat) {
+                    showWorkstationToast(`🚨 STAT Trauma Influx: ${study.patient_name} (${study.study_id})`);
+                } else {
+                    showWorkstationToast(`📥 ED Influx: ${study.patient_name} (${study.study_id})`);
+                }
+
+                refreshWorklistFromStream(study);
+            } else if (msg.type === 'ED_MCI_BURST_ALERT') {
+                playEDStreamChime(true);
+                showWorkstationToast(`⚡ CODE BLACK MCI: ${msg.burst_count || 3} Critical Patients Injected to Trauma Bay!`);
+                if (msg.telemetry) {
+                    updateEDCounters(msg.telemetry.total_streamed, msg.telemetry.stat_critical_count);
+                }
+                if (msg.studies && Array.isArray(msg.studies)) {
+                    msg.studies.forEach(s => refreshWorklistFromStream(s));
+                } else {
+                    fetchWorklist();
+                }
+            }
+        }
+
+        function connectEDWebSocket() {
+            if (edWs && (edWs.readyState === WebSocket.OPEN || edWs.readyState === WebSocket.CONNECTING)) {
+                return;
+            }
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            const wsUrl = `${protocol}//${host}/ws/ed-stream`;
+
+            try {
+                edWs = new WebSocket(wsUrl);
+
+                edWs.onopen = () => {
+                    console.log('[EDStream] WebSocket connected to trauma stream.');
+                };
+
+                edWs.onmessage = (event) => {
+                    try {
+                        const msg = JSON.parse(event.data);
+                        handleEDStreamMessage(msg);
+                    } catch (err) {
+                        console.warn('[EDStream] Message parse error:', err);
+                    }
+                };
+
+                edWs.onclose = () => {
+                    scheduleReconnect();
+                };
+
+                edWs.onerror = () => {
+                    try { edWs.close(); } catch (e) {}
+                };
+            } catch (e) {
+                scheduleReconnect();
+            }
+        }
+
+        function scheduleReconnect() {
+            if (edWsReconnectTimer) clearTimeout(edWsReconnectTimer);
+            edWsReconnectTimer = setTimeout(() => {
+                connectEDWebSocket();
+            }, 4000);
+        }
+
+        // Toggle Stream Button
+        if (edToggleBtn) {
+            edToggleBtn.addEventListener('click', async () => {
+                try {
+                    edToggleBtn.disabled = true;
+                    if (isEdStreaming) {
+                        const res = await fetch('/api/v1/ed-stream/stop', { method: 'POST' });
+                        if (res.ok) {
+                            const data = await res.json();
+                            updateEDHUD(data);
+                            showWorkstationToast('⏸️ Emergency Department Stream Paused');
+                        }
+                    } else {
+                        const res = await fetch('/api/v1/ed-stream/start', { method: 'POST' });
+                        if (res.ok) {
+                            const data = await res.json();
+                            updateEDHUD(data);
+                            showWorkstationToast(`🚨 Emergency Department Stream Activated (${data.cadence_seconds}s cadence)`);
+                        }
+                    }
+                } catch (err) {
+                    console.error('[EDStream] Toggle error:', err);
+                    showWorkstationToast('Failed to toggle ED stream.');
+                } finally {
+                    edToggleBtn.disabled = false;
+                }
+            });
+        }
+
+        // Cadence Buttons (10s / 30s / 60s)
+        if (edCadenceGroup) {
+            edCadenceGroup.addEventListener('click', async (e) => {
+                const btn = e.target.closest('.ed-cadence-btn');
+                if (!btn) return;
+                const cadence = parseFloat(btn.getAttribute('data-cadence'));
+                if (isNaN(cadence)) return;
+
+                try {
+                    const res = await fetch('/api/v1/ed-stream/cadence', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ cadence_seconds: cadence })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        updateEDHUD(data);
+                        showWorkstationToast(`⏱️ ED Stream Cadence: ${cadence}s interval`);
+                    }
+                } catch (err) {
+                    console.error('[EDStream] Cadence error:', err);
+                }
+            });
+        }
+
+        // Mass Casualty Incident (MCI Code Black) Surge Button
+        if (edBurstBtn) {
+            edBurstBtn.addEventListener('click', async () => {
+                try {
+                    edBurstBtn.disabled = true;
+                    const originalHtml = edBurstBtn.innerHTML;
+                    edBurstBtn.innerHTML = '<span>⚡ Influx...</span>';
+
+                    const res = await fetch('/api/v1/ed-stream/burst', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ count: 3 })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        showWorkstationToast(`⚡ Mass Casualty Surge Injected: ${data.injected_count} STAT Critical Cases`);
+                        await fetchWorklist();
+                    }
+                    edBurstBtn.innerHTML = originalHtml;
+                } catch (err) {
+                    console.error('[EDStream] Burst surge error:', err);
+                    showWorkstationToast('MCI surge injection failed.');
+                } finally {
+                    edBurstBtn.disabled = false;
+                }
+            });
+        }
+
+        // Initial status query and connect WebSocket
+        async function syncEDStatus() {
+            try {
+                const res = await fetch('/api/v1/ed-stream/status');
+                if (res.ok) {
+                    const data = await res.json();
+                    updateEDHUD(data);
+                }
+            } catch (err) {
+                console.warn('[EDStream] Status sync error:', err);
+            }
+        }
+
+        syncEDStatus();
+        connectEDWebSocket();
+    }
+
+    // ---------------------------------------------------------
     // INITIAL BOOT: FETCH WORKLIST & INIT ALL ENTERPRISE MODALS
     // ---------------------------------------------------------
     initPacsHubModal();
@@ -6245,6 +6563,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initMobileTabletUI();
     initTeleRadiology();
     initValidationSuite();
+    initEDStreamDaemon();
     fetchWorklist();
 });
 
