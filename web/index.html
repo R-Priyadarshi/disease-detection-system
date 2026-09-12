@@ -265,6 +265,12 @@
                         </svg>
                         Export DICOM SC (.dcm)
                     </button>
+                    <button type="button" class="tool-btn" id="btn-open-model-benchmark" style="border-color: #8b5cf6; color: #c4b5fd;" title="Multi-Model Architecture Benchmarking Suite (DenseNet-121, ResNet-50-D, ViT-B/16, ConvNeXt-Tiny)">
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+                        </svg>
+                        Model Benchmark (B)
+                    </button>
                     <button type="button" class="tool-btn" id="reset-pacs-btn">Reset All</button>
                 </div>
             </div>
@@ -617,6 +623,10 @@
                                         <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>
                                         <span>🔴 Laser</span>
                                     </button>
+                                    <button type="button" class="measure-tool-btn" id="tool-fleischner" title="Fleischner Society 2017 Guidelines & FHIR Nodule Assessment (F)" style="border-color: rgba(56, 189, 248, 0.4);">
+                                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a4 4 0 0 0-4 4v4H6a4 4 0 0 0-4 4v4h4a4 4 0 0 0 4-4V6a2 2 0 0 1 4 0v10a4 4 0 0 0 4 4h4v-4a4 4 0 0 0-4-4h-2V6a4 4 0 0 0-4-4z"/></svg>
+                                        <span>🫁 Fleischner</span>
+                                    </button>
                                 </div>
                                 <div class="measure-actions-group">
                                     <button type="button" class="measure-clear-btn" id="btn-clear-measurements" title="Clear Calipers & Annotations">
@@ -887,6 +897,35 @@
                         </div>
                     </div>
 
+                    <!-- Phase 5: 3D Cinematic Ray-Casting & MIP/MinIP Projection Toolbar -->
+                    <div class="mpr-projection-toolbar" id="mpr-projection-toolbar">
+                        <div class="proj-mode-group">
+                            <span class="mpr-label">PROJECTION / RAYCAST:</span>
+                            <div class="pill-group" id="mpr-projection-modes">
+                                <button type="button" class="tool-btn active" data-proj="PLANAR" id="btn-proj-planar">Planar</button>
+                                <button type="button" class="tool-btn" data-proj="MIP" id="btn-proj-mip" title="Maximum Intensity Projection (Angiography / Bones / Hyperdense Focus)">MIP (Vascular)</button>
+                                <button type="button" class="tool-btn" data-proj="MINIP" id="btn-proj-minip" title="Minimum Intensity Projection (Airways / Emphysema / Hypodense Focus)">MinIP (Airways)</button>
+                                <button type="button" class="tool-btn" data-proj="AIP" id="btn-proj-aip" title="Average Intensity Projection">AIP</button>
+                                <button type="button" class="tool-btn" data-proj="ORBIT_3D" id="btn-proj-orbit" title="3D Cinematic Raycast Orbit Turntable">3D Orbit</button>
+                            </div>
+                        </div>
+
+                        <div class="slab-thickness-ctrl" id="slab-thickness-ctrl">
+                            <span class="mpr-label">SLAB:</span>
+                            <input type="range" id="mpr-slab-slider" min="1" max="50" value="10" step="1" class="cine-slider" style="width: 80px;" title="Thick-slab projection thickness (mm)">
+                            <span id="mpr-slab-val" class="mono-num">10 mm</span>
+                        </div>
+
+                        <div class="raycast-preset-ctrl" id="raycast-preset-ctrl" style="display: none;">
+                            <span class="mpr-label">TRANSFER FN:</span>
+                            <select id="raycast-preset-selector" class="mpr-select" style="padding: 2px 6px; font-size: 11px;">
+                                <option value="NEURO_HEMORRHAGE">Neuro Hemorrhage (Blood Red)</option>
+                                <option value="CHEST_VASCULAR">Chest Vascular (Contrast Enhanced)</option>
+                                <option value="BONE_ANATOMY">Bone Anatomy (Cortical Specular)</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <!-- Neuro-Radiology Diagnostic & Stroke CADx Banner (Active on Brain CT) -->
                     <div class="neuro-diag-banner" id="neuro-diag-banner" style="display: none;">
                         <div class="neuro-diag-left">
@@ -1001,6 +1040,25 @@
                                 <div class="mpr-corner-overlay top-right">A (Anterior)</div>
                                 <div class="mpr-corner-overlay bottom-left">P (Posterior)</div>
                                 <div class="mpr-corner-overlay bottom-right">H ◀ ▶ F</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Phase 5: 3D Cinematic Raycast Orbit Stage -->
+                    <div class="mpr-orbit-stage" id="mpr-orbit-stage" style="display: none;">
+                        <div class="orbit-header">
+                            <div class="orbit-title">
+                                <span class="mpr-plane-tag" style="background: rgba(139, 92, 246, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4);">3D CINEMATIC RAY-CASTING</span>
+                                <span class="mpr-plane-sub">Interactive 360° Volumetric Orbit • Drag horizontally to scrub turntable</span>
+                            </div>
+                            <div class="orbit-angle-indicator" id="orbit-angle-tag">AZIMUTH: 0.0° | ELEVATION: 15.0°</div>
+                        </div>
+                        <div class="orbit-canvas-wrap">
+                            <canvas id="mpr-orbit-canvas" width="480" height="480" class="orbit-canvas"></canvas>
+                            <div class="orbit-drag-hint" id="orbit-drag-hint">↔ Click & Drag horizontally to rotate 3D volume (16 turntable frames)</div>
+                            <div class="orbit-loading-overlay" id="orbit-loading" style="display: none;">
+                                <div class="orbit-spinner"></div>
+                                <span>Rendering 3D Volume Transfer Function...</span>
                             </div>
                         </div>
                     </div>
@@ -2422,6 +2480,223 @@ Click "Transmit Order" or "Generate Results" to test live MLLP / JSON parsing.</
                     </div>
                     <div class="val-footer-attest">
                         <span>Digital Signature: <strong>Dr. Julian Vance, MD, FACR</strong> (Chief Medical Officer)</span>
+                    </div>
+                </div>
+            </div>
+        </dialog>
+
+        <!-- Phase 6: Fleischner Society 2017 Guidelines & FHIR R4 Nodule Consultation Modal -->
+        <dialog id="fleischner-dialog" class="pacs-modal-dialog">
+            <div class="validation-modal-window" style="max-width: 980px;">
+                <div class="validation-modal-header">
+                    <div class="val-header-left">
+                        <div class="val-title-row">
+                            <span class="val-header-icon">🫁</span>
+                            <h2 class="val-header-title">Fleischner Society 2017 Guidelines & FHIR Nodule Consultation</h2>
+                        </div>
+                        <div class="val-meta-row">
+                            <span class="val-badge fda-badge">Fleischner 2017 Decision Engine</span>
+                            <span class="val-badge code-badge">HL7 FHIR R4 DiagnosticReport</span>
+                            <span class="val-badge cohort-badge">RADLEX RID28473 • SNOMED 371037004</span>
+                            <span class="val-badge consensus-badge">Evidence-Based Risk Stratification</span>
+                        </div>
+                    </div>
+                    <button type="button" class="pacs-hub-close" id="btn-close-fleischner-modal" title="Close Fleischner Suite">&times;</button>
+                </div>
+
+                <div class="fleischner-modal-body">
+                    <!-- Left: Nodule Morphology & Risk Factor Inputs -->
+                    <div class="fleischner-input-column">
+                        <div class="fleischner-section-title">1. Nodule Characteristics & Morphology</div>
+                        
+                        <div class="fleischner-form-group">
+                            <label for="fleischner-morphology-select" class="fleischner-label">Nodule Morphology:</label>
+                            <select id="fleischner-morphology-select" class="val-select">
+                                <option value="SOLID_SINGLE" selected>Solid Single Nodule</option>
+                                <option value="SOLID_MULTIPLE">Solid Multiple Nodules</option>
+                                <option value="SUBSOLID_PART_SOLID">Subsolid Part-Solid Nodule (Ground-Glass + Solid)</option>
+                                <option value="SUBSOLID_PURE_GGN">Subsolid Pure Ground-Glass Nodule (GGN)</option>
+                            </select>
+                        </div>
+
+                        <div class="fleischner-form-row">
+                            <div class="fleischner-form-group flex-1">
+                                <label for="fleischner-max-diam" class="fleischner-label">Max Diameter (mm):</label>
+                                <input type="number" id="fleischner-max-diam" class="fleischner-input" min="1.0" max="40.0" step="0.5" value="7.5">
+                            </div>
+                            <div class="fleischner-form-group flex-1">
+                                <label for="fleischner-perp-diam" class="fleischner-label">Perpendicular (mm):</label>
+                                <input type="number" id="fleischner-perp-diam" class="fleischner-input" min="1.0" max="40.0" step="0.5" value="6.5">
+                            </div>
+                        </div>
+
+                        <div class="fleischner-form-row" id="fleischner-subsolid-row" style="display: none;">
+                            <div class="fleischner-form-group flex-1">
+                                <label for="fleischner-solid-comp" class="fleischner-label">Solid Component (mm):</label>
+                                <input type="number" id="fleischner-solid-comp" class="fleischner-input" min="0.0" max="30.0" step="0.5" value="4.0">
+                            </div>
+                            <div class="fleischner-form-group flex-1">
+                                <label for="fleischner-lobe-select" class="fleischner-label">Anatomical Lobe:</label>
+                                <select id="fleischner-lobe-select" class="val-select">
+                                    <option value="Right Upper Lobe" selected>Right Upper Lobe (High Risk)</option>
+                                    <option value="Right Middle Lobe">Right Middle Lobe</option>
+                                    <option value="Right Lower Lobe">Right Lower Lobe</option>
+                                    <option value="Left Upper Lobe">Left Upper Lobe</option>
+                                    <option value="Left Lower Lobe">Left Lower Lobe</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="fleischner-section-title" style="margin-top: 14px;">2. Clinical Risk Factors & Patient Demographics</div>
+
+                        <div class="fleischner-form-row">
+                            <div class="fleischner-form-group flex-1">
+                                <label for="fleischner-patient-age" class="fleischner-label">Patient Age (yr):</label>
+                                <input type="number" id="fleischner-patient-age" class="fleischner-input" min="18" max="100" value="58">
+                            </div>
+                            <div class="fleischner-form-group flex-1">
+                                <label for="fleischner-pack-years" class="fleischner-label">Smoking (Pack-Years):</label>
+                                <input type="number" id="fleischner-pack-years" class="fleischner-input" min="0" max="100" value="35">
+                            </div>
+                        </div>
+
+                        <div class="fleischner-checkbox-group">
+                            <label class="fleischner-check-label">
+                                <input type="checkbox" id="fleischner-chk-spiculated" checked>
+                                <span>Spiculated / Irregular Margins (RADLEX RID43264)</span>
+                            </label>
+                            <label class="fleischner-check-label">
+                                <input type="checkbox" id="fleischner-chk-family" checked>
+                                <span>Family History of Bronchogenic Carcinoma</span>
+                            </label>
+                            <label class="fleischner-check-label">
+                                <input type="checkbox" id="fleischner-chk-emphysema">
+                                <span>Concurrent Severe Emphysema / Fibrosis</span>
+                            </label>
+                        </div>
+
+                        <div class="fleischner-actions-row">
+                            <button type="button" class="btn-master" id="btn-run-fleischner-eval" style="background: linear-gradient(135deg, #0284c7, #2563eb);">
+                                <span>⚡ Recalculate Fleischner Guidelines</span>
+                            </button>
+                            <button type="button" class="btn-titanium" id="btn-export-fleischner-pdf" style="border-color: #0284c7; color: #38bdf8;">
+                                <span>📄 Export Dossier PDF</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Right: Guidelines Output & FHIR Preview Tabs -->
+                    <div class="fleischner-output-column">
+                        <div class="fleischner-tabs-row">
+                            <button type="button" class="fleischner-tab-btn active" id="tab-fleischner-rec">Guideline Recommendation</button>
+                            <button type="button" class="fleischner-tab-btn" id="tab-fleischner-fhir">HL7 FHIR R4 Bundle (JSON)</button>
+                        </div>
+
+                        <div class="fleischner-tab-pane active" id="pane-fleischner-rec">
+                            <div class="fleischner-result-card" id="fleischner-res-card">
+                                <div class="fleischner-rec-header">
+                                    <span class="fleischner-tier-badge" id="fleischner-tier-badge">HIGH RISK PATIENT</span>
+                                    <span class="fleischner-action-pill" id="fleischner-action-pill">FOLLOW-UP CT AT 3-6 MONTHS</span>
+                                </div>
+                                <div class="fleischner-rec-timing" id="fleischner-timing-text">
+                                    CT at 3-6 months, then at 18-24 months if stable
+                                </div>
+                                <div class="fleischner-rec-rationale" id="fleischner-rationale-text">
+                                    Nodule mean diameter 7.0 mm in a high-risk individual requires early 3-6 month CT re-assessment to evaluate for doubling time and volumetric progression.
+                                </div>
+                                <div class="fleischner-metrics-grid">
+                                    <div class="f-metric-item">
+                                        <span class="f-lbl">MEAN DIAMETER</span>
+                                        <span class="f-val" id="f-metric-mean-diam">7.0 mm</span>
+                                    </div>
+                                    <div class="f-metric-item">
+                                        <span class="f-lbl">EST. VOLUME</span>
+                                        <span class="f-val" id="f-metric-vol">179.6 mm³</span>
+                                    </div>
+                                    <div class="f-metric-item">
+                                        <span class="f-lbl">MALIGNANCY RISK</span>
+                                        <span class="f-val" id="f-metric-risk">High Risk</span>
+                                    </div>
+                                    <div class="f-metric-item">
+                                        <span class="f-lbl">ACTION CODE</span>
+                                        <span class="f-val" id="f-metric-action">FOLLOW_UP_CT</span>
+                                    </div>
+                                </div>
+                                <div class="fleischner-coding-box">
+                                    <span class="f-code-tag">RADLEX: <strong>RID28473</strong> (Pulmonary Nodule)</span>
+                                    <span class="f-code-tag">SNOMED CT: <strong>371037004</strong></span>
+                                    <span class="f-code-tag">LOINC: <strong>24627-2</strong> (Chest CT)</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="fleischner-tab-pane" id="pane-fleischner-fhir" style="display: none;">
+                            <div class="fhir-json-viewer-wrap">
+                                <pre id="fhir-json-display" class="fhir-json-code">Loading HL7 FHIR R4 Bundle...</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </dialog>
+
+        <!-- Phase 7: Multi-Model Vision Architecture Benchmarking Suite Modal -->
+        <dialog id="benchmark-dialog" class="pacs-modal-dialog">
+            <div class="validation-modal-window" style="max-width: 1040px;">
+                <div class="validation-modal-header">
+                    <div class="val-header-left">
+                        <div class="val-title-row">
+                            <span class="val-header-icon">🔬</span>
+                            <h2 class="val-header-title">Multi-Model Deep Learning Architecture Benchmarking Suite</h2>
+                        </div>
+                        <div class="val-meta-row">
+                            <span class="val-badge" style="background: rgba(139, 92, 246, 0.15); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.4);">Comparative Vision AI</span>
+                            <span class="val-badge code-badge">DenseNet-121 • ResNet-50-D • ViT-B/16 • ConvNeXt-Tiny</span>
+                            <span class="val-badge cohort-badge">Cohen's Kappa (κ) Consensus Matrix</span>
+                            <span class="val-badge consensus-badge">Latency & Compute Profiling (FP32 / FP16)</span>
+                        </div>
+                    </div>
+                    <button type="button" class="pacs-hub-close" id="btn-close-benchmark-modal" title="Close Benchmark Suite">&times;</button>
+                </div>
+
+                <div class="benchmark-modal-toolbar">
+                    <div class="bm-toolbar-left">
+                        <span class="mpr-label">STUDY FOR MULTI-MODEL COMPARISON:</span>
+                        <span class="mono-num" id="bm-active-study-id" style="color: #38bdf8; font-weight: bold; margin-left: 6px;">#MRN-TRAUMA-4410 (Elena Rostova)</span>
+                    </div>
+                    <div class="bm-toolbar-right">
+                        <button type="button" class="btn-master" id="btn-run-model-benchmark" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9); border-color: #a78bfa;">
+                            <span>⚡ Run 4-Model Inference & Kappa Matrix</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="benchmark-modal-body">
+                    <!-- Top: Architecture Hardware & Latency Specifications Cards -->
+                    <div class="bm-arch-grid" id="bm-arch-cards-container">
+                        <!-- Dynamically filled with 4 architecture cards -->
+                    </div>
+
+                    <!-- Middle: Comparative Inference on Active Study -->
+                    <div class="bm-inference-section">
+                        <div class="bm-section-title">
+                            <span>Active Study Inference: Multi-Architecture Predictions & Consensus</span>
+                            <span class="bm-consensus-tag" id="bm-consensus-summary-tag">4/4 High Consensus</span>
+                        </div>
+                        <div class="bm-models-comparison-grid" id="bm-inference-models-grid">
+                            <!-- Model inference cards with top pathology and probability -->
+                        </div>
+                    </div>
+
+                    <!-- Bottom: Cohen's Kappa Inter-Rater Reliability Heatmap Matrix -->
+                    <div class="bm-kappa-section">
+                        <div class="bm-section-title">
+                            <span>Pairwise Inter-Rater Reliability Matrix (Cohen's Kappa κ)</span>
+                            <span class="mpr-plane-sub">Statistical agreement across 14 multi-label findings</span>
+                        </div>
+                        <div class="bm-kappa-matrix-wrap" id="bm-kappa-matrix-container">
+                            <!-- Heatmap table -->
+                        </div>
                     </div>
                 </div>
             </div>

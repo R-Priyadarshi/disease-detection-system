@@ -149,7 +149,15 @@ from api.schemas import (
     EDStreamStartRequest,
     EDStreamCadenceRequest,
     EDStreamBurstRequest,
-    EDStreamBurstResponse
+    EDStreamBurstResponse,
+    VolumetricProjectionRequest,
+    VolumetricProjectionResponse,
+    VolumetricOrbitRequest,
+    VolumetricOrbitResponse,
+    VolumetricTurntableResponse,
+    FleischnerEvaluateApiRequest,
+    FleischnerDossierApiRequest,
+    ModelInferenceCompareRequest
 )
 from core.ed_stream_daemon import get_ed_stream_daemon
 from core.validation_engine import (
@@ -2995,4 +3003,185 @@ async def websocket_ed_stream_endpoint(websocket: WebSocket):
         pass
     finally:
         daemon.unregister_websocket(websocket)
+
+
+# =========================================================
+# PATH B: 3D CINEMATIC RAY-CASTING & MIP/MINIP ENDPOINTS
+# =========================================================
+
+@router.post("/api/v1/volumetric/projection", response_model=VolumetricProjectionResponse)
+async def compute_volumetric_projection(req: VolumetricProjectionRequest):
+    """Computes thick-slab or full-volume Maximum/Minimum/Average Intensity Projection."""
+    try:
+        from core.raycast_engine import get_raycast_engine
+        raycast = get_raycast_engine()
+        proj_hu, proj_8bit, meta = raycast.compute_orthogonal_projection(
+            series_id=req.series_id,
+            orientation=req.orientation,
+            mode=req.projection_mode,
+            slice_idx=req.slice_idx,
+            slab_thickness_mm=req.slab_thickness_mm,
+            window_preset=req.window_preset,
+            custom_width=req.custom_width,
+            custom_level=req.custom_level
+        )
+        data_url = raycast._vol_engine.slice_to_data_url(proj_8bit)
+        return VolumetricProjectionResponse(
+            series_id=meta.series_id,
+            projection_mode=meta.projection_mode,
+            orientation=meta.orientation,
+            slice_index=meta.slice_index,
+            slab_thickness_mm=meta.slab_thickness_mm,
+            window_preset=meta.window_preset,
+            window_width=meta.window_width,
+            window_level=meta.window_level,
+            mean_hu=meta.mean_hu,
+            min_hu=meta.min_hu,
+            max_hu=meta.max_hu,
+            image_data_url=data_url
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/v1/volumetric/3d-orbit", response_model=VolumetricOrbitResponse)
+async def render_volumetric_orbit(req: VolumetricOrbitRequest):
+    """Renders a single 3D volume raycast frame at specified azimuth and elevation."""
+    try:
+        from core.raycast_engine import get_raycast_engine
+        raycast = get_raycast_engine()
+        _, b64 = raycast.render_3d_orbit_frame(
+            series_id=req.series_id,
+            azimuth_deg=req.azimuth_deg,
+            elevation_deg=req.elevation_deg,
+            preset_name=req.preset_name,
+            target_size=req.target_size
+        )
+        return VolumetricOrbitResponse(
+            series_id=req.series_id,
+            azimuth_deg=req.azimuth_deg,
+            elevation_deg=req.elevation_deg,
+            preset_name=req.preset_name,
+            image_data_url=b64
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/v1/volumetric/3d-turntable/{series_id}", response_model=VolumetricTurntableResponse)
+async def get_volumetric_turntable(series_id: str, preset: str = "NEURO_HEMORRHAGE"):
+    """Returns 16 pre-rendered 360-degree turntable frames for smooth client scrubbing."""
+    try:
+        from core.raycast_engine import get_raycast_engine
+        raycast = get_raycast_engine()
+        frames = raycast.get_turntable_frames(series_id, preset_name=preset, num_frames=16)
+        return VolumetricTurntableResponse(
+            series_id=series_id,
+            preset_name=preset,
+            num_frames=len(frames),
+            frames=frames
+        )
+    except KeyError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =========================================================
+# PATH B: FLEISCHNER SOCIETY 2017 GUIDELINES ENDPOINTS
+# =========================================================
+
+@router.post("/api/v1/fleischner/evaluate")
+async def evaluate_fleischner_nodule(req: FleischnerEvaluateApiRequest):
+    """Evaluates pulmonary nodule characteristics against Fleischner 2017 guidelines."""
+    try:
+        from core.fleischner_engine import get_fleischner_engine, NoduleEvaluationRequest
+        engine = get_fleischner_engine()
+        eval_req = NoduleEvaluationRequest(**req.model_dump())
+        res = engine.evaluate_nodule(eval_req)
+        return res.model_dump()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/v1/fleischner/fhir-bundle")
+async def generate_fleischner_fhir_bundle(req: FleischnerEvaluateApiRequest):
+    """Generates standard HL7 FHIR R4 Bundle containing DiagnosticReport and Observations."""
+    try:
+        from core.fleischner_engine import get_fleischner_engine, NoduleEvaluationRequest
+        engine = get_fleischner_engine()
+        eval_req = NoduleEvaluationRequest(**req.model_dump())
+        res = engine.evaluate_nodule(eval_req)
+        bundle = engine.generate_fhir_r4_bundle(res)
+        return bundle
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/v1/fleischner/dossier-pdf")
+async def export_fleischner_dossier_pdf(req: FleischnerDossierApiRequest):
+    """Generates certified Fleischner Society Pulmonary Nodule Consultation PDF."""
+    try:
+        from core.fleischner_engine import get_fleischner_engine, NoduleEvaluationRequest
+        engine = get_fleischner_engine()
+        eval_req = NoduleEvaluationRequest(
+            patient_id=req.patient_id,
+            patient_name=req.patient_name,
+            patient_age=req.patient_age,
+            patient_sex=req.patient_sex,
+            morphology=req.morphology,
+            max_diameter_mm=req.max_diameter_mm,
+            perp_diameter_mm=req.perp_diameter_mm,
+            solid_component_mm=req.solid_component_mm,
+            lobe_location=req.lobe_location,
+            is_spiculated=req.is_spiculated,
+            smoking_pack_years=req.smoking_pack_years,
+            family_history_lung_cancer=req.family_history_lung_cancer,
+            emphysema_present=req.emphysema_present
+        )
+        res = engine.evaluate_nodule(eval_req)
+        pdf_bytes = engine.generate_dossier_pdf(res)
+        filename = f"Fleischner_Consult_{res.evaluation_id}.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# =========================================================
+# PATH B: MULTI-MODEL ARCHITECTURE BENCHMARKING ENDPOINTS
+# =========================================================
+
+@router.get("/api/v1/benchmark/architectures")
+async def get_benchmark_architectures():
+    """Returns comparative specifications and performance benchmarks for 4 vision architectures."""
+    try:
+        from core.model_benchmarker import get_model_benchmarker
+        benchmarker = get_model_benchmarker()
+        return [a.model_dump() for a in benchmarker.list_architectures()]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/v1/benchmark/compare-inference")
+async def compare_model_inference(req: ModelInferenceCompareRequest):
+    """Runs comparative multi-model inference on a study and returns Cohen's Kappa matrix."""
+    try:
+        from core.model_benchmarker import get_model_benchmarker
+        benchmarker = get_model_benchmarker()
+        res = benchmarker.compare_inference_on_study(
+            study_id=req.study_id,
+            base_probabilities=req.base_probabilities
+        )
+        return res.model_dump()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 

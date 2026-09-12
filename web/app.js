@@ -3206,7 +3206,12 @@ document.addEventListener('DOMContentLoaded', () => {
         maxSlices: 32,
         isPlaying: false,
         fps: 15,
-        timer: null
+        timer: null,
+        projectionMode: "PLANAR",
+        slabThicknessMm: 10,
+        raycastPreset: "NEURO_HEMORRHAGE",
+        turntableFrames: [],
+        turntableIdx: 0
     };
 
     let neuroVolState = {
@@ -3227,8 +3232,96 @@ document.addEventListener('DOMContentLoaded', () => {
         const corPos = document.getElementById('mpr-coronal-pos');
         const sagPos = document.getElementById('mpr-sagittal-pos');
         const wlLabel = document.getElementById('axial-wl-label');
+        const mprGrid = document.getElementById('mpr-grid');
+        const orbitStage = document.getElementById('mpr-orbit-stage');
+
+        // Check if in 3D Cinematic Orbit mode
+        if (mprState.projectionMode === 'ORBIT_3D') {
+            if (mprGrid) mprGrid.style.display = 'none';
+            if (orbitStage) orbitStage.style.display = 'flex';
+            if (huLiveTag) huLiveTag.textContent = `3D RAYCAST: ${mprState.raycastPreset}`;
+            await load3DOrbitTurntable();
+            return;
+        } else {
+            if (mprGrid) mprGrid.style.display = 'grid';
+            if (orbitStage) orbitStage.style.display = 'none';
+        }
 
         try {
+            // Check if in thick-slab projection mode (MIP, MinIP, AIP)
+            if (mprState.projectionMode !== 'PLANAR') {
+                const projRes = await fetch('/api/v1/volumetric/projection', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        series_id: mprState.seriesId,
+                        orientation: 'AXIAL',
+                        projection_mode: mprState.projectionMode,
+                        slice_idx: mprState.axialIdx,
+                        slab_thickness_mm: mprState.slabThicknessMm,
+                        window_preset: mprState.windowPreset
+                    })
+                });
+
+                if (projRes.ok) {
+                    const projData = await projRes.json();
+                    if (axialCanvas && projData.image_data_url) {
+                        const imgProj = new Image();
+                        imgProj.onload = () => {
+                            const ctx = axialCanvas.getContext('2d');
+                            ctx.drawImage(imgProj, 0, 0, axialCanvas.width, axialCanvas.height);
+                            if (mprState.seriesId.startsWith('BRAIN-CT') && neuroVolState.isBloodMaskActive) {
+                                renderNeuroSliceMaskOverlay(ctx, mprState.seriesId, mprState.axialIdx, axialCanvas.width, axialCanvas.height);
+                            }
+                        };
+                        imgProj.src = projData.image_data_url;
+                    }
+                    if (huLiveTag) {
+                        huLiveTag.textContent = `${mprState.projectionMode} (${mprState.slabThicknessMm}mm slab): ${projData.window_preset}`;
+                    }
+                    if (wlLabel) {
+                        wlLabel.textContent = `W:${projData.window_width} L:${projData.window_level}`;
+                    }
+                }
+
+                // Also update coronal and sagittal slices
+                const mprRes = await fetch(`/api/v1/volumetric/${mprState.seriesId}/mpr`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        axial_idx: mprState.axialIdx,
+                        coronal_idx: mprState.coronalIdx,
+                        sagittal_idx: mprState.sagittalIdx,
+                        window_preset: mprState.windowPreset
+                    })
+                });
+                if (mprRes.ok) {
+                    const mprData = await mprRes.json();
+                    if (coronalCanvas && mprData.coronal?.data_url) {
+                        const imgCor = new Image();
+                        imgCor.onload = () => {
+                            const ctx = coronalCanvas.getContext('2d');
+                            ctx.drawImage(imgCor, 0, 0, coronalCanvas.width, coronalCanvas.height);
+                        };
+                        imgCor.src = mprData.coronal.data_url;
+                    }
+                    if (sagittalCanvas && mprData.sagittal?.data_url) {
+                        const imgSag = new Image();
+                        imgSag.onload = () => {
+                            const ctx = sagittalCanvas.getContext('2d');
+                            ctx.drawImage(imgSag, 0, 0, sagittalCanvas.width, sagittalCanvas.height);
+                        };
+                        imgSag.src = mprData.sagittal.data_url;
+                    }
+                }
+
+                if (sliceTag) sliceTag.textContent = `AXIAL SLICE ${mprState.axialIdx + 1} / ${mprState.maxSlices} [${mprState.projectionMode}]`;
+                if (sliceSlider) sliceSlider.value = mprState.axialIdx;
+                if (axialPos) axialPos.textContent = `Z: ${mprState.axialIdx + 1}/${mprState.maxSlices}`;
+                return;
+            }
+
+            // Standard Planar Slice Rendering
             const res = await fetch(`/api/v1/volumetric/${mprState.seriesId}/mpr`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -3301,6 +3394,95 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    async function load3DOrbitTurntable() {
+        const loading = document.getElementById('orbit-loading');
+        if (loading) loading.style.display = 'flex';
+
+        try {
+            const res = await fetch(`/api/v1/volumetric/3d-turntable/${mprState.seriesId}?preset=${mprState.raycastPreset}`);
+            if (!res.ok) throw new Error('Failed to load turntable');
+            const data = await res.json();
+            mprState.turntableFrames = data.frames || [];
+            mprState.turntableIdx = 0;
+            render3DOrbitCurrentFrame();
+        } catch (err) {
+            console.error('Error loading 3D turntable:', err);
+        } finally {
+            if (loading) loading.style.display = 'none';
+        }
+    }
+
+    function render3DOrbitCurrentFrame() {
+        const orbitCanvas = document.getElementById('mpr-orbit-canvas');
+        const orbitTag = document.getElementById('orbit-angle-tag');
+        if (!orbitCanvas || !mprState.turntableFrames.length) return;
+
+        const frame = mprState.turntableFrames[mprState.turntableIdx % mprState.turntableFrames.length];
+        if (!frame || !frame.image_data_url) return;
+
+        const img = new Image();
+        img.onload = () => {
+            const ctx = orbitCanvas.getContext('2d');
+            ctx.clearRect(0, 0, orbitCanvas.width, orbitCanvas.height);
+            ctx.drawImage(img, 0, 0, orbitCanvas.width, orbitCanvas.height);
+        };
+        img.src = frame.image_data_url;
+
+        if (orbitTag) {
+            orbitTag.textContent = `AZIMUTH: ${frame.azimuth_deg.toFixed(1)}° | ELEVATION: ${frame.elevation_deg.toFixed(1)}° (${mprState.raycastPreset})`;
+        }
+    }
+
+    function init3DOrbitInteractivity() {
+        const orbitWrap = document.querySelector('.orbit-canvas-wrap');
+        if (!orbitWrap) return;
+
+        let isDown = false;
+        let startX = 0;
+        let startIdx = 0;
+
+        orbitWrap.addEventListener('mousedown', (e) => {
+            isDown = true;
+            startX = e.clientX;
+            startIdx = mprState.turntableIdx;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDown || !mprState.turntableFrames.length) return;
+            const deltaX = e.clientX - startX;
+            const frameShift = Math.floor(deltaX / 16);
+            const totalFrames = mprState.turntableFrames.length;
+            mprState.turntableIdx = ((startIdx + frameShift) % totalFrames + totalFrames) % totalFrames;
+            render3DOrbitCurrentFrame();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDown = false;
+        });
+
+        // Touch support
+        orbitWrap.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDown = true;
+                startX = e.touches[0].clientX;
+                startIdx = mprState.turntableIdx;
+            }
+        }, { passive: true });
+
+        window.addEventListener('touchmove', (e) => {
+            if (!isDown || !mprState.turntableFrames.length || e.touches.length !== 1) return;
+            const deltaX = e.touches[0].clientX - startX;
+            const frameShift = Math.floor(deltaX / 16);
+            const totalFrames = mprState.turntableFrames.length;
+            mprState.turntableIdx = ((startIdx + frameShift) % totalFrames + totalFrames) % totalFrames;
+            render3DOrbitCurrentFrame();
+        }, { passive: true });
+
+        window.addEventListener('touchend', () => {
+            isDown = false;
+        });
+    }
+
     function initVolumetricMPRViewer() {
         const seriesSelector = document.getElementById('mpr-series-selector');
         const huPresets = document.getElementById('mpr-hu-presets');
@@ -3317,6 +3499,57 @@ document.addEventListener('DOMContentLoaded', () => {
         const mprGrid = document.getElementById('mpr-grid');
         const panelCor = document.getElementById('mpr-panel-coronal');
         const panelSag = document.getElementById('mpr-panel-sagittal');
+
+        // Path B Projection Modes & Slab Controls
+        const projModes = document.getElementById('mpr-projection-modes');
+        const slabSlider = document.getElementById('mpr-slab-slider');
+        const slabVal = document.getElementById('mpr-slab-val');
+        const slabCtrl = document.getElementById('slab-thickness-ctrl');
+        const raycastPresetCtrl = document.getElementById('raycast-preset-ctrl');
+        const raycastSelector = document.getElementById('raycast-preset-selector');
+
+        if (projModes) {
+            projModes.querySelectorAll('button').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    projModes.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    mprState.projectionMode = btn.dataset.proj;
+
+                    if (mprState.projectionMode === 'ORBIT_3D') {
+                        if (raycastPresetCtrl) raycastPresetCtrl.style.display = 'flex';
+                        if (slabCtrl) slabCtrl.style.display = 'none';
+                    } else if (['MIP', 'MINIP', 'AIP'].includes(mprState.projectionMode)) {
+                        if (slabCtrl) slabCtrl.style.display = 'flex';
+                        if (raycastPresetCtrl) raycastPresetCtrl.style.display = 'none';
+                    } else {
+                        if (slabCtrl) slabCtrl.style.display = 'none';
+                        if (raycastPresetCtrl) raycastPresetCtrl.style.display = 'none';
+                    }
+                    loadVolumetricMPR();
+                });
+            });
+        }
+
+        if (slabSlider) {
+            slabSlider.addEventListener('input', () => {
+                mprState.slabThicknessMm = parseInt(slabSlider.value, 10);
+                if (slabVal) slabVal.textContent = `${mprState.slabThicknessMm} mm`;
+                if (['MIP', 'MINIP', 'AIP'].includes(mprState.projectionMode)) {
+                    loadVolumetricMPR();
+                }
+            });
+        }
+
+        if (raycastSelector) {
+            raycastSelector.addEventListener('change', () => {
+                mprState.raycastPreset = raycastSelector.value;
+                if (mprState.projectionMode === 'ORBIT_3D') {
+                    load3DOrbitTurntable();
+                }
+            });
+        }
+
+        init3DOrbitInteractivity();
 
         // Series selection
         if (seriesSelector) {
@@ -6540,6 +6773,365 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ---------------------------------------------------------
+    // 34. FLEISCHNER SOCIETY 2017 GUIDELINES & FHIR SUITE (PATH B)
+    // ---------------------------------------------------------
+    function initFleischnerGuidelinesSuite() {
+        const btnOpen = document.getElementById('tool-fleischner');
+        const dialog = document.getElementById('fleischner-dialog');
+        const btnClose = document.getElementById('btn-close-fleischner-modal');
+        const btnRecalc = document.getElementById('btn-run-fleischner-eval');
+        const btnPdf = document.getElementById('btn-export-fleischner-pdf');
+        const tabRec = document.getElementById('tab-fleischner-rec');
+        const tabFhir = document.getElementById('tab-fleischner-fhir');
+        const paneRec = document.getElementById('pane-fleischner-rec');
+        const paneFhir = document.getElementById('pane-fleischner-fhir');
+        const morphSelect = document.getElementById('fleischner-morphology-select');
+        const subsolidRow = document.getElementById('fleischner-subsolid-row');
+
+        if (!dialog) return;
+
+        if (btnOpen) {
+            btnOpen.addEventListener('click', () => {
+                dialog.showModal();
+                runFleischnerEvaluation();
+            });
+        }
+
+        if (btnClose) {
+            btnClose.addEventListener('click', () => dialog.close());
+        }
+
+        if (morphSelect) {
+            morphSelect.addEventListener('change', () => {
+                const isSubsolid = morphSelect.value.startsWith('SUBSOLID');
+                if (subsolidRow) subsolidRow.style.display = isSubsolid ? 'flex' : 'none';
+                runFleischnerEvaluation();
+            });
+        }
+
+        if (btnRecalc) {
+            btnRecalc.addEventListener('click', runFleischnerEvaluation);
+        }
+
+        if (tabRec && tabFhir && paneRec && paneFhir) {
+            tabRec.addEventListener('click', () => {
+                tabRec.classList.add('active');
+                tabFhir.classList.remove('active');
+                paneRec.style.display = 'block';
+                paneFhir.style.display = 'none';
+            });
+
+            tabFhir.addEventListener('click', async () => {
+                tabFhir.classList.add('active');
+                tabRec.classList.remove('active');
+                paneFhir.style.display = 'block';
+                paneRec.style.display = 'none';
+                await loadFleischnerFhirBundle();
+            });
+        }
+
+        if (btnPdf) {
+            btnPdf.addEventListener('click', exportFleischnerPdf);
+        }
+
+        // Hotkey: 'F'
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'f' || e.key === 'F') {
+                const isEditing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+                if (!isEditing && !e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
+                    if (dialog.open) {
+                        dialog.close();
+                    } else {
+                        dialog.showModal();
+                        runFleischnerEvaluation();
+                    }
+                }
+            }
+        });
+    }
+
+    function getFleischnerFormData() {
+        const morph = document.getElementById('fleischner-morphology-select')?.value || 'SOLID_SINGLE';
+        const maxD = parseFloat(document.getElementById('fleischner-max-diam')?.value) || 7.5;
+        const perpD = parseFloat(document.getElementById('fleischner-perp-diam')?.value) || 6.5;
+        const solidComp = parseFloat(document.getElementById('fleischner-solid-comp')?.value) || 0.0;
+        const lobe = document.getElementById('fleischner-lobe-select')?.value || 'Right Upper Lobe';
+        const age = parseInt(document.getElementById('fleischner-patient-age')?.value, 10) || 58;
+        const packYears = parseInt(document.getElementById('fleischner-pack-years')?.value, 10) || 35;
+        const spiculated = document.getElementById('fleischner-chk-spiculated')?.checked ?? true;
+        const familyHist = document.getElementById('fleischner-chk-family')?.checked ?? true;
+        const emphysema = document.getElementById('fleischner-chk-emphysema')?.checked ?? false;
+
+        return {
+            patient_id: "MRN-TRAUMA-4410",
+            patient_name: "Elena Rostova",
+            patient_age: age,
+            patient_sex: "F",
+            morphology: morph,
+            max_diameter_mm: maxD,
+            perp_diameter_mm: perpD,
+            solid_component_mm: solidComp,
+            lobe_location: lobe,
+            is_spiculated: spiculated,
+            smoking_pack_years: packYears,
+            family_history_lung_cancer: familyHist,
+            emphysema_present: emphysema
+        };
+    }
+
+    async function runFleischnerEvaluation() {
+        const reqData = getFleischnerFormData();
+        try {
+            const res = await fetch('/api/v1/fleischner/evaluate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(reqData)
+            });
+            if (!res.ok) throw new Error('Evaluation failed');
+            const data = await res.json();
+
+            const tierBadge = document.getElementById('fleischner-tier-badge');
+            const actionPill = document.getElementById('fleischner-action-pill');
+            const timingText = document.getElementById('fleischner-timing-text');
+            const rationaleText = document.getElementById('fleischner-rationale-text');
+            const meanDiamEl = document.getElementById('f-metric-mean-diam');
+            const volEl = document.getElementById('f-metric-vol');
+            const riskEl = document.getElementById('f-metric-risk');
+            const actionEl = document.getElementById('f-metric-action');
+
+            const isHigh = data.risk_category === 'HIGH_RISK';
+            if (tierBadge) {
+                tierBadge.textContent = isHigh ? 'HIGH RISK PATIENT' : 'LOW RISK PATIENT';
+                tierBadge.classList.toggle('low', !isHigh);
+            }
+            if (actionPill) actionPill.textContent = data.recommendation_code || 'FOLLOW_UP';
+            if (timingText) timingText.textContent = data.recommended_action || 'Follow-up as indicated';
+            if (rationaleText) rationaleText.textContent = data.clinical_rationale || '';
+            if (meanDiamEl) meanDiamEl.textContent = `${(data.mean_diameter_mm || 0).toFixed(1)} mm`;
+            if (volEl) volEl.textContent = `${(data.estimated_volume_mm3 || 0).toFixed(1)} mm³`;
+            if (riskEl) riskEl.textContent = isHigh ? 'High Risk' : 'Low Risk';
+            if (actionEl) actionEl.textContent = data.recommendation_code || 'FOLLOW_UP';
+
+        } catch (err) {
+            console.error('Fleischner evaluation error:', err);
+        }
+    }
+
+    async function loadFleischnerFhirBundle() {
+        const reqData = getFleischnerFormData();
+        const display = document.getElementById('fhir-json-display');
+        if (display) display.textContent = 'Generating standard HL7 FHIR R4 Bundle...';
+        try {
+            const res = await fetch('/api/v1/fleischner/fhir-bundle', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(reqData)
+            });
+            if (!res.ok) throw new Error('FHIR bundle generation failed');
+            const bundle = await res.json();
+            if (display) display.textContent = JSON.stringify(bundle, null, 2);
+        } catch (err) {
+            if (display) display.textContent = 'Error generating FHIR bundle: ' + err.message;
+        }
+    }
+
+    async function exportFleischnerPdf() {
+        const reqData = getFleischnerFormData();
+        try {
+            showWorkstationToast('📄 Generating certified Fleischner consultation dossier...');
+            const res = await fetch('/api/v1/fleischner/dossier-pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(reqData)
+            });
+            if (!res.ok) throw new Error('PDF export failed');
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Fleischner_Consultation_${Date.now()}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            showWorkstationToast('✅ Fleischner consultation PDF downloaded.');
+        } catch (err) {
+            console.error('PDF export error:', err);
+            showWorkstationToast('❌ Error generating Fleischner PDF: ' + err.message);
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 35. MULTI-MODEL BENCHMARKING SUITE (PATH B)
+    // ---------------------------------------------------------
+    function initModelBenchmarkSuite() {
+        const btnOpen = document.getElementById('btn-open-model-benchmark');
+        const dialog = document.getElementById('benchmark-dialog');
+        const btnClose = document.getElementById('btn-close-benchmark-modal');
+        const btnRun = document.getElementById('btn-run-model-benchmark');
+
+        if (!dialog) return;
+
+        if (btnOpen) {
+            btnOpen.addEventListener('click', () => {
+                dialog.showModal();
+                loadBenchmarkData();
+            });
+        }
+
+        if (btnClose) {
+            btnClose.addEventListener('click', () => dialog.close());
+        }
+
+        if (btnRun) {
+            btnRun.addEventListener('click', loadBenchmarkData);
+        }
+
+        // Hotkey: 'B'
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'b' || e.key === 'B') {
+                const isEditing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName);
+                if (!isEditing && !e.ctrlKey && !e.metaKey) {
+                    e.preventDefault();
+                    if (dialog.open) {
+                        dialog.close();
+                    } else {
+                        dialog.showModal();
+                        loadBenchmarkData();
+                    }
+                }
+            }
+        });
+    }
+
+    async function loadBenchmarkData() {
+        const cardsContainer = document.getElementById('bm-arch-cards-container');
+        const modelsGrid = document.getElementById('bm-inference-models-grid');
+        const kappaContainer = document.getElementById('bm-kappa-matrix-container');
+        const consensusTag = document.getElementById('bm-consensus-summary-tag');
+
+        // 1. Fetch architectures
+        try {
+            const archRes = await fetch('/api/v1/benchmark/architectures');
+            if (archRes.ok) {
+                const archs = await archRes.json();
+                if (cardsContainer) {
+                    cardsContainer.innerHTML = archs.map(a => `
+                        <div class="bm-arch-card">
+                            <div class="bm-arch-title">${a.display_name}</div>
+                            <div class="bm-arch-family">${a.topology}</div>
+                            <div class="bm-arch-stat-row">
+                                <span>Parameters:</span>
+                                <span>${a.parameters_million}M</span>
+                            </div>
+                            <div class="bm-arch-stat-row">
+                                <span>Compute (GFLOPs):</span>
+                                <span>${a.gflops} GFLOPs</span>
+                            </div>
+                            <div class="bm-arch-stat-row">
+                                <span>Latency (FP32 / FP16):</span>
+                                <span>${a.native_latency_ms}ms / ${a.fp16_latency_ms}ms</span>
+                            </div>
+                            <div class="bm-arch-stat-row">
+                                <span>Receptive Field:</span>
+                                <span style="color: #38bdf8;">${a.receptive_field_pixels}px</span>
+                            </div>
+                            <div class="bm-arch-stat-row">
+                                <span>Mean ROC-AUC:</span>
+                                <span style="color: #34d399;">${(a.mean_auc_14 || 0.85).toFixed(3)}</span>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+        } catch (err) {
+            console.error('Error fetching architectures:', err);
+        }
+
+        // 2. Fetch Comparative Inference & Cohen's Kappa
+        try {
+            const compRes = await fetch('/api/v1/benchmark/compare-inference', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    study_id: "MRN-TRAUMA-4410"
+                })
+            });
+
+            if (compRes.ok) {
+                const compData = await compRes.json();
+                if (consensusTag) {
+                    const consensusList = compData.consensus_findings || [];
+                    consensusTag.textContent = `${consensusList.length} Findings (${consensusList.join(', ') || 'Consensus'})`;
+                }
+
+                if (modelsGrid && compData.architectures) {
+                    modelsGrid.innerHTML = compData.architectures.map(arch => {
+                        const preds = compData.model_predictions ? compData.model_predictions[arch.id] : {};
+                        let topKey = 'None';
+                        let topVal = 0;
+                        if (preds) {
+                            for (const [k, v] of Object.entries(preds)) {
+                                if (v > topVal) {
+                                    topVal = v;
+                                    topKey = k;
+                                }
+                            }
+                        }
+                        const topProbPct = (topVal * 100).toFixed(1);
+                        return `
+                            <div class="bm-model-card">
+                                <div class="bm-model-name">${arch.display_name}</div>
+                                <div class="bm-model-top-finding">
+                                    <span>${topKey}</span>
+                                    <span>${topProbPct}%</span>
+                                </div>
+                                <div class="bm-prob-bar-track">
+                                    <div class="bm-prob-bar-fill" style="width: ${topProbPct}%;"></div>
+                                </div>
+                                <div class="bm-arch-stat-row" style="margin-top: 4px;">
+                                    <span>Latency:</span>
+                                    <span>${arch.native_latency_ms} ms</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('');
+                }
+
+                if (kappaContainer && compData.cohens_kappa_matrix) {
+                    const matrix = compData.cohens_kappa_matrix;
+                    const modelKeys = Object.keys(matrix);
+
+                    let tableHtml = `<table class="bm-kappa-table"><thead><tr><th>Architecture</th>`;
+                    modelKeys.forEach(m => {
+                        const name = m.replace('_', '-').toUpperCase();
+                        tableHtml += `<th>${name}</th>`;
+                    });
+                    tableHtml += `</tr></thead><tbody>`;
+
+                    modelKeys.forEach(rowModel => {
+                        const rName = rowModel.replace('_', '-').toUpperCase();
+                        tableHtml += `<tr><th>${rName}</th>`;
+                        modelKeys.forEach(colModel => {
+                            const val = matrix[rowModel] ? matrix[rowModel][colModel] : 1.0;
+                            let bg = 'rgba(16, 185, 129, 0.4)';
+                            if (val < 0.75) bg = 'rgba(245, 158, 11, 0.4)';
+                            if (val < 0.60) bg = 'rgba(239, 68, 68, 0.4)';
+                            tableHtml += `<td class="bm-kappa-cell" style="background: ${bg};">${(val || 1.0).toFixed(2)}</td>`;
+                        });
+                        tableHtml += `</tr>`;
+                    });
+                    tableHtml += `</tbody></table>`;
+                    kappaContainer.innerHTML = tableHtml;
+                }
+            }
+        } catch (err) {
+            console.error('Error comparing inference:', err);
+        }
+    }
+
+    // ---------------------------------------------------------
     // INITIAL BOOT: FETCH WORKLIST & INIT ALL ENTERPRISE MODALS
     // ---------------------------------------------------------
     initPacsHubModal();
@@ -6564,6 +7156,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initTeleRadiology();
     initValidationSuite();
     initEDStreamDaemon();
+    initFleischnerGuidelinesSuite();
+    initModelBenchmarkSuite();
     fetchWorklist();
 });
 

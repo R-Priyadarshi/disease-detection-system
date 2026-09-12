@@ -815,3 +815,93 @@ class EDStreamBurstResponse(BaseModel):
     telemetry: EDStreamStatusResponse
 
 
+# --- Path B: 3D Cinematic Ray-Casting & MIP/MinIP Schemas ---
+
+class VolumetricProjectionRequest(BaseModel):
+    series_id: str = "BRAIN-CT-ICH-03"
+    orientation: str = Field("AXIAL", description="Projection plane: AXIAL, CORONAL, or SAGITTAL")
+    projection_mode: str = Field("MIP", description="Projection mode: MIP, MINIP, or AIP")
+    slice_idx: int = Field(16, ge=0)
+    slab_thickness_mm: float = Field(15.0, ge=0.0, le=100.0, description="0 for full volume, >0 for thick-slab")
+    window_preset: str = Field("LUNG", description="HU window preset: LUNG, MEDIASTINUM, BONE, BRAIN, SUBDURAL, STROKE")
+    custom_width: Optional[int] = None
+    custom_level: Optional[int] = None
+
+class VolumetricProjectionResponse(BaseModel):
+    series_id: str
+    projection_mode: str
+    orientation: str
+    slice_index: int
+    slab_thickness_mm: float
+    window_preset: str
+    window_width: int
+    window_level: int
+    mean_hu: float
+    min_hu: int
+    max_hu: int
+    image_data_url: str
+
+class VolumetricOrbitRequest(BaseModel):
+    series_id: str = "BRAIN-CT-ICH-03"
+    azimuth_deg: float = Field(0.0, ge=0.0, le=360.0)
+    elevation_deg: float = Field(15.0, ge=-45.0, le=45.0)
+    preset_name: str = Field("NEURO_HEMORRHAGE", description="NEURO_HEMORRHAGE, CHEST_VASCULAR, BONE_ANATOMY")
+    target_size: int = Field(256, ge=128, le=512)
+
+class VolumetricOrbitResponse(BaseModel):
+    series_id: str
+    azimuth_deg: float
+    elevation_deg: float
+    preset_name: str
+    image_data_url: str
+
+class VolumetricTurntableResponse(BaseModel):
+    series_id: str
+    preset_name: str
+    num_frames: int
+    frames: List[str]
+
+
+# --- Path B: Fleischner Society 2017 Guidelines Schemas ---
+
+class FleischnerEvaluateApiRequest(BaseModel):
+    patient_id: str = "MRN-PULM-8821"
+    patient_name: str = "Thorne^Gwendolyn"
+    patient_age: int = Field(58, ge=18, le=120)
+    patient_sex: str = "F"
+    morphology: str = Field("SOLID_SINGLE", description="SOLID_SINGLE, SOLID_MULTIPLE, PART_SOLID, GROUND_GLASS")
+    max_diameter_mm: float = Field(7.4, ge=1.0, le=50.0)
+    perp_diameter_mm: Optional[float] = Field(6.2, ge=1.0, le=50.0)
+    solid_component_mm: Optional[float] = Field(0.0, ge=0.0, le=50.0)
+    lobe_location: str = "RIGHT_UPPER_LOBE"
+    is_spiculated: bool = True
+    smoking_pack_years: int = Field(25, ge=0)
+    family_history_lung_cancer: bool = False
+    emphysema_present: bool = True
+
+class FleischnerDossierApiRequest(BaseModel):
+    evaluation_id: Optional[str] = None
+    patient_id: str = "MRN-PULM-8821"
+    patient_name: str = "Thorne^Gwendolyn"
+    patient_age: int = 58
+    patient_sex: str = "F"
+    morphology: str = "SOLID_SINGLE"
+    max_diameter_mm: float = 7.4
+    perp_diameter_mm: Optional[float] = 6.2
+    solid_component_mm: Optional[float] = 0.0
+    lobe_location: str = "RIGHT_UPPER_LOBE"
+    is_spiculated: bool = True
+    smoking_pack_years: int = 25
+    family_history_lung_cancer: bool = False
+    emphysema_present: bool = True
+    attending_physician: Optional[str] = "Dr. Eleanor Vance, MD"
+
+
+# --- Path B: Multi-Model Architecture Benchmarker Schemas ---
+
+class ModelInferenceCompareRequest(BaseModel):
+    study_id: str = "STUDY-CHEST-9901"
+    base_probabilities: Optional[Dict[str, float]] = None
+
+
+
