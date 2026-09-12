@@ -14,7 +14,7 @@ const puppeteer = require('puppeteer');
 const path = require('path');
 const fs = require('fs');
 
-const LOCAL_URL = 'http://127.0.0.1:8000';
+const BASE_URL = process.env.TEST_BASE_URL || 'http://127.0.0.1:8000';
 const SESSION_ID = 'SESSION-TEST-COLLAB-' + Date.now().toString().slice(-4);
 const ARTIFACT_DIR = '/home/rishikesh/.gemini/antigravity-ide/brain/ddf1988c-03d8-4cac-85fe-1f89dfe67e26';
 
@@ -45,7 +45,7 @@ async function capture(page, filename, description) {
     console.log('='.repeat(75));
     console.log('📡 ALVEON PACS — REAL-TIME TELE-RADIOLOGY E2E MULTI-USER TEST');
     console.log(`Session ID: ${SESSION_ID}`);
-    console.log(`Endpoint:   ${LOCAL_URL}`);
+    console.log(`Endpoint:   ${BASE_URL}`);
     console.log('='.repeat(75));
 
     const browserA = await puppeteer.launch({
@@ -68,33 +68,32 @@ async function capture(page, filename, description) {
         const errorsA = [];
         const errorsB = [];
         pageA.on('pageerror', err => {
-            console.error('  [Page A Error]', err.message);
+            console.error('  ⚠️ [PAGE A ERROR]', err.message);
             errorsA.push(err.message);
         });
         pageB.on('pageerror', err => {
-            console.error('  [Page B Error]', err.message);
+            console.error('  ⚠️ [PAGE B ERROR]', err.message);
             errorsB.push(err.message);
         });
 
         // -------------------------------------------------------------
-        // Step 1: Connect Attending Radiologist (Page A)
+        // Step 1: Open Page A (Attending Radiologist: Dr. Vance)
         // -------------------------------------------------------------
         console.log('\n--- Step 1: Connecting Attending Radiologist (Page A: Dr. Eleanor Vance) ---');
-        await pageA.goto(`${LOCAL_URL}/workstation?teleSession=${SESSION_ID}`, { waitUntil: 'networkidle2', timeout: 30000 });
+        await pageA.goto(`${BASE_URL}/workstation?teleSession=${SESSION_ID}`, { waitUntil: 'networkidle2', timeout: 30000 });
         await sleep(1500);
 
-        const pageATitle = await pageA.title();
-        check(pageATitle.includes('ALVEON'), `Page A title correct: "${pageATitle}"`);
+        const titleA = await pageA.title();
+        check(titleA.includes('ALVEON'), `Page A title correct: "${titleA}"`);
 
-        // Check header tele button
-        const teleCollabBtnA = await pageA.$('#tele-collab-btn');
-        check(teleCollabBtnA !== null, 'Page A: #tele-collab-btn is rendered in workstation header');
+        const collabBtnA = await pageA.$('#tele-collab-btn');
+        check(collabBtnA !== null, 'Page A: #tele-collab-btn is rendered in workstation header');
 
         // -------------------------------------------------------------
-        // Step 2: Connect Referring Physician (Page B)
+        // Step 2: Open Page B (Referring Physician: Dr. Adams)
         // -------------------------------------------------------------
         console.log('\n--- Step 2: Connecting Referring Physician (Page B: Dr. Sarah Adams) ---');
-        await pageB.goto(`${LOCAL_URL}/workstation?teleSession=${SESSION_ID}&user=adams`, { waitUntil: 'networkidle2', timeout: 30000 });
+        await pageB.goto(`${BASE_URL}/workstation?teleSession=${SESSION_ID}&user=adams`, { waitUntil: 'networkidle2', timeout: 30000 });
         await sleep(2000);
 
         // -------------------------------------------------------------
@@ -171,7 +170,10 @@ async function capture(page, filename, description) {
                 broadcastLaserPointer(0.5, 0.5, false);
             }
         });
-        await sleep(200);
+        await pageB.waitForFunction(() => {
+            const el = document.getElementById('remote-laser-reticle');
+            return el && el.style.display === 'none';
+        }, { timeout: 8000 }).catch(() => {});
         const reticleDeactivatedB = await pageB.$eval('#remote-laser-reticle', el => el.style.display);
         check(reticleDeactivatedB === 'none', 'Page B: Remote laser reticle hidden on deactivate');
 
