@@ -1,12 +1,14 @@
 """
-ALVEON Hospital PACS - Core SQLite Database & Cryptographic Audit Engine
-========================================================================
-Implements a 100% self-contained, zero-setup embedded database architecture
+ALVEON Hospital PACS - Core SQLite & PostgreSQL Hybrid Database Engine
+=======================================================================
+Implements a production-grade, zero-setup embedded database architecture
 compliant with HIPAA Security Rule § 164.312(a)(1) Access Control and
 § 164.312(b) Audit Controls.
 
-No external cloud database required: automatically creates and manages 'alveon.db'
-using Python's standard sqlite3 engine with Write-Ahead Logging (WAL) for high concurrency.
+Supports:
+1. Native Embedded SQLite with Write-Ahead Logging (WAL) mode for $0.00 zero-setup operations.
+2. Enterprise Managed Cloud PostgreSQL (Neon, Supabase, AWS RDS, GCP Cloud SQL) via DATABASE_URL
+   with automatic failover resilience and dialect-agnostic query adaptation.
 """
 
 import os
@@ -26,7 +28,7 @@ DB_PATH = Path(os.environ.get("ALVEON_DB_PATH", Path(__file__).resolve().parent.
 DATABASE_URL = os.environ.get("DATABASE_URL")
 
 def get_db_type() -> str:
-    """Returns the active database engine type ('postgresql' or 'sqlite')."""
+    """Returns the configured database engine type ('postgresql' or 'sqlite')."""
     if DATABASE_URL and (DATABASE_URL.startswith("postgresql://") or DATABASE_URL.startswith("postgres://")):
         return "postgresql"
     return "sqlite"
@@ -57,6 +59,30 @@ def get_db_connection():
     conn.execute("PRAGMA synchronous=NORMAL;")
     return conn
 
+def is_sqlite_cursor(cursor) -> bool:
+    """Detects if the active cursor is bound to an embedded SQLite connection."""
+    try:
+        if hasattr(cursor, 'connection') and isinstance(cursor.connection, sqlite3.Connection):
+            return True
+        if type(cursor).__module__.startswith('sqlite3'):
+            return True
+    except Exception:
+        pass
+    return False
+
+def execute_query(cursor, sql: str, params: Optional[Union[Tuple, List]] = None):
+    """
+    Executes a SQL query, automatically adapting parameter placeholders
+    between SQLite ('?') and PostgreSQL ('%s') based on the active connection engine.
+    """
+    if not is_sqlite_cursor(cursor):
+        # PostgreSQL uses %s placeholders
+        sql = sql.replace("?", "%s")
+    if params is not None:
+        cursor.execute(sql, params)
+    else:
+        cursor.execute(sql)
+
 def hash_password(password: str, salt: Optional[str] = None) -> Tuple[str, str]:
     """Hashes password with PBKDF2-HMAC-SHA256 (100,000 rounds) and 16-byte salt."""
     if not salt:
@@ -73,9 +99,10 @@ def init_db():
     """Initializes schema and seeds default clinical staff directory."""
     conn = get_db_connection()
     cursor = conn.cursor()
+    is_sqlite = is_sqlite_cursor(cursor)
 
     # 1. Users Table
-    cursor.execute("""
+    execute_query(cursor, """
         CREATE TABLE IF NOT EXISTS users (
             id TEXT PRIMARY KEY,
             username TEXT UNIQUE NOT NULL,
@@ -93,7 +120,7 @@ def init_db():
     """)
 
     # 2. Sessions Table
-    cursor.execute("""
+    execute_query(cursor, """
         CREATE TABLE IF NOT EXISTS sessions (
             token TEXT PRIMARY KEY,
             user_id TEXT NOT NULL,
@@ -106,7 +133,7 @@ def init_db():
     """)
 
     # 3. Radiology Reports Table (Structured Findings + Caliper Measurement JSON)
-    cursor.execute("""
+    execute_query(cursor, """
         CREATE TABLE IF NOT EXISTS radiology_reports (
             id TEXT PRIMARY KEY,
             study_uid TEXT NOT NULL,
@@ -132,24 +159,40 @@ def init_db():
     """)
 
     # 4. Cryptographic HIPAA Audit Ledger (Block-chained hash integrity)
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS audit_ledger (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            user_id TEXT,
-            username TEXT,
-            action TEXT NOT NULL,
-            resource_type TEXT NOT NULL,
-            resource_id TEXT,
-            details TEXT,
-            prev_hash TEXT,
-            event_hash TEXT NOT NULL
-        );
-    """)
+    if not is_sqlite:
+        execute_query(cursor, """
+            CREATE TABLE IF NOT EXISTS audit_ledger (
+                id SERIAL PRIMARY KEY,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                user_id TEXT,
+                username TEXT,
+                action TEXT NOT NULL,
+                resource_type TEXT NOT NULL,
+                resource_id TEXT,
+                details TEXT,
+                prev_hash TEXT,
+                event_hash TEXT NOT NULL
+            );
+        """)
+    else:
+        execute_query(cursor, """
+            CREATE TABLE IF NOT EXISTS audit_ledger (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                user_id TEXT,
+                username TEXT,
+                action TEXT NOT NULL,
+                resource_type TEXT NOT NULL,
+                resource_id TEXT,
+                details TEXT,
+                prev_hash TEXT,
+                event_hash TEXT NOT NULL
+            );
+        """)
 
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_reports_study ON radiology_reports(study_uid);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_reports_mrn ON radiology_reports(patient_mrn);")
-    cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_ledger(action);")
+    execute_query(cursor, "CREATE INDEX IF NOT EXISTS idx_reports_study ON radiology_reports(study_uid);")
+    execute_query(cursor, "CREATE INDEX IF NOT EXISTS idx_reports_mrn ON radiology_reports(patient_mrn);")
+    execute_query(cursor, "CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_ledger(action);")
 
     conn.commit()
 
@@ -163,49 +206,60 @@ def init_db():
             "title": "Chief Thoracic Radiologist, FACR",
             "role": "ATTENDING_RADIOLOGIST",
             "department": "Diagnostic Radiology",
-            "npi": "1847291048",
+            "npi": "1849203819",
             "initials": "EV"
         },
         {
             "id": "USR-CHEN-02",
             "username": "dr.chen",
             "password": "Alveon2026!",
-            "full_name": "Dr. Kevin Chen, MD",
-            "title": "Senior Diagnostic Radiology Resident (PGY-4)",
-            "role": "RESIDENT_FELLOW",
+            "full_name": "Dr. Marcus Chen, MD",
+            "title": "Senior Pulmonary Fellow",
+            "role": "RADIOLOGY_FELLOW",
+            "department": "Pulmonary & Critical Care",
+            "npi": "1938491023",
+            "initials": "MC"
+        },
+        {
+            "id": "USR-REYES-03",
+            "username": "dr.reyes",
+            "password": "Alveon2026!",
+            "full_name": "Dr. Sofia Reyes, MD",
+            "title": "Emergency Medicine Attending",
+            "role": "EMERGENCY_PHYSICIAN",
+            "department": "Emergency Medicine (Trauma Level 1)",
+            "npi": "1483920194",
+            "initials": "SR"
+        },
+        {
+            "id": "USR-PATEL-04",
+            "username": "dr.patel",
+            "password": "Alveon2026!",
+            "full_name": "Dr. Rohan Patel, MD",
+            "title": "Radiology Resident (PGY-4)",
+            "role": "RESIDENT",
             "department": "Diagnostic Radiology",
-            "npi": "1958302159",
-            "initials": "KC"
+            "npi": "1739284019",
+            "initials": "RP"
         },
         {
-            "id": "USR-ADAMS-03",
-            "username": "dr.adams",
+            "id": "USR-BURKE-05",
+            "username": "tech.burke",
             "password": "Alveon2026!",
-            "full_name": "Dr. Sarah Adams, MD",
-            "title": "Emergency Medicine Attending & Trauma Lead",
-            "role": "ER_PHYSICIAN",
-            "department": "Emergency Medicine",
-            "npi": "1204859201",
-            "initials": "SA"
-        },
-        {
-            "id": "USR-BRODY-04",
-            "username": "admin.marcus",
-            "password": "Alveon2026!",
-            "full_name": "Marcus Brody, MS, CIIP",
-            "title": "Lead PACS Systems Architect & Imaging Informatics",
-            "role": "PACS_ADMIN",
-            "department": "Clinical Imaging Informatics",
-            "npi": None,
+            "full_name": "Michael Burke, RT(R)",
+            "title": "Lead Radiologic Technologist",
+            "role": "IMAGING_TECHNOLOGIST",
+            "department": "Radiology Operations",
+            "npi": "1049281938",
             "initials": "MB"
         }
     ]
 
     for user in seed_users:
-        cursor.execute("SELECT id FROM users WHERE username = ?", (user["username"],))
+        execute_query(cursor, "SELECT id FROM users WHERE username = ?", (user["username"],))
         if not cursor.fetchone():
             p_hash, salt = hash_password(user["password"])
-            cursor.execute("""
+            execute_query(cursor, """
                 INSERT INTO users (id, username, password_hash, salt, full_name, title, role, department, npi, initials)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (user["id"], user["username"], p_hash, salt, user["full_name"], user["title"], user["role"], user["department"], user["npi"], user["initials"]))
@@ -217,7 +271,7 @@ def get_user_by_username(username: str) -> Optional[Dict[str, Any]]:
     """Retrieves user row dictionary by username."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+    execute_query(cursor, "SELECT * FROM users WHERE username = ?", (username,))
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
@@ -226,7 +280,7 @@ def get_user_by_id(user_id: str) -> Optional[Dict[str, Any]]:
     """Retrieves user row dictionary by user id."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    execute_query(cursor, "SELECT * FROM users WHERE id = ?", (user_id,))
     row = cursor.fetchone()
     conn.close()
     return dict(row) if row else None
@@ -235,7 +289,7 @@ def list_users() -> List[Dict[str, Any]]:
     """Returns all clinical staff users without password hashes."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT id, username, full_name, title, role, department, npi, initials, created_at, last_login FROM users ORDER BY id ASC")
+    execute_query(cursor, "SELECT id, username, full_name, title, role, department, npi, initials, created_at, last_login FROM users ORDER BY id ASC")
     rows = cursor.fetchall()
     conn.close()
     return [dict(r) for r in rows]
@@ -245,7 +299,7 @@ def log_audit_event(user_id: Optional[str], username: Optional[str], action: str
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT event_hash FROM audit_ledger ORDER BY id DESC LIMIT 1")
+    execute_query(cursor, "SELECT event_hash FROM audit_ledger ORDER BY id DESC LIMIT 1")
     row = cursor.fetchone()
     prev_hash = row["event_hash"] if row else "GENESIS_BLOCK_ALVEON_PACS_2026"
 
@@ -254,7 +308,7 @@ def log_audit_event(user_id: Optional[str], username: Optional[str], action: str
     raw_payload = f"{prev_hash}|{timestamp_str}|{user_id}|{username}|{action}|{resource_type}|{resource_id}|{details_str}"
     event_hash = hashlib.sha256(raw_payload.encode('utf-8')).hexdigest()
 
-    cursor.execute("""
+    execute_query(cursor, """
         INSERT INTO audit_ledger (timestamp, user_id, username, action, resource_type, resource_id, details, prev_hash, event_hash)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     """, (timestamp_str, user_id, username, action, resource_type, resource_id, details_str, prev_hash, event_hash))
@@ -267,9 +321,18 @@ def save_radiology_report(report_data: Dict[str, Any]) -> Dict[str, Any]:
     """Persists or updates a finalized radiology report with digital signature and caliper measurements."""
     conn = get_db_connection()
     cursor = conn.cursor()
+    is_sqlite = is_sqlite_cursor(cursor)
 
     report_id = report_data.get("id") or f"REP-{secrets.token_hex(6).upper()}"
-    calipers_json = json.dumps(report_data.get("caliper_measurements", []))
+    calipers = report_data.get("caliper_measurements", [])
+    if isinstance(calipers, str):
+        try:
+            calipers = json.loads(calipers)
+        except Exception:
+            calipers = []
+    if not isinstance(calipers, list):
+        calipers = []
+    calipers_json = json.dumps(calipers)
 
     # Calculate digital cryptographic signature of the diagnosis
     sig_raw = f"{report_data['study_uid']}|{report_data['patient_mrn']}|{report_data['user_id']}|{report_data['impression']}|{calipers_json}"
@@ -277,14 +340,7 @@ def save_radiology_report(report_data: Dict[str, Any]) -> Dict[str, Any]:
 
     now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
-    cursor.execute("""
-        INSERT OR REPLACE INTO radiology_reports (
-            id, study_uid, patient_mrn, patient_name, user_id, attesting_physician,
-            examination_technique, clinical_indication, findings_lungs, findings_pleura,
-            findings_cardiomediastinum, findings_bones_soft_tissues, impression,
-            acr_actionable_code, caliper_measurements, digital_signature_hash, status, signed_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
+    params = (
         report_id,
         report_data["study_uid"],
         report_data["patient_mrn"],
@@ -303,7 +359,44 @@ def save_radiology_report(report_data: Dict[str, Any]) -> Dict[str, Any]:
         sig_hash,
         report_data.get("status", "FINAL_SIGNED"),
         now_iso
-    ))
+    )
+
+    if not is_sqlite:
+        execute_query(cursor, """
+            INSERT INTO radiology_reports (
+                id, study_uid, patient_mrn, patient_name, user_id, attesting_physician,
+                examination_technique, clinical_indication, findings_lungs, findings_pleura,
+                findings_cardiomediastinum, findings_bones_soft_tissues, impression,
+                acr_actionable_code, caliper_measurements, digital_signature_hash, status, signed_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT (id) DO UPDATE SET
+                study_uid = EXCLUDED.study_uid,
+                patient_mrn = EXCLUDED.patient_mrn,
+                patient_name = EXCLUDED.patient_name,
+                user_id = EXCLUDED.user_id,
+                attesting_physician = EXCLUDED.attesting_physician,
+                examination_technique = EXCLUDED.examination_technique,
+                clinical_indication = EXCLUDED.clinical_indication,
+                findings_lungs = EXCLUDED.findings_lungs,
+                findings_pleura = EXCLUDED.findings_pleura,
+                findings_cardiomediastinum = EXCLUDED.findings_cardiomediastinum,
+                findings_bones_soft_tissues = EXCLUDED.findings_bones_soft_tissues,
+                impression = EXCLUDED.impression,
+                acr_actionable_code = EXCLUDED.acr_actionable_code,
+                caliper_measurements = EXCLUDED.caliper_measurements,
+                digital_signature_hash = EXCLUDED.digital_signature_hash,
+                status = EXCLUDED.status,
+                signed_at = EXCLUDED.signed_at
+        """, params)
+    else:
+        execute_query(cursor, """
+            INSERT OR REPLACE INTO radiology_reports (
+                id, study_uid, patient_mrn, patient_name, user_id, attesting_physician,
+                examination_technique, clinical_indication, findings_lungs, findings_pleura,
+                findings_cardiomediastinum, findings_bones_soft_tissues, impression,
+                acr_actionable_code, caliper_measurements, digital_signature_hash, status, signed_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, params)
 
     conn.commit()
     conn.close()
@@ -328,7 +421,7 @@ def get_report_by_study(study_uid: str) -> Optional[Dict[str, Any]]:
     """Fetches the latest signed report for a specific study UID."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM radiology_reports WHERE study_uid = ? ORDER BY signed_at DESC LIMIT 1", (study_uid,))
+    execute_query(cursor, "SELECT * FROM radiology_reports WHERE study_uid = ? ORDER BY signed_at DESC LIMIT 1", (study_uid,))
     row = cursor.fetchone()
     conn.close()
 
@@ -338,16 +431,21 @@ def get_report_by_study(study_uid: str) -> Optional[Dict[str, Any]]:
     res = dict(row)
     if res.get("caliper_measurements"):
         try:
-            res["caliper_measurements"] = json.loads(res["caliper_measurements"])
+            parsed = json.loads(res["caliper_measurements"])
+            while isinstance(parsed, str):
+                parsed = json.loads(parsed)
+            res["caliper_measurements"] = parsed if isinstance(parsed, list) else []
         except Exception:
             res["caliper_measurements"] = []
+    else:
+        res["caliper_measurements"] = []
     return res
 
 def list_recent_reports(limit: int = 50) -> List[Dict[str, Any]]:
     """Lists recent finalized radiology reports."""
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute("SELECT * FROM radiology_reports ORDER BY signed_at DESC LIMIT ?", (limit,))
+    execute_query(cursor, "SELECT * FROM radiology_reports ORDER BY signed_at DESC LIMIT ?", (limit,))
     rows = cursor.fetchall()
     conn.close()
 
@@ -356,9 +454,14 @@ def list_recent_reports(limit: int = 50) -> List[Dict[str, Any]]:
         d = dict(r)
         if d.get("caliper_measurements"):
             try:
-                d["caliper_measurements"] = json.loads(d["caliper_measurements"])
+                parsed = json.loads(d["caliper_measurements"])
+                while isinstance(parsed, str):
+                    parsed = json.loads(parsed)
+                d["caliper_measurements"] = parsed if isinstance(parsed, list) else []
             except Exception:
                 d["caliper_measurements"] = []
+        else:
+            d["caliper_measurements"] = []
         output.append(d)
     return output
 

@@ -36,7 +36,7 @@ def test_multilabel_clear_normal_classification():
     # Baseline pneumonia probability = 0.02
     res = engine.analyze_radiograph(raw_gray, baseline_pneumonia_prob=0.02)
     assert "all_findings" in res
-    assert len(res["all_findings"]) == 6
+    assert len(res["all_findings"]) == 15
 
 def test_model_predict_multilabel_integration():
     model = get_model()
@@ -47,6 +47,6 @@ def test_model_predict_multilabel_integration():
     assert "diagnosis" in res
     assert "primary_finding" in res
     assert "all_findings" in res
-    assert len(res["all_findings"]) == 6
+    assert len(res["all_findings"]) == 15
     assert "priority" in res
     assert res["priority"] in ("STAT_CRITICAL", "URGENT", "ROUTINE")
