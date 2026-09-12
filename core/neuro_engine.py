@@ -8,6 +8,7 @@ and clinical AI classification for Acute Ischemic Stroke, Intracranial Hemorrhag
 from typing import Dict, Any, List, Tuple, Optional
 import numpy as np
 import cv2
+from core.neuro_volumetry import get_neuro_volumetry_engine, NeuroVolumetryResult
 
 
 # Clinical Hounsfield Unit (HU) Window Presets for Neuro-Radiology
@@ -57,7 +58,7 @@ class NeuroCTSeries:
         y_coords, x_coords = np.ogrid[:height, :width]
 
         for z in range(depth):
-            scale = np.sin((z + 1) / (depth + 1) * np.pi) ** 0.5
+            scale = max(0.0, float(np.sin((z + 1) / (depth + 1) * np.pi))) ** 0.5
             cur_ry = max(int(ry * scale), 15)
             cur_rx = max(int(rx * scale), 15)
 
@@ -71,9 +72,10 @@ class NeuroCTSeries:
             brain_tissue = inner_skull
             vol[z][brain_tissue] = np.random.normal(38.0, 3.0, size=(height, width))[brain_tissue]
 
-            # Lateral Ventricles (CSF: +8 HU)
-            vent_l = ((y_coords - cy) / 25) ** 2 + ((x_coords - (cx - 15)) / 7) ** 2 <= 1.0
-            vent_r = ((y_coords - cy) / 25) ** 2 + ((x_coords - (cx + 15)) / 7) ** 2 <= 1.0
+            # Lateral Ventricles (CSF: +8 HU) - shifted proportionally by mass effect midline shift
+            shift_px = int(self.midline_shift_mm * 1.5)
+            vent_l = ((y_coords - cy) / 25) ** 2 + ((x_coords - (cx - 15 + shift_px)) / 7) ** 2 <= 1.0
+            vent_r = ((y_coords - cy) / 25) ** 2 + ((x_coords - (cx + 15 + shift_px)) / 7) ** 2 <= 1.0
             vol[z][vent_l & inner_skull] = 8.0
             vol[z][vent_r & inner_skull] = 8.0
 
@@ -88,6 +90,24 @@ class NeuroCTSeries:
                 # Hypodense ischemic edema (+22 HU) in right MCA territory & loss of insular ribbon
                 mca_mask = ((y_coords - cy) / 30) ** 2 + ((x_coords - (cx + 35)) / 22) ** 2 <= 1.0
                 vol[z][mca_mask & inner_skull] = np.random.normal(22.0, 2.0, size=(height, width))[mca_mask & inner_skull]
+
+            elif "INTRACEREBRAL" in self.primary_neuro_finding.upper() or "ICH" in self.primary_neuro_finding.upper():
+                # Acute parenchymal hematoma in left basal ganglia (+72 HU) with peri-hematomal edema (+22 HU)
+                if int(depth * 0.20) <= z <= int(depth * 0.80):
+                    z_factor = max(0.0, float(np.sin((z - depth * 0.20) / (depth * 0.60) * np.pi))) ** 0.5
+                    ich_ry = 22.0 * z_factor
+                    ich_rx = 18.0 * z_factor
+                    ich_cy = cy + 4.0
+                    ich_cx = cx - 26.0  # Left hemisphere (radiological right)
+                    ich_dist = ((y_coords - ich_cy) / max(ich_ry, 1.0)) ** 2 + ((x_coords - ich_cx) / max(ich_rx, 1.0)) ** 2
+                    
+                    # Peri-lesional hypodense edema rim (+22 HU)
+                    edema_mask = (ich_dist <= 1.35) & (ich_dist > 1.0) & inner_skull
+                    vol[z][edema_mask] = np.random.normal(22.0, 2.0, size=(height, width))[edema_mask]
+                    
+                    # Hyperdense acute intraparenchymal clot (+68 to +82 HU)
+                    core_mask = (ich_dist <= 1.0) & inner_skull
+                    vol[z][core_mask] = np.random.normal(74.0, 3.5, size=(height, width))[core_mask]
 
         return vol
 
@@ -139,8 +159,18 @@ class NeuroEngine:
                 primary_neuro_finding="Acute Right Frontoparietal Subdural Hematoma with Mass Effect",
                 aspects_score=None,
                 midline_shift_mm=5.4
+            ),
+            "BRAIN-CT-ICH-03": NeuroCTSeries(
+                series_id="BRAIN-CT-ICH-03",
+                patient_mrn="MRN-TRAUMA-7742",
+                patient_name="Sterling, Arthur",
+                patient_age_sex="74Y / M",
+                primary_neuro_finding="Acute Left Basal Ganglia Intracerebral Hemorrhage with Mass Effect",
+                aspects_score=None,
+                midline_shift_mm=5.8
             )
         }
+        self._volumetry_cache: Dict[str, Tuple[Any, np.ndarray]] = {}
 
     @classmethod
     def get_instance(cls) -> "NeuroEngine":
@@ -193,6 +223,66 @@ class NeuroEngine:
             "recommended_action": "STAT Neurosurgical Consultation / Thrombectomy evaluation" if is_critical else "Neurology admission & serial imaging.",
             "hu_window_presets": NEURO_HU_PRESETS
         }
+
+    def get_volumetry_analysis(
+        self,
+        series_id: str,
+        hu_min: float = 50.0,
+        hu_max: float = 85.0
+    ) -> Tuple[NeuroVolumetryResult, np.ndarray]:
+        """
+        Calculates 3D voxel segmentation, ABC/2 volume, and midline shift for a neuro series.
+        Caches the 3D blood mask for rapid slice-by-slice rendering.
+        """
+        series = self.get_series(series_id)
+        if not series:
+            raise KeyError(f"Neuro series '{series_id}' not found.")
+
+        cache_key = f"{series_id}_{hu_min}_{hu_max}"
+        if cache_key in self._volumetry_cache:
+            return self._volumetry_cache[cache_key]
+
+        engine = get_neuro_volumetry_engine()
+        result, mask_3d = engine.segment_and_quantify(
+            volume_hu=series.volume_hu,
+            series_id=series.series_id,
+            patient_mrn=series.patient_mrn,
+            patient_name=series.patient_name,
+            primary_finding=series.primary_neuro_finding,
+            slice_thickness_mm=2.5,
+            pixel_spacing_mm=(1.0, 1.0),
+            hu_min=hu_min,
+            hu_max=hu_max,
+            override_midline_shift=series.midline_shift_mm
+        )
+        self._volumetry_cache[cache_key] = (result, mask_3d)
+        return result, mask_3d
+
+    def get_slice_mask(
+        self,
+        series_id: str,
+        plane: str = "AXIAL",
+        slice_idx: int = 16,
+        hu_min: float = 50.0,
+        hu_max: float = 85.0
+    ) -> Tuple[np.ndarray, str]:
+        """Returns 2D RGBA overlay mask and base64 PNG data URL for a given slice."""
+        _, mask_3d = self.get_volumetry_analysis(series_id, hu_min, hu_max)
+        engine = get_neuro_volumetry_engine()
+        return engine.generate_slice_mask_overlay(mask_3d, plane, slice_idx)
+
+    def generate_dossier_pdf(
+        self,
+        series_id: str,
+        hu_min: float = 50.0,
+        hu_max: float = 85.0,
+        attesting_physician: str = "Dr. Eleanor Vance, MD (Chief Thoracic & Neuro-Radiology)"
+    ) -> bytes:
+        """Generates a certified institutional Neurosurgical Consultation Dossier PDF."""
+        result, _ = self.get_volumetry_analysis(series_id, hu_min, hu_max)
+        engine = get_neuro_volumetry_engine()
+        return engine.generate_volumetry_dossier_pdf(result, attesting_physician)
+
 
 
 def get_neuro_engine() -> NeuroEngine:

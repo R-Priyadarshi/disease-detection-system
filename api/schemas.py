@@ -461,6 +461,59 @@ class NeuroAnalysisResponse(BaseModel):
     recommended_action: str
     hu_window_presets: Dict[str, Any]
 
+# --- 3D Neuro CT Hemorrhage Volumetry & Segmentation Schemas ---
+
+class NeuroVolumetryRequest(BaseModel):
+    series_id: str
+    hu_min: float = 50.0
+    hu_max: float = 85.0
+    current_slice_idx: Optional[int] = 16
+    plane: Optional[str] = "AXIAL"
+
+class NeuroSliceMetric(BaseModel):
+    slice_idx: int
+    blood_voxels: int
+    area_cm2: float
+    volume_cm3: float
+    mean_hu: float
+    peak_hu: float
+
+class NeuroVolumetryResponse(BaseModel):
+    status: str = "success"
+    series_id: str
+    patient_mrn: str
+    patient_name: str
+    primary_finding: str
+    voxel_volume_cm3: float
+    abc2_volume_cm3: float
+    concordance_pct: float
+    midline_shift_mm: float
+    surgical_evacuation_indicated: bool
+    triage_priority: str
+    acr_category: str
+    surgical_recommendation: str
+    peak_slice_idx: int
+    peak_slice_area_cm2: float
+    slices_with_blood_count: int
+    active_slice_area_cm2: float
+    active_slice_mask_base64: Optional[str] = None
+    slice_distribution: List[NeuroSliceMetric]
+    hu_range_used: List[float]
+    analyzed_at: str
+
+class NeuroSliceMaskResponse(BaseModel):
+    status: str = "success"
+    series_id: str
+    plane: str
+    slice_idx: int
+    mask_data_url: str
+
+class NeuroDossierPdfRequest(BaseModel):
+    series_id: str
+    hu_min: float = 50.0
+    hu_max: float = 85.0
+    attesting_physician: Optional[str] = "Dr. Eleanor Vance, MD (Chief Thoracic & Neuro-Radiology)"
+
 # --- Enterprise Modality Router Schemas ---
 
 class ModalityItem(BaseModel):

@@ -25,7 +25,8 @@ from core.database import (
     save_radiology_report,
     get_report_by_study,
     list_recent_reports,
-    list_users
+    list_users,
+    log_audit_event
 )
 from core.audit_logger import get_audit_logger
 from core.volumetric import get_volumetric_engine, WINDOW_PRESETS
@@ -112,6 +113,10 @@ from api.schemas import (
     NeuroSeriesListResponse,
     NeuroSeriesItem,
     NeuroAnalysisResponse,
+    NeuroVolumetryRequest,
+    NeuroVolumetryResponse,
+    NeuroSliceMaskResponse,
+    NeuroDossierPdfRequest,
     ModalityListResponse,
     ModalityVerifyRequest,
     ModalityVerifyResponse,
@@ -2040,6 +2045,124 @@ async def analyze_neuro_ct_series(series_id: str):
     if res.get("status") == "error":
         raise HTTPException(status_code=404, detail=res.get("message", "Series not found"))
     return NeuroAnalysisResponse(**res)
+
+
+@router.post("/api/v1/neuro/volumetry/segment-hemorrhage", response_model=NeuroVolumetryResponse, tags=["3D Neuro CT & Stroke Suite"])
+async def segment_neuro_hemorrhage(req: NeuroVolumetryRequest):
+    """
+    Executes automated 3D hyperdense hemorrhage segmentation, voxel volume calculation,
+    classical ABC/2 estimation, midline shift quantification, and multi-planar mask generation.
+    """
+    engine = get_neuro_engine()
+    try:
+        result, mask_3d = engine.get_volumetry_analysis(
+            series_id=req.series_id,
+            hu_min=req.hu_min,
+            hu_max=req.hu_max
+        )
+
+        active_slice = max(0, min(mask_3d.shape[0] - 1, req.current_slice_idx if req.current_slice_idx is not None else 16))
+        plane = req.plane or "AXIAL"
+        _, mask_data_url = engine.get_slice_mask(
+            series_id=req.series_id,
+            plane=plane,
+            slice_idx=active_slice,
+            hu_min=req.hu_min,
+            hu_max=req.hu_max
+        )
+
+        active_slice_info = result.slice_distribution[active_slice] if active_slice < len(result.slice_distribution) else {"area_cm2": 0.0}
+
+        # HIPAA Audit Trail
+        log_audit_event(
+            user_id="USR-VANCE-01",
+            username="dr.vance",
+            action="NEURO_HEMORRHAGE_SEGMENTED",
+            resource_type="NEURO_CT_SERIES",
+            resource_id=req.series_id,
+            details={
+                "voxel_volume_cm3": result.voxel_volume_cm3,
+                "abc2_volume_cm3": result.abc2_volume_cm3,
+                "midline_shift_mm": result.midline_shift_mm,
+                "surgical_alert": result.surgical_evacuation_indicated
+            }
+        )
+
+        d = result.to_dict()
+        d["active_slice_area_cm2"] = active_slice_info.get("area_cm2", 0.0)
+        d["active_slice_mask_base64"] = mask_data_url
+        return NeuroVolumetryResponse(**d)
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Neuro series '{req.series_id}' not found.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Volumetry processing failure: {str(e)}")
+
+
+@router.get("/api/v1/neuro/volumetry/{series_id}/slice-mask", response_model=NeuroSliceMaskResponse, tags=["3D Neuro CT & Stroke Suite"])
+async def get_neuro_slice_mask(
+    series_id: str,
+    plane: str = "AXIAL",
+    slice_idx: int = 16,
+    hu_min: float = 50.0,
+    hu_max: float = 85.0
+):
+    """Retrieves the 2D RGBA segmentation overlay mask for a specific slice."""
+    engine = get_neuro_engine()
+    try:
+        _, mask_data_url = engine.get_slice_mask(
+            series_id=series_id,
+            plane=plane,
+            slice_idx=slice_idx,
+            hu_min=hu_min,
+            hu_max=hu_max
+        )
+        return NeuroSliceMaskResponse(
+            status="success",
+            series_id=series_id,
+            plane=plane.upper(),
+            slice_idx=slice_idx,
+            mask_data_url=mask_data_url
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Neuro series '{series_id}' not found.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Mask extraction error: {str(e)}")
+
+
+@router.post("/api/v1/neuro/volumetry/dossier-pdf", tags=["3D Neuro CT & Stroke Suite"])
+async def download_neuro_volumetry_dossier_pdf(req: NeuroDossierPdfRequest):
+    """
+    Generates and streams an institutional, certified Neurosurgical Consultation & Volumetry Dossier PDF.
+    """
+    engine = get_neuro_engine()
+    try:
+        pdf_bytes = engine.generate_dossier_pdf(
+            series_id=req.series_id,
+            hu_min=req.hu_min,
+            hu_max=req.hu_max,
+            attesting_physician=req.attesting_physician or "Dr. Eleanor Vance, MD (Chief Thoracic & Neuro-Radiology)"
+        )
+
+        # HIPAA Audit logging
+        log_audit_event(
+            user_id="USR-VANCE-01",
+            username="dr.vance",
+            action="NEURO_DOSSIER_EXPORTED",
+            resource_type="NEUROSURGICAL_DOSSIER",
+            resource_id=req.series_id,
+            details={"series_id": req.series_id, "file_size_bytes": len(pdf_bytes)}
+        )
+
+        filename = f"ALVEON_NEUROSURGICAL_DOSSIER_{req.series_id}_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
+        return Response(
+            content=pdf_bytes,
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename={filename}"}
+        )
+    except KeyError:
+        raise HTTPException(status_code=404, detail=f"Neuro series '{req.series_id}' not found.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate neuro dossier: {str(e)}")
 
 
 # --- 5. Enterprise Modality Router & PACS Network Interface ---

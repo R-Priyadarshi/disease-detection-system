@@ -3138,6 +3138,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (volContent) volContent.style.display = 'none';
                 if (pacsToolbar) pacsToolbar.style.display = '';
                 if (neuroBanner) neuroBanner.style.display = 'none';
+                const neuroVolDock = document.getElementById('neuro-volumetry-dock');
+                if (neuroVolDock) neuroVolDock.style.display = 'none';
                 showWorkstationToast('🩻 2D Radiographic Workstation Active');
             });
 
@@ -3149,6 +3151,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (volContent) volContent.style.display = 'flex';
                 if (pacsToolbar) pacsToolbar.style.display = 'none';
                 if (neuroBanner) neuroBanner.style.display = 'none';
+                const neuroVolDock = document.getElementById('neuro-volumetry-dock');
+                if (neuroVolDock) neuroVolDock.style.display = 'none';
                 if (seriesSelector && seriesSelector.value.startsWith('BRAIN')) {
                     seriesSelector.value = 'SERIES-CT-CHEST-3201';
                     mprState.seriesId = 'SERIES-CT-CHEST-3201';
@@ -3167,20 +3171,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (volContent) volContent.style.display = 'flex';
                     if (pacsToolbar) pacsToolbar.style.display = 'none';
                     if (neuroBanner) neuroBanner.style.display = 'flex';
+                    const neuroVolDock = document.getElementById('neuro-volumetry-dock');
+                    if (neuroVolDock) neuroVolDock.style.display = 'flex';
                     if (seriesSelector) {
-                        seriesSelector.value = 'BRAIN-CT-STROKE-01';
-                        mprState.seriesId = 'BRAIN-CT-STROKE-01';
-                        mprState.windowPreset = 'BRAIN';
+                        seriesSelector.value = 'BRAIN-CT-ICH-03';
+                        mprState.seriesId = 'BRAIN-CT-ICH-03';
+                        mprState.axialIdx = 16;
+                        mprState.windowPreset = 'SUBDURAL';
                     }
                     const huPresets = document.getElementById('mpr-hu-presets');
                     if (huPresets) {
                         huPresets.querySelectorAll('button').forEach(b => {
-                            b.classList.toggle('active', b.dataset.hu === 'BRAIN');
+                            b.classList.toggle('active', b.dataset.hu === 'SUBDURAL');
                         });
                     }
-                    showWorkstationToast('🧠 3D Neuro CT & Stroke Suite Active');
+                    showWorkstationToast('🧠 3D Neuro CT Hemorrhage & Stroke Suite Active');
                     loadVolumetricMPR();
-                    updateNeuroDiagnosticSummary('BRAIN-CT-STROKE-01');
+                    updateNeuroDiagnosticSummary('BRAIN-CT-ICH-03');
+                    updateNeuroVolumetryMetrics('BRAIN-CT-ICH-03', mprState.axialIdx);
                 });
             }
         }
@@ -3199,6 +3207,12 @@ document.addEventListener('DOMContentLoaded', () => {
         isPlaying: false,
         fps: 15,
         timer: null
+    };
+
+    let neuroVolState = {
+        isBloodMaskActive: true,
+        currentAnalysis: null,
+        maskCache: {}
     };
 
     async function loadVolumetricMPR() {
@@ -3235,6 +3249,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 imgAx.onload = () => {
                     const ctx = axialCanvas.getContext('2d');
                     ctx.drawImage(imgAx, 0, 0, axialCanvas.width, axialCanvas.height);
+                    if (mprState.seriesId.startsWith('BRAIN-CT') && neuroVolState.isBloodMaskActive) {
+                        renderNeuroSliceMaskOverlay(ctx, mprState.seriesId, mprState.axialIdx, axialCanvas.width, axialCanvas.height);
+                    }
                 };
                 imgAx.src = data.axial.data_url;
             }
@@ -3275,6 +3292,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (corPos) corPos.textContent = `Y: ${mprState.coronalIdx}/160`;
             if (sagPos) sagPos.textContent = `X: ${mprState.sagittalIdx}/160`;
 
+            if (mprState.seriesId.startsWith('BRAIN-CT')) {
+                updateNeuroActiveSliceBadge(mprState.axialIdx);
+            }
+
         } catch (err) {
             console.error('MPR loading error:', err);
         }
@@ -3303,8 +3324,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 mprState.seriesId = seriesSelector.value;
                 mprState.axialIdx = 16;
                 const neuroBanner = document.getElementById('neuro-diag-banner');
+                const neuroVolDock = document.getElementById('neuro-volumetry-dock');
                 if (seriesSelector.value.startsWith('BRAIN-CT')) {
                     if (neuroBanner) neuroBanner.style.display = 'flex';
+                    if (neuroVolDock) neuroVolDock.style.display = 'flex';
                     mprState.windowPreset = seriesSelector.value.includes('STROKE') ? 'STROKE' : 'SUBDURAL';
                     if (huPresets) {
                         huPresets.querySelectorAll('button').forEach(b => {
@@ -3312,8 +3335,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
                     updateNeuroDiagnosticSummary(seriesSelector.value);
+                    updateNeuroVolumetryMetrics(seriesSelector.value, mprState.axialIdx);
                 } else {
                     if (neuroBanner) neuroBanner.style.display = 'none';
+                    if (neuroVolDock) neuroVolDock.style.display = 'none';
                     mprState.windowPreset = 'LUNG';
                     if (huPresets) {
                         huPresets.querySelectorAll('button').forEach(b => {
@@ -4365,6 +4390,212 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (err) {
             console.error('Neuro analysis error:', err);
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 28B. 3D NEURO CT HEMORRHAGE VOLUMETRY & VOXEL SEGMENTATION
+    // ---------------------------------------------------------
+    function updateNeuroActiveSliceBadge(sliceIdx) {
+        const sliceVal = document.getElementById('neuro-vol-slice-val');
+        const sliceSub = document.getElementById('neuro-vol-slice-sub');
+        if (!sliceVal || !sliceSub) return;
+
+        const metrics = neuroVolState.currentAnalysis?.slice_distribution || neuroVolState.currentAnalysis?.slice_metrics;
+        if (Array.isArray(metrics)) {
+            const sMetric = metrics.find(s => s.slice_idx === sliceIdx);
+            if (sMetric) {
+                const area = sMetric.area_cm2 ?? sMetric.slice_area_cm2 ?? 0.0;
+                const bloodVoxels = sMetric.blood_voxels ?? sMetric.blood_voxel_count ?? 0;
+                const hasBlood = bloodVoxels > 0 || !!sMetric.has_hemorrhage;
+                sliceVal.textContent = `${area.toFixed(2)} cm²`;
+                sliceSub.textContent = `Slice Z: ${sliceIdx + 1}/${mprState.maxSlices} • ${hasBlood ? '🚨 Clot Present' : 'Parenchyma Clear'}`;
+                sliceSub.style.color = hasBlood ? '#ef4444' : '#94a3b8';
+                return;
+            }
+        }
+        sliceVal.textContent = `--.- cm²`;
+        sliceSub.textContent = `Slice Z: ${sliceIdx + 1}/${mprState.maxSlices}`;
+        sliceSub.style.color = '#94a3b8';
+    }
+
+    async function renderNeuroSliceMaskOverlay(ctx, seriesId, sliceIdx, width, height) {
+        if (!seriesId || !seriesId.startsWith('BRAIN-CT') || !neuroVolState.isBloodMaskActive) return;
+
+        // If current analysis is already loaded, skip slices without hemorrhage to avoid unnecessary requests
+        const metrics = neuroVolState.currentAnalysis?.slice_distribution || neuroVolState.currentAnalysis?.slice_metrics;
+        if (Array.isArray(metrics)) {
+            const sMetric = metrics.find(s => s.slice_idx === sliceIdx);
+            const bloodVoxels = sMetric?.blood_voxels ?? sMetric?.blood_voxel_count ?? 0;
+            const hasBlood = bloodVoxels > 0 || !!sMetric?.has_hemorrhage;
+            if (sMetric && !hasBlood) {
+                return;
+            }
+        }
+
+        const cacheKey = `${seriesId}_${sliceIdx}`;
+        if (neuroVolState.maskCache[cacheKey]) {
+            const cachedImg = neuroVolState.maskCache[cacheKey];
+            if (cachedImg.complete && cachedImg.naturalWidth > 0) {
+                ctx.drawImage(cachedImg, 0, 0, width, height);
+            }
+            return;
+        }
+
+        try {
+            const res = await fetch(`/api/v1/neuro/volumetry/${encodeURIComponent(seriesId)}/slice-mask?slice_idx=${sliceIdx}`);
+            if (!res.ok) return;
+            const maskData = await res.json();
+            if (maskData.data_url && maskData.has_mask) {
+                const maskImg = new Image();
+                maskImg.onload = () => {
+                    neuroVolState.maskCache[cacheKey] = maskImg;
+                    if (mprState.seriesId === seriesId && mprState.axialIdx === sliceIdx && neuroVolState.isBloodMaskActive) {
+                        ctx.drawImage(maskImg, 0, 0, width, height);
+                    }
+                };
+                maskImg.src = maskData.data_url;
+            }
+        } catch (e) {
+            console.warn('[NeuroVolumetry] Failed to render slice mask overlay:', e);
+        }
+    }
+
+    async function updateNeuroVolumetryMetrics(seriesId, sliceIdx = 16) {
+        const neuroVolDock = document.getElementById('neuro-volumetry-dock');
+        if (!seriesId || !seriesId.startsWith('BRAIN-CT')) {
+            if (neuroVolDock) neuroVolDock.style.display = 'none';
+            neuroVolState.currentAnalysis = null;
+            return;
+        }
+
+        if (neuroVolDock) neuroVolDock.style.display = 'flex';
+
+        const voxelVal = document.getElementById('neuro-vol-voxel-val');
+        const abc2Val = document.getElementById('neuro-vol-abc2-val');
+        const concVal = document.getElementById('neuro-vol-concordance-val');
+        const shiftVal = document.getElementById('neuro-vol-shift-val');
+        const shiftSub = document.getElementById('neuro-vol-shift-sub');
+        const huTag = document.getElementById('neuro-hu-range-tag');
+        const voxelCard = document.getElementById('vol-card-voxel');
+        const shiftCard = document.getElementById('vol-card-shift');
+
+        try {
+            const res = await fetch('/api/v1/neuro/volumetry/segment-hemorrhage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    series_id: seriesId,
+                    threshold_min_hu: 50,
+                    threshold_max_hu: 85
+                })
+            });
+
+            if (!res.ok) throw new Error(`Volumetry API returned ${res.status}`);
+            const data = await res.json();
+            neuroVolState.currentAnalysis = data;
+
+            const voxelVol = data.voxel_volume_cm3 ?? data.total_voxel_volume_cm3 ?? 0;
+            const abc2Vol = data.abc2_volume_cm3 ?? 0;
+            const conc = data.concordance_pct ?? data.concordance_index_percent ?? 0;
+            const shift = data.midline_shift_mm ?? 0;
+            const isCritical = !!(data.surgical_evacuation_indicated || data.critical_neurosurgical_alert);
+
+            if (voxelVal) voxelVal.textContent = `${voxelVol.toFixed(1)} cm³`;
+            if (abc2Val) abc2Val.textContent = `${abc2Vol.toFixed(1)} cm³`;
+            if (concVal) concVal.textContent = `Concordance: ${conc.toFixed(1)}%`;
+            if (shiftVal) shiftVal.textContent = `${shift.toFixed(1)} mm`;
+            if (shiftSub) {
+                if (shift >= 5.0) {
+                    shiftSub.textContent = '🚨 STAT Mass Effect';
+                    shiftSub.style.color = '#ef4444';
+                } else if (shift > 0) {
+                    shiftSub.textContent = 'Mild Mass Effect';
+                    shiftSub.style.color = '#f59e0b';
+                } else {
+                    shiftSub.textContent = 'No Mass Effect';
+                    shiftSub.style.color = '#94a3b8';
+                }
+            }
+
+            if (huTag) {
+                const metrics = data.slice_distribution || data.slice_metrics;
+                const totalVoxels = Array.isArray(metrics)
+                    ? metrics.reduce((sum, s) => sum + (s.blood_voxels || s.blood_voxel_count || 0), 0)
+                    : (data.total_blood_voxels || 0);
+                huTag.textContent = `HU: +50 to +85 (${totalVoxels.toLocaleString()} voxels)`;
+            }
+
+            if (voxelCard) {
+                voxelCard.classList.toggle('alert', isCritical);
+            }
+            if (shiftCard) {
+                shiftCard.classList.toggle('alert', shift >= 5.0);
+            }
+
+            updateNeuroActiveSliceBadge(sliceIdx);
+
+            // Re-render axial slice to apply mask overlay if needed
+            const axialCanvas = document.getElementById('mpr-axial-canvas');
+            if (axialCanvas && neuroVolState.isBloodMaskActive) {
+                const ctx = axialCanvas.getContext('2d');
+                renderNeuroSliceMaskOverlay(ctx, seriesId, sliceIdx, axialCanvas.width, axialCanvas.height);
+            }
+
+        } catch (err) {
+            console.error('[NeuroVolumetry] Failed to calculate volumetry:', err);
+        }
+    }
+
+    function initNeuroVolumetrySuite() {
+        const toggleBtn = document.getElementById('toggle-blood-mask-btn');
+        const dossierBtn = document.getElementById('download-neuro-dossier-btn');
+
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                neuroVolState.isBloodMaskActive = !neuroVolState.isBloodMaskActive;
+                toggleBtn.classList.toggle('active', neuroVolState.isBloodMaskActive);
+                showWorkstationToast(neuroVolState.isBloodMaskActive ? '🔴 Blood Segmentation Mask (50-85 HU) Active' : '⚪ Blood Segmentation Mask Hidden');
+                loadVolumetricMPR();
+            });
+        }
+
+        if (dossierBtn) {
+            dossierBtn.addEventListener('click', async () => {
+                const originalHtml = dossierBtn.innerHTML;
+                try {
+                    dossierBtn.disabled = true;
+                    dossierBtn.innerHTML = `<span>GENERATING...</span>`;
+                    showWorkstationToast('⏳ Generating Neurosurgical Consultation Dossier...');
+                    const res = await fetch('/api/v1/neuro/volumetry/dossier-pdf', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            series_id: mprState.seriesId,
+                            surgeon_name: 'Dr. Alveon On-Call Neurosurgeon',
+                            include_all_slices: true
+                        })
+                    });
+
+                    if (!res.ok) throw new Error('PDF Generation Failed');
+                    const blob = await res.blob();
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Neurosurgical_Volumetry_Dossier_${mprState.seriesId}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    showWorkstationToast('📑 Neurosurgical Volumetry Dossier Downloaded');
+                } catch (err) {
+                    console.error('[NeuroVolumetry] Dossier export error:', err);
+                    showWorkstationToast(`Dossier generation failed: ${err.message}`);
+                } finally {
+                    dossierBtn.disabled = false;
+                    dossierBtn.innerHTML = originalHtml;
+                }
+            });
         }
     }
 
@@ -5997,6 +6228,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initUserAuthAndRBAC();
     initWorkstationModeSwitch();
     initVolumetricMPRViewer();
+    initNeuroVolumetrySuite();
     initAuditTrailModal();
     initModalitySimulator();
     initVoiceDictationAndRADLEX();

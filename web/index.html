@@ -803,6 +803,7 @@
                                     <optgroup label="3D Neuro CT (Brain & Stroke Suite)">
                                         <option value="BRAIN-CT-STROKE-01">Non-Contrast Brain CT (32 Slices • Acute MCA Stroke / ASPECTS 7) - Margaret Vance</option>
                                         <option value="BRAIN-CT-SDH-02">Non-Contrast Brain CT (32 Slices • Acute Subdural Hematoma) - Robert Keller</option>
+                                        <option value="BRAIN-CT-ICH-03">Non-Contrast Brain CT (32 Slices • Basal Ganglia Hemorrhage / ICH) - Arthur Sterling</option>
                                     </optgroup>
                                 </select>
                             </div>
@@ -871,6 +872,45 @@
                         <div class="neuro-diag-right">
                             <span class="neuro-finding-label">RECOMMENDED INTERVENTION:</span>
                             <span class="neuro-finding-text" id="neuro-finding-summary">Candidate for emergent Endovascular Thrombectomy (EVT) • STAT Neurosurgical Consult</span>
+                        </div>
+                    </div>
+
+                    <!-- 3D Neuro CT Hemorrhage Volumetry & Automated Voxel Segmentation Dock -->
+                    <div class="neuro-volumetry-dock" id="neuro-volumetry-dock" style="display: none;">
+                        <div class="neuro-vol-left">
+                            <button type="button" class="neuro-vol-toggle-btn active" id="toggle-blood-mask-btn" title="Toggle 3D Hyperdense Blood Segmentation Overlay (50-85 HU)">
+                                <span class="vol-led-dot"></span>
+                                <span>BLOOD MASK (50-85 HU)</span>
+                            </button>
+                            <span class="vol-hu-range-tag" id="neuro-hu-range-tag">HU: +50 to +85</span>
+                        </div>
+                        <div class="neuro-vol-center">
+                            <div class="vol-metric-card" id="vol-card-voxel">
+                                <span class="vol-metric-lbl">3D VOXEL VOLUME</span>
+                                <span class="vol-metric-val" id="neuro-vol-voxel-val">--.- cm³</span>
+                                <span class="vol-metric-sub" id="neuro-vol-voxel-sub">Summation</span>
+                            </div>
+                            <div class="vol-metric-card" id="vol-card-abc2">
+                                <span class="vol-metric-lbl">ABC/2 ESTIMATE</span>
+                                <span class="vol-metric-val" id="neuro-vol-abc2-val">--.- cm³</span>
+                                <span class="vol-metric-sub" id="neuro-vol-concordance-val">Concordance: --%</span>
+                            </div>
+                            <div class="vol-metric-card" id="vol-card-shift">
+                                <span class="vol-metric-lbl">MIDLINE SHIFT</span>
+                                <span class="vol-metric-val" id="neuro-vol-shift-val">--.- mm</span>
+                                <span class="vol-metric-sub" id="neuro-vol-shift-sub">Mass Effect</span>
+                            </div>
+                            <div class="vol-metric-card" id="vol-card-slice">
+                                <span class="vol-metric-lbl">ACTIVE SLICE</span>
+                                <span class="vol-metric-val" id="neuro-vol-slice-val">--.- cm²</span>
+                                <span class="vol-metric-sub" id="neuro-vol-slice-sub">Slice Z: --</span>
+                            </div>
+                        </div>
+                        <div class="neuro-vol-right">
+                            <button type="button" class="neuro-dossier-btn" id="download-neuro-dossier-btn" title="Download Institutional Neurosurgical Consultation Dossier (PDF)">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                <span>SURGICAL DOSSIER</span>
+                            </button>
                         </div>
                     </div>
 

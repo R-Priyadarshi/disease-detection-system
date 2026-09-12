@@ -4980,6 +4980,178 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 /* ==========================================================================
+   3D NEURO CT HEMORRHAGE VOLUMETRY & VOXEL SEGMENTATION DOCK (v5.2)
+   ========================================================================== */
+.neuro-volumetry-dock {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 14px;
+    background: linear-gradient(90deg, rgba(30, 27, 75, 0.4) 0%, rgba(15, 23, 42, 0.85) 50%, rgba(88, 28, 135, 0.25) 100%);
+    border: 1px solid rgba(244, 63, 94, 0.35);
+    border-radius: 6px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.neuro-vol-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.neuro-vol-toggle-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(30, 41, 59, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+    color: #94a3b8;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neuro-vol-toggle-btn:hover {
+    background: rgba(51, 65, 85, 0.9);
+    color: #f1f5f9;
+    border-color: rgba(244, 63, 94, 0.5);
+}
+
+.neuro-vol-toggle-btn.active {
+    background: linear-gradient(135deg, rgba(225, 29, 72, 0.25), rgba(159, 18, 57, 0.45));
+    border-color: #f43f5e;
+    color: #ffe4e6;
+    box-shadow: 0 0 10px rgba(244, 63, 94, 0.25);
+}
+
+.vol-led-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #64748b;
+    transition: all 0.2s ease;
+}
+
+.neuro-vol-toggle-btn.active .vol-led-dot {
+    background: #ff2d55;
+    box-shadow: 0 0 6px #ff2d55;
+    animation: bloodPulse 1.8s infinite ease-in-out;
+}
+
+@keyframes bloodPulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(1.15); }
+}
+
+.vol-hu-range-tag {
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    color: #fda4af;
+    background: rgba(136, 19, 55, 0.25);
+    border: 1px solid rgba(225, 29, 72, 0.3);
+    padding: 3px 7px;
+    border-radius: 3px;
+    letter-spacing: 0.3px;
+}
+
+.neuro-vol-center {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    justify-content: center;
+}
+
+.vol-metric-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: rgba(15, 23, 42, 0.65);
+    border: 1px solid rgba(51, 65, 85, 0.6);
+    border-radius: 4px;
+    padding: 4px 10px;
+    min-width: 100px;
+    transition: all 0.2s ease;
+}
+
+.vol-metric-card:hover {
+    border-color: rgba(56, 189, 248, 0.4);
+    background: rgba(30, 41, 59, 0.6);
+}
+
+.vol-metric-lbl {
+    font-size: 8.5px;
+    font-weight: 700;
+    color: #94a3b8;
+    font-family: var(--font-mono);
+    letter-spacing: 0.5px;
+}
+
+.vol-metric-val {
+    font-family: var(--font-mono);
+    font-size: 13.5px;
+    font-weight: 800;
+    color: #f8fafc;
+    line-height: 1.2;
+    margin: 2px 0 1px;
+}
+
+.vol-metric-val.critical {
+    color: #ff4d6d;
+    text-shadow: 0 0 8px rgba(255, 77, 109, 0.4);
+}
+
+.vol-metric-sub {
+    font-size: 8.5px;
+    color: #64748b;
+    font-family: var(--font-mono);
+}
+
+.neuro-vol-right {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.neuro-dossier-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: linear-gradient(135deg, #0284c7, #0369a1);
+    color: #ffffff;
+    border: 1px solid #38bdf8;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-family: var(--font-sans);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.4px;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.neuro-dossier-btn:hover {
+    background: linear-gradient(135deg, #0369a1, #075985);
+    border-color: #7dd3fc;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 10px rgba(2, 132, 199, 0.5);
+}
+
+.neuro-dossier-btn:active {
+    transform: translateY(0);
+}
+
+
+/* ==========================================================================
    ALVEON v5.0 PRODUCTION SUITE STYLING
    Guided Clinical Tour HUD, Modality Network Hub, & Prior Comparison
    ========================================================================== */
