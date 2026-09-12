@@ -4585,6 +4585,77 @@ document.addEventListener('DOMContentLoaded', () => {
                 fetchFhirResource('/api/v1/fhir/ImagingStudy', 'ImagingStudy');
             });
         }
+
+        // MLLP Live Socket Telemetry Refresh
+        const btnRefreshMllp = document.getElementById('btn-refresh-mllp-status');
+        const mllpStatusText = document.getElementById('mllp-socket-status-text');
+        const mllpStatusPill = document.getElementById('mllp-status-pill');
+
+        async function refreshMllpTelemetry() {
+            try {
+                const res = await fetch('/api/v1/mllp/status');
+                if (!res.ok) return;
+                const data = await res.json();
+                if (mllpStatusText) {
+                    mllpStatusText.textContent = `Port ${data.port} • Framing: ${data.framing} • Active Conns: ${data.active_connections} • Messages: ${data.total_messages_received} • ACKs: ${data.total_acks_sent}`;
+                }
+                if (mllpStatusPill) {
+                    mllpStatusPill.textContent = data.is_running ? '● MLLP LISTENING' : '○ MLLP STANDBY';
+                    mllpStatusPill.className = data.is_running ? 'pacs-badge-online' : 'pacs-badge-offline';
+                }
+            } catch (err) {
+                console.warn('MLLP status fetch error:', err);
+            }
+        }
+        if (btnRefreshMllp) {
+            btnRefreshMllp.addEventListener('click', refreshMllpTelemetry);
+        }
+
+        // External FHIR Server Dispatch
+        const btnDispatchFhir = document.getElementById('btn-dispatch-fhir-remote');
+        const fhirDestSelect = document.getElementById('fhir-destination-select');
+        const fhirTokenInput = document.getElementById('fhir-bearer-token');
+        const fhirDispatchLog = document.getElementById('fhir-dispatch-log');
+
+        if (btnDispatchFhir) {
+            btnDispatchFhir.addEventListener('click', async () => {
+                const destId = fhirDestSelect?.value || 'alveon_local_mock';
+                const token = fhirTokenInput?.value || '';
+                if (fhirDispatchLog) fhirDispatchLog.textContent = `[DISPATCHING] Transmitting FHIR R4 Bundle to destination '${destId}'...`;
+
+                try {
+                    const studyId = selectedStudyId || 'STUDY-CHEST-9901';
+                    const bundleData = {
+                        resourceType: "Bundle",
+                        type: "document",
+                        id: `FHIR-${studyId}-${Date.now().toString().slice(-4)}`,
+                        entry: [
+                            { resource: { resourceType: "Patient", id: "PAT-01", name: [{ family: "Vance", given: ["Eleanor"] }] } },
+                            { resource: { resourceType: "DiagnosticReport", id: "DR-01", status: "final", code: { coding: [{ code: "18748-4", display: "Chest Radiograph" }] } } }
+                        ]
+                    };
+
+                    const res = await fetch('/api/v1/fhir/dispatch', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            bundle_data: bundleData,
+                            destination_id: destId,
+                            bearer_token: token || null,
+                            operator_name: 'Dr. Eleanor Vance, MD'
+                        })
+                    });
+                    if (!res.ok) throw new Error('FHIR dispatch failed');
+                    const result = await res.json();
+                    if (fhirDispatchLog) {
+                        fhirDispatchLog.textContent = `=== FHIR R4 DISPATCH REPORT ===\nDispatch ID : ${result.dispatch_id}\nTarget URL  : ${result.target_url}\nHTTP Status : ${result.http_status} (${result.success ? 'SUCCESS' : 'FAILED'})\nLatency     : ${result.latency_ms} ms\nEntries Sent: ${result.entries_count}\nOutcome     :\n${JSON.stringify(result.response_outcome, null, 2)}`;
+                    }
+                    showWorkstationToast(`🚀 Dispatched FHIR R4 to EHR (${result.latency_ms}ms)`);
+                } catch (e) {
+                    if (fhirDispatchLog) fhirDispatchLog.textContent = `[FHIR DISPATCH ERROR] ${e.message}`;
+                }
+            });
+        }
     }
 
     // ---------------------------------------------------------
@@ -5225,6 +5296,60 @@ document.addEventListener('DOMContentLoaded', () => {
                     }, 200);
                     showWorkstationToast('🌐 Enterprise Modality Network & Router opened');
                 }
+            },
+            {
+                title: "3D Cinematic Ray-Casting & Volumetric Orbit",
+                icon: "🧊",
+                desc: "High-throughput 3D volume reconstruction featuring Maximum Intensity Projection (MIP), MinIP, AIP, thick-slab slicing, and a 360° interactive turntable orbit canvas with transfer function presets.",
+                action: "Click to switch to 3D Orbit Ray-Casting mode.",
+                targetSelector: "#proj-mode-3d-orbit",
+                onAction: () => {
+                    const btn3d = document.getElementById('mode-btn-3d');
+                    if (btn3d) btn3d.click();
+                    setTimeout(() => {
+                        const orbitBtn = document.getElementById('proj-mode-3d-orbit');
+                        if (orbitBtn) orbitBtn.click();
+                        showWorkstationToast('🧊 Switched to 3D Orbit Ray-Casting');
+                    }, 250);
+                }
+            },
+            {
+                title: "Fleischner Society 2017 Guidelines & FHIR",
+                icon: "🫁",
+                desc: "Evidence-based pulmonary nodule management with automatic morphology classification (solid, subsolid, ground glass), risk stratification, RadLex/SNOMED coding, and FHIR R4 Bundle sync.",
+                action: "Click to open the Fleischner Pulmonary Nodule Consultation Suite.",
+                targetSelector: "#tool-fleischner",
+                onAction: () => {
+                    const fBtn = document.getElementById('tool-fleischner');
+                    if (fBtn) fBtn.click();
+                    showWorkstationToast('🫁 Fleischner Guidelines Consultation opened');
+                }
+            },
+            {
+                title: "Multi-Model Architecture Benchmarking",
+                icon: "🔬",
+                desc: "Comparative evaluation across 4 foundation architectures: DenseNet-121 (CheXNet), ResNet-50-D, Vision Transformer (ViT-B/16), and ConvNeXt-Tiny with inter-rater Cohen's Kappa agreement heatmap.",
+                action: "Click to launch the Multi-Model Architecture Benchmark dialog.",
+                targetSelector: "#btn-open-model-benchmark",
+                onAction: () => {
+                    const bmBtn = document.getElementById('btn-open-model-benchmark');
+                    if (bmBtn) bmBtn.click();
+                    showWorkstationToast('🔬 Multi-Model Architecture Benchmark opened');
+                }
+            },
+            {
+                title: "Continuous Trauma Bay Stream & Live Triage HUD",
+                icon: "⚡",
+                desc: "Real-time emergency department trauma feed streaming high-acuity studies via persistent WebSockets (/ws/ed-stream) with instant MCI surge burst triggers and audio chimes.",
+                action: "Notice the ED Trauma Stream HUD above the worklist with live influx counters.",
+                targetSelector: "#ed-stream-dock",
+                onAction: () => {
+                    const bmDialog = document.getElementById('benchmark-dialog');
+                    if (bmDialog && bmDialog.open) bmDialog.close();
+                    const dock = document.getElementById('ed-stream-dock');
+                    if (dock) dock.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    showWorkstationToast('⚡ Emergency Trauma Bay Stream HUD focused');
+                }
             }
         ];
 
@@ -5282,6 +5407,13 @@ document.addEventListener('DOMContentLoaded', () => {
             tourOverlay.style.display = 'none';
             clearSpotlight();
         }
+
+        const startShowcaseBtn = document.getElementById('start-showcase-btn');
+        if (startShowcaseBtn) startShowcaseBtn.addEventListener('click', () => {
+            tourOverlay.style.display = 'flex';
+            goToStation(0);
+            showWorkstationToast('🌟 Starting Master Clinical Showcase (11 Stations)');
+        });
 
         if (startTourBtn) startTourBtn.addEventListener('click', openTour);
         if (tourCloseBtn) tourCloseBtn.addEventListener('click', closeTour);

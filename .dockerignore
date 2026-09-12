@@ -1,0 +1,39 @@
+# ==============================================================================
+# ALVEON PACS - Docker Build Ignore Rules
+# ==============================================================================
+
+# Virtual Environments
+.venv/
+venv/
+env/
+ENV/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Git & Repository metadata
+.git/
+.gitignore
+.github/
+
+# Node & Frontend Testing
+node_modules/
+package-lock.json
+
+# Logs & Temporary Test Files
+*.log
+*.tmp
+.system_generated/
+scratch/
+test_*.dcm
+temp_*.png
+
+# OS Specific
+.DS_Store
+Thumbs.db

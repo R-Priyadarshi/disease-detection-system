@@ -904,4 +904,45 @@ class ModelInferenceCompareRequest(BaseModel):
     base_probabilities: Optional[Dict[str, float]] = None
 
 
+# --- Path 2: HL7 v2 MLLP Ingestion & External FHIR Server Dispatch Schemas ---
 
+class MLLPStatusResponse(BaseModel):
+    is_running: bool
+    host: str
+    port: int
+    protocol: str
+    framing: str
+    active_connections: int
+    total_messages_received: int
+    total_acks_sent: int
+    total_errors: int
+    uptime_seconds: float
+    recent_messages: List[Dict[str, Any]]
+
+class MLLPSimulateRequest(BaseModel):
+    raw_hl7_text: str = Field(..., description="Raw HL7 v2 pipe-delimited message string (MSH, PID, OBR, etc.)")
+
+class MLLPSimulateResponse(BaseModel):
+    success: bool
+    ack_message: str
+    parsed_summary: Dict[str, Any]
+
+class FHIRDispatchApiRequest(BaseModel):
+    bundle_data: Dict[str, Any] = Field(..., description="Full HL7 FHIR Release 4 JSON Bundle data")
+    destination_id: str = Field("alveon_local_mock", description="Configured destination ID (e.g. hapi_fhir_r4, alveon_local_mock, epic_fhir_sandbox)")
+    custom_url: Optional[str] = Field(None, description="Optional override URL for custom FHIR base endpoint")
+    bearer_token: Optional[str] = Field(None, description="Optional OAuth2/OIDC Bearer token for authorized FHIR servers")
+    operator_name: Optional[str] = Field("Dr. Eleanor Vance, MD", description="Clinical operator attesting dispatch")
+
+class FHIRDispatchApiResponse(BaseModel):
+    dispatch_id: str
+    dispatched_at: str
+    target_url: str
+    destination_id: str
+    http_status: int
+    latency_ms: float
+    success: bool
+    error_detail: Optional[str] = ""
+    bundle_type: str
+    entries_count: int
+    response_outcome: Dict[str, Any]

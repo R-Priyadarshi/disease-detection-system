@@ -157,7 +157,12 @@ from api.schemas import (
     VolumetricTurntableResponse,
     FleischnerEvaluateApiRequest,
     FleischnerDossierApiRequest,
-    ModelInferenceCompareRequest
+    ModelInferenceCompareRequest,
+    MLLPStatusResponse,
+    MLLPSimulateRequest,
+    MLLPSimulateResponse,
+    FHIRDispatchApiRequest,
+    FHIRDispatchApiResponse
 )
 from core.ed_stream_daemon import get_ed_stream_daemon
 from core.validation_engine import (
@@ -303,8 +308,8 @@ async def get_emergency_worklist():
     """
     global _WORKLIST_CACHE
     if _WORKLIST_CACHE is not None:
-        stat_cnt = sum(1 for s in _WORKLIST_CACHE if s.priority == "STAT_CRITICAL")
-        pend_cnt = sum(1 for s in _WORKLIST_CACHE if s.status == "PENDING")
+        stat_cnt = sum(1 for s in _WORKLIST_CACHE if getattr(s, "priority", s.get("priority") if isinstance(s, dict) else "") == "STAT_CRITICAL")
+        pend_cnt = sum(1 for s in _WORKLIST_CACHE if getattr(s, "status", s.get("status") if isinstance(s, dict) else "") == "PENDING")
         return WorklistResponse(
             total_cases=len(_WORKLIST_CACHE),
             stat_critical_count=stat_cnt,
@@ -3185,3 +3190,97 @@ async def compare_model_inference(req: ModelInferenceCompareRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+# =========================================================
+# PATH 2: HL7 V2 MLLP SOCKET & EXTERNAL FHIR DISPATCH ENDPOINTS
+# =========================================================
+
+@router.get("/api/v1/mllp/status", response_model=MLLPStatusResponse, tags=["Hospital Interoperability"])
+async def get_mllp_server_status():
+    """Returns runtime telemetry, active connections, and packet counts for the MLLP listener."""
+    try:
+        from core.mllp_server import get_mllp_server
+        server = get_mllp_server()
+        return server.get_status()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/v1/mllp/simulate-message", response_model=MLLPSimulateResponse, tags=["Hospital Interoperability"])
+async def simulate_mllp_message(req: MLLPSimulateRequest):
+    """Simulates reception of an inbound HL7 v2 pipe-delimited message string and returns ACK."""
+    try:
+        from core.mllp_server import get_mllp_server
+        server = get_mllp_server()
+        res = server.simulate_message(req.raw_hl7_text)
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/v1/mllp/start", tags=["Hospital Interoperability"])
+async def start_mllp_server():
+    """Starts the MLLP TCP listener on the configured port."""
+    try:
+        from core.mllp_server import get_mllp_server
+        server = get_mllp_server()
+        success = await server.start()
+        return {"status": "started" if success else "failed", "details": server.get_status()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/v1/mllp/stop", tags=["Hospital Interoperability"])
+async def stop_mllp_server():
+    """Stops the MLLP TCP listener."""
+    try:
+        from core.mllp_server import get_mllp_server
+        server = get_mllp_server()
+        await server.stop()
+        return {"status": "stopped", "details": server.get_status()}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/api/v1/fhir/destinations", tags=["Hospital Interoperability"])
+async def list_fhir_destinations():
+    """Lists configured remote FHIR server targets."""
+    try:
+        from core.fhir_dispatcher import get_fhir_dispatcher
+        dispatcher = get_fhir_dispatcher()
+        return dispatcher.list_destinations()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/v1/fhir/dispatch", response_model=FHIRDispatchApiResponse, tags=["Hospital Interoperability"])
+async def dispatch_fhir_bundle(req: FHIRDispatchApiRequest):
+    """Dispatches an HL7 FHIR Release 4 JSON Bundle to a remote FHIR server or EHR endpoint."""
+    try:
+        from core.fhir_dispatcher import get_fhir_dispatcher
+        dispatcher = get_fhir_dispatcher()
+        res = await dispatcher.dispatch_bundle(
+            bundle_data=req.bundle_data,
+            destination_id=req.destination_id,
+            custom_url=req.custom_url,
+            bearer_token=req.bearer_token,
+            operator_name=req.operator_name or "Dr. Eleanor Vance, MD"
+        )
+        return res
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/api/v1/fhir/mock-receiver/Bundle", tags=["Hospital Interoperability"])
+async def mock_fhir_bundle_receiver(bundle: Dict[str, Any]):
+    """Compliant mock FHIR server receiver responding with FHIR transaction-response."""
+    return {
+        "resourceType": "Bundle",
+        "type": "transaction-response",
+        "id": f"ack-{uuid.uuid4().hex[:8]}",
+        "entry": [
+            {"response": {"status": "201 Created", "location": f"Composition/COMP-{uuid.uuid4().hex[:6]}"}},
+            {"response": {"status": "200 OK", "location": f"Patient/PAT-{uuid.uuid4().hex[:6]}"}},
+            {"response": {"status": "201 Created", "location": f"Observation/OBS-{uuid.uuid4().hex[:6]}"}},
+            {"response": {"status": "201 Created", "location": f"ServiceRequest/SR-{uuid.uuid4().hex[:6]}"}}
+        ]
+    }

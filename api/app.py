@@ -10,11 +10,16 @@ from api.routes import router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Manages application lifecycle including the background DICOM Storage SCP node."""
+    """Manages application lifecycle including the background DICOM Storage SCP node and HL7 MLLP server."""
     from core.dicom_listener import get_dicom_scp
+    from core.mllp_server import get_mllp_server
+
     scp = get_dicom_scp()
     scp.start()
+    mllp = get_mllp_server()
+    await mllp.start()
     yield
+    await mllp.stop()
     scp.stop()
 
 def create_app() -> FastAPI:

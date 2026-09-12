@@ -40,8 +40,8 @@ RUN python -m core.sample_generator && \
 RUN useradd -m -u 1001 appuser && chown -R appuser:appuser /app
 USER appuser
 
-# Expose ports: 8000 (Standard), 7860 (Hugging Face Spaces), 11112 (DICOM SCP)
-EXPOSE 8000 7860 11112
+# Expose ports: 8000 (Standard), 7860 (Hugging Face Spaces), 11112 (DICOM SCP), 2575 (HL7 MLLP)
+EXPOSE 8000 7860 11112 2575
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:${PORT:-8000}/health || exit 1

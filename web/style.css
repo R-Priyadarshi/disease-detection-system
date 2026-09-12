@@ -8142,5 +8142,71 @@ body.bedside-high-contrast .workstation-panel {
     transform: scale(1.05);
 }
 
+/* =========================================================
+   PATH 1: MASTER CLINICAL SHOWCASE BUTTON
+   ========================================================= */
+.showcase-header-btn {
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    position: relative;
+    overflow: hidden;
+}
 
+.showcase-header-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 0 16px rgba(168, 85, 247, 0.4), inset 0 0 8px rgba(192, 132, 252, 0.3) !important;
+    border-color: #d8b4fe !important;
+}
 
+/* =========================================================
+   PATH 4: WEBGPU HARDWARE ACCELERATION TELEMETRY BADGE
+   ========================================================= */
+.webgpu-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 9999px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: default;
+    user-select: none;
+    transition: all 0.25s ease;
+}
+
+.webgpu-pill.webgpu-active {
+    background: linear-gradient(135deg, rgba(88, 28, 135, 0.35), rgba(14, 165, 233, 0.25));
+    border: 1px solid rgba(192, 132, 252, 0.6);
+    color: #e9d5ff;
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.35);
+}
+
+.webgpu-pill.webgpu-active .wgpu-icon {
+    font-size: 12px;
+    filter: drop-shadow(0 0 4px #c084fc);
+    animation: wgpu-pulse 2s infinite ease-in-out;
+}
+
+.webgpu-pill.webgpu-fallback {
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(100, 116, 139, 0.4);
+    color: #94a3b8;
+}
+
+.webgpu-pill.webgpu-fallback .wgpu-icon {
+    font-size: 12px;
+    opacity: 0.85;
+}
+
+.webgpu-pill .wgpu-subtext {
+    font-size: 9px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.35);
+    color: #cbd5e1;
+    font-family: var(--font-mono);
+}
+
+@keyframes wgpu-pulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.15); opacity: 0.85; }
+}

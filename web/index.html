@@ -106,6 +106,13 @@
                     <span style="font-weight: 600;">Clinical Tour</span>
                 </button>
 
+                <!-- Master Clinical Showcase Button (All 11 Stations) -->
+                <button type="button" class="header-action-btn showcase-header-btn" id="start-showcase-btn" title="Launch Automated Master Clinical Showcase (All 11 Stations)" style="background: rgba(168, 85, 247, 0.2); border-color: rgba(192, 132, 252, 0.6); color: #c084fc;">
+                    <span style="font-size: 13px;">🌟</span>
+                    <span style="font-weight: 700;">Showcase</span>
+                    <span style="font-size: 9px; padding: 1px 4px; background: rgba(168, 85, 247, 0.35); border-radius: 4px; color: #f3e8ff; font-weight: 700; margin-left: 2px;">11 Stn</span>
+                </button>
+
                 <div class="telemetry-divider"></div>
 
                 <!-- Real-Time Tele-Radiology Collaborative Session Button -->
@@ -272,6 +279,18 @@
                         Model Benchmark (B)
                     </button>
                     <button type="button" class="tool-btn" id="reset-pacs-btn">Reset All</button>
+                </div>
+            </div>
+
+            <!-- WebGPU Compute Acceleration Status -->
+            <div class="toolbar-group">
+                <span class="toolbar-title">COMPUTE PIPELINE</span>
+                <div class="pill-group">
+                    <div class="webgpu-pill webgpu-fallback" id="webgpu-status-badge" title="WebGPU Hardware Acceleration Status">
+                        <span class="wgpu-icon">🖥️</span>
+                        <span class="wgpu-text">Canvas2D 60 FPS</span>
+                        <span class="wgpu-subtext">Optimized CPU</span>
+                    </div>
                 </div>
             </div>
         </nav>
@@ -1856,6 +1875,45 @@ Click "Transmit Order" or "Generate Results" to test live MLLP / JSON parsing.</
                                 <div class="pacs-console-log fhir-console-log" id="fhir-console-log" style="height: 180px; font-size: 11px; font-family: monospace; white-space: pre-wrap; overflow-y: auto;">Select a standard FHIR R4 resource above to fetch live JSON payload for the current study.</div>
                             </div>
                         </div>
+
+                        <!-- 3. MLLP Live Socket Telemetry & External FHIR Dispatch -->
+                        <div class="pacs-info-banner" style="margin-top: 14px; display: flex; justify-content: space-between; align-items: center; background: rgba(30, 41, 59, 0.6); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.2);">
+                            <div>
+                                <span style="font-weight: 700; color: #38bdf8;">⚡ HL7 v2 MLLP Ingestion Socket:</span>
+                                <span id="mllp-socket-status-text" style="color: #94a3b8; margin-left: 6px;">Port 2575 • Framing: 0x0B [payload] 0x1C 0x0D • Ingestion Ready</span>
+                            </div>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <span class="pacs-badge-online" id="mllp-status-pill" style="font-size: 10px;">MLLP LISTENING</span>
+                                <button type="button" class="btn-titanium" id="btn-refresh-mllp-status" style="font-size: 10px; padding: 4px 8px;">🔄 Refresh Telemetry</button>
+                            </div>
+                        </div>
+
+                        <div class="pacs-card" style="margin-top: 12px;">
+                            <div class="pacs-card-header">
+                                <h4>🌐 Remote FHIR Server Dispatch & EHR Synchronization</h4>
+                                <span class="pacs-card-sub">Push Diagnostic Reports & Fleischner Bundles to external hospital endpoints</span>
+                            </div>
+                            <div style="display: grid; grid-template-columns: 1.5fr 1fr auto; gap: 8px; margin-bottom: 10px;">
+                                <div>
+                                    <label style="font-size: 10px; color: #94a3b8; display: block; margin-bottom: 4px;">Target FHIR Server Destination</label>
+                                    <select id="fhir-destination-select" class="pacs-input" style="width: 100%;">
+                                        <option value="hapi_fhir_r4">HAPI FHIR Public Test Server (https://hapi.fhir.org/baseR4)</option>
+                                        <option value="alveon_local_mock" selected>ALVEON Internal Mock EHR Receiver (Self-Contained)</option>
+                                        <option value="epic_fhir_sandbox">Epic FHIR Interconnect Sandbox (Simulated)</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label style="font-size: 10px; color: #94a3b8; display: block; margin-bottom: 4px;">Optional Bearer Token</label>
+                                    <input type="password" id="fhir-bearer-token" class="pacs-input" placeholder="Bearer eyJhbGci..." style="width: 100%;">
+                                </div>
+                                <div style="display: flex; align-items: flex-end;">
+                                    <button type="button" class="btn-master" id="btn-dispatch-fhir-remote" style="padding: 8px 14px; white-space: nowrap;">
+                                        🚀 Dispatch to EHR
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="pacs-console-log" id="fhir-dispatch-log" style="height: 100px; font-size: 11px; font-family: monospace; white-space: pre-wrap; overflow-y: auto;">Ready to dispatch FHIR R4 Bundle to external EHR... Click "Dispatch to EHR" to transmit.</div>
+                        </div>
                     </div>
 
                     <!-- Tab 7: Hospital Modality Network & Auto-Router -->
@@ -2742,6 +2800,7 @@ Click "Transmit Order" or "Generate Results" to test live MLLP / JSON parsing.</
     </div>
 
 
+    <script src="/static/webgpu_engine.js"></script>
     <script src="/static/app.js"></script>
     <script>
         if ('serviceWorker' in navigator) {

@@ -28,6 +28,7 @@ services:
     ports:
       - "8000:8000"    # Direct FastAPI Application Port
       - "11112:11112"  # DICOM Storage SCP Port
+      - "2575:2575"    # HL7 v2 MLLP Ingestion Socket Port
     healthcheck:
       test: ["CMD", "curl", "-f", "http://127.0.0.1:8000/healthz"]
       interval: 20s
